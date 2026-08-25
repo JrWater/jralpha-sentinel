@@ -8,8 +8,8 @@
     "broker": "ALPACA",
     "mode": "PAPER",
     "_comment_mode": "LIVE is not a value this policy accepts. The executor refuses any session where trading_client.paper is not True, so a mis-set env var cannot promote paper semantics onto a funded account.",
-    "competition_account_id": null,
-    "_comment_account": "The dedicated competition paper account, filled in once the account exists. Null is not a wildcard: the account_identity gate refuses to run against an unnamed account, so the agent physically cannot trade until this is set. Order authority binds to one account and is never carried forward to another.",
+    "competition_account_id": "PA3K3A9ZBCBI",
+    "_comment_account": "The dedicated competition paper account, opened 2026-08-25 for this hackathon and never traded before it. Null is not a wildcard: the account_identity gate refuses to run against an unnamed account, so the agent physically cannot trade until this is set. Order authority binds to one account and is never carried forward to another — a key swapped in the environment does not inherit this policy's permission.",
     "required_starting_equity": 100000.0,
     "required_options_level": 3,
     "_comment_level": "Level 3 (multi-leg) is auto-approved on Alpaca paper accounts. The gate asserts it rather than assuming it, because a spread submitted to a level-2 account fails at the broker after we have already committed to one side."
@@ -90,6 +90,8 @@
     "no_new_exposure_after": "15:30",
     "flatten_all_at": "15:45",
     "_comment_session": "No entries in the first 30 minutes (opening auction noise makes a delayed chain especially misleading) or the last 30 minutes. flatten_all_at is armed on the declared final trading day so the submitted account shows fully realized P&L rather than a mix of open positions and pending settlement.",
+    "competition_starts_utc": "2026-08-28T15:00:00+00:00",
+    "_comment_starts": "The competition account must still read exactly $100,000 when judging begins, so it may not be traded before this instant. Development happens on a separate legacy paper account. This is enforced by the competition_window gate rather than by remembering which .env file is loaded — a convention that depends on a human not making a typo is not a control.",
     "final_trading_date": "2026-09-03",
     "_comment_final": "Competition submissions close 2026-09-04 08:00 PDT, mid-session. Alpaca paper syncs non-trading activity (expiration, assignment) only on the following day, so anything expiring 09-04 would not settle until after judging. Flattening 09-03 makes the judged number unambiguous."
   },

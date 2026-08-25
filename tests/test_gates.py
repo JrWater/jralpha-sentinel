@@ -198,10 +198,40 @@ def manifest():
     return load_manifest()
 
 
+def _manifest_with(manifest, **env_overrides):
+    """A manifest variant, so tests assert on behaviour not on today's config.
+
+    The original version of the test below read the real manifest while its
+    competition_account_id happened to be null. It passed for a day and then
+    started failing the moment the account was bound — which means it was
+    testing the current environment, not the gate.
+    """
+    import copy
+
+    from policy.loader import Manifest
+    raw = copy.deepcopy(manifest._raw)
+    raw["environment"].update(env_overrides)
+    return Manifest(raw)
+
+
 def test_unnamed_account_cannot_trade(manifest):
     """Null competition_account_id is not a wildcard."""
-    r = checks.check_account_identity(_ctx(manifest))
+    unnamed = _manifest_with(manifest, competition_account_id=None)
+    r = checks.check_account_identity(_ctx(unnamed))
     assert not r.ok and "competition_account_id" in r.detail
+
+
+def test_a_different_account_cannot_inherit_the_permit(manifest):
+    """Order authority binds to one account and never carries forward."""
+    ctx = _ctx(manifest, account=_account(account_number="PA_SOMEONE_ELSE"))
+    r = checks.check_account_identity(ctx)
+    assert not r.ok and "PA_SOMEONE_ELSE" in r.detail
+
+
+def test_the_declared_account_is_accepted(manifest):
+    declared = manifest.get("environment", "competition_account_id")
+    ctx = _ctx(manifest, account=_account(account_number=declared))
+    assert checks.check_account_identity(ctx).ok
 
 
 def test_live_session_is_refused_even_with_matching_account(manifest, tmp_path):
@@ -321,3 +351,38 @@ def test_entry_window_excludes_the_open_and_the_close(manifest):
 def test_closed_market_blocks_entries(manifest):
     assert not checks.check_market_session(
         _ctx(manifest, clock=SimpleNamespace(is_open=False))).ok
+
+
+# ── the competition account stays pristine until kickoff ─────────────────────
+
+BEFORE_KICKOFF = datetime(2026, 8, 26, 18, 0, tzinfo=UTC)
+AFTER_KICKOFF = datetime(2026, 8, 28, 16, 0, tzinfo=UTC)
+
+
+def test_competition_account_refuses_trades_before_kickoff(manifest):
+    """A development trade on the judged account destroys the $100,000 start."""
+    declared = manifest.get("environment", "competition_account_id")
+    ctx = _ctx(manifest, now_utc=BEFORE_KICKOFF,
+               account=_account(account_number=declared),
+               proposal=_proposal())
+    r = checks.check_competition_window(ctx)
+    assert not r.ok and "pristine" in r.detail
+
+
+def test_dev_account_trades_freely_before_kickoff(manifest):
+    ctx = _ctx(manifest, now_utc=BEFORE_KICKOFF,
+               account=_account(account_number="PA31GLG5O9HU"),
+               proposal=_proposal())
+    assert checks.check_competition_window(ctx).ok
+
+
+def test_competition_account_opens_at_kickoff(manifest):
+    declared = manifest.get("environment", "competition_account_id")
+    ctx = _ctx(manifest, now_utc=AFTER_KICKOFF,
+               account=_account(account_number=declared),
+               proposal=_proposal())
+    assert checks.check_competition_window(ctx).ok
+
+
+def test_pristine_guard_is_blocking_not_advisory(manifest):
+    assert severity_of(checks.GATES, "competition_window") == "BLOCKING"

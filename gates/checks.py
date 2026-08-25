@@ -89,6 +89,37 @@ def check_account_identity(ctx: EvalContext) -> GateResult:
     return GateResult(True, f"account {actual} matches declaration")
 
 
+def check_competition_window(ctx: EvalContext) -> GateResult:
+    """The competition account stays pristine until judging starts.
+
+    The rules require the submitted account to start at exactly $100,000. Any
+    development trade placed on it before kickoff destroys that, silently, and
+    the damage is not discovered until a judge looks at the balance.
+
+    The obvious control is "remember to load the dev .env when testing". That
+    is a convention, and a convention that depends on a human not making a typo
+    at 2am is not a control. This gate makes it mechanical: while the clock is
+    before the declared start, the one account that may NOT be traded is
+    precisely the competition account. Any other paper account is fine.
+    """
+    declared = ctx.manifest.get("environment", "competition_account_id",
+                                default=None)
+    actual = getattr(ctx.account, "account_number", None)
+    if actual != declared:
+        return GateResult(True, f"{actual} is not the competition account")
+    starts = ctx.manifest.get("session", "competition_starts_utc", default=None)
+    if not starts:
+        return GateResult(False, "manifest declares no competition_starts_utc")
+    start = datetime.fromisoformat(starts)
+    if ctx.now_utc < start:
+        remaining = start - ctx.now_utc
+        return GateResult(False, f"competition account is pristine until "
+                                 f"{start:%Y-%m-%d %H:%M}Z "
+                                 f"({remaining.days}d {remaining.seconds//3600}h "
+                                 f"away); trade the dev account instead")
+    return GateResult(True, f"competition open since {start:%Y-%m-%d %H:%M}Z")
+
+
 def check_options_level(ctx: EvalContext) -> GateResult:
     required = ctx.manifest.get("environment", "required_options_level")
     actual = getattr(ctx.account, "options_trading_level", None)
@@ -295,6 +326,11 @@ GATES = (
          "BLOCKING", "Entry Authority",
          "Order authority is bound to one named account in paper mode. A key "
          "swapped in the environment must not inherit this policy's permit."),
+    Gate("competition_window", check_competition_window, "pretrade",
+         "BLOCKING", "Entry Authority",
+         "The submitted account must start at exactly $100,000. A development "
+         "trade placed on it before kickoff destroys that silently, and nobody "
+         "finds out until a judge reads the balance."),
     Gate("options_level", check_options_level, "preflight",
          "BLOCKING", "Entry Authority",
          "A spread submitted to a level-2 account fails at the broker after we "
