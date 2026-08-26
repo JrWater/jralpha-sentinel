@@ -8,3 +8,4 @@ state/*.json
 logs/
 .DS_Store
 .pytest_cache/
+state/*.jsonl
