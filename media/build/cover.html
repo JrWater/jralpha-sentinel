@@ -1,0 +1,126 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>cover</title>
+<style>
+  @font-face {
+    font-family: 'SF';
+    src: local('SF Pro Display'), local('Helvetica Neue'), local('Arial');
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { width:1920px; height:1080px; overflow:hidden; }
+  body {
+    font-family: 'SF', -apple-system, 'Helvetica Neue', Arial, sans-serif;
+    background:
+      radial-gradient(1200px 700px at 78% 18%, rgba(46,196,120,0.14), transparent 60%),
+      radial-gradient(900px 600px at 15% 90%, rgba(224,64,64,0.10), transparent 60%),
+      linear-gradient(160deg, #0a0e14 0%, #0d1420 55%, #0a0e14 100%);
+    color: #eef2f6;
+    position: relative;
+  }
+  .grid {
+    position:absolute; inset:0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.028) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.028) 1px, transparent 1px);
+    background-size: 64px 64px;
+  }
+  .wrap { position:relative; height:100%; padding: 90px 110px; display:flex; flex-direction:column; justify-content:space-between; }
+
+  .top { display:flex; justify-content:space-between; align-items:flex-start; }
+  .kicker {
+    font-size: 22px; letter-spacing: 0.16em; text-transform: uppercase;
+    color: #8a96a8; font-weight: 600;
+  }
+  .badge {
+    display:flex; align-items:center; gap:10px;
+    font-size: 20px; color:#c9d2de; background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.09); padding: 12px 22px; border-radius: 999px;
+  }
+  .badge .dot { width:9px; height:9px; border-radius:50%; background:#2ec478; box-shadow: 0 0 14px #2ec478aa; }
+
+  .mid { display:flex; align-items:center; gap:90px; }
+  .titleblock { flex: 1.15; }
+  h1 {
+    font-size: 132px; font-weight: 800; letter-spacing: -0.03em; line-height: 0.98;
+    background: linear-gradient(100deg, #ffffff 20%, #b9c3d1 75%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .tagline {
+    margin-top: 34px; font-size: 34px; font-weight: 500; color:#dfe6ee; line-height:1.35;
+    max-width: 780px;
+  }
+  .tagline b { color:#ffffff; font-weight:700; }
+  .tagline .sub { display:block; margin-top:14px; font-size:24px; color:#8a96a8; font-weight:400; }
+
+  .diagram { flex:1; }
+  .flow { display:flex; flex-direction:column; gap:0; }
+  .node {
+    display:flex; align-items:center; gap:22px;
+    background: rgba(255,255,255,0.035); border:1px solid rgba(255,255,255,0.10);
+    border-radius:16px; padding:24px 30px; backdrop-filter: blur(2px);
+  }
+  .node .ic { font-size:30px; width:52px; height:52px; border-radius:12px;
+    display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .node .tx .t1 { font-size:23px; font-weight:700; color:#f2f5f9; }
+  .node .tx .t2 { font-size:17px; color:#93a0b3; margin-top:4px; }
+  .n1 .ic { background: rgba(90,140,255,0.16); }
+  .n2 .ic { background: rgba(224,64,64,0.16); }
+  .n3 .ic { background: rgba(46,196,120,0.16); }
+  .arrow { align-self:center; font-size:26px; color:#54607a; padding: 10px 0 10px 46px; }
+
+  .bottom { display:flex; justify-content:space-between; align-items:flex-end; }
+  .footleft { display:flex; gap:56px; }
+  .stat .n { font-size:40px; font-weight:800; color:#fff; }
+  .stat .l { font-size:16px; color:#8a96a8; margin-top:4px; letter-spacing:0.02em; }
+  .footright { text-align:right; font-size:18px; color:#69748a; line-height:1.6; }
+  .footright b { color:#aab5c6; }
+</style></head>
+<body>
+  <div class="grid"></div>
+  <div class="wrap">
+    <div class="top">
+      <div class="kicker">Alpaca AI Trading Agents Hackathon &nbsp;·&nbsp; lablab.ai</div>
+      <div class="badge"><span class="dot"></span> Paper trading &nbsp;·&nbsp; PA3K3A9ZBCBI</div>
+    </div>
+
+    <div class="mid">
+      <div class="titleblock">
+        <h1>Sentinel</h1>
+        <div class="tagline">
+          <b>The model proposes.</b><br/>The gates decide.
+          <span class="sub">An autonomous options agent whose language model cannot place an order.</span>
+        </div>
+      </div>
+      <div class="diagram">
+        <div class="flow">
+          <div class="node n1">
+            <div class="ic" style="color:#7fa3ff">◆</div>
+            <div class="tx"><div class="t1">Claude</div><div class="t2">produces a proposal — never an order</div></div>
+          </div>
+          <div class="arrow">↓</div>
+          <div class="node n2">
+            <div class="ic" style="color:#ef6b6b">▦</div>
+            <div class="tx"><div class="t1">16 gates · 5 dimensions</div><div class="t2">deterministic code, fail-closed</div></div>
+          </div>
+          <div class="arrow">↓</div>
+          <div class="node n3">
+            <div class="ic" style="color:#4fd189">▶</div>
+            <div class="tx"><div class="t1">Alpaca Trading API</div><div class="t2">limit-only · multi-leg · options</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bottom">
+      <div class="footleft">
+        <div class="stat"><div class="n">16</div><div class="l">RISK GATES</div></div>
+        <div class="stat"><div class="n">5</div><div class="l">DIMENSIONS</div></div>
+        <div class="stat"><div class="n">4</div><div class="l">STRATEGY VECTORS</div></div>
+        <div class="stat"><div class="n">$100K</div><div class="l">PAPER ACCOUNT</div></div>
+      </div>
+      <div class="footright">
+        <b>github.com/JrWater/jralpha-sentinel</b> · MIT<br/>
+        jralpha-sentinel.streamlit.app
+      </div>
+    </div>
+  </div>
+</body></html>

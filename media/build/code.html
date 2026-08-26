@@ -1,0 +1,96 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>code</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { width:1920px; height:1080px; overflow:hidden; }
+  body {
+    font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+    background:
+      radial-gradient(900px 500px at 85% 8%, rgba(46,196,120,0.10), transparent 60%),
+      radial-gradient(700px 500px at 10% 95%, rgba(224,64,64,0.07), transparent 60%),
+      linear-gradient(160deg, #0a0e14 0%, #0d1420 60%, #0a0e14 100%);
+    color:#eef2f6; position:relative;
+  }
+  .grid { position:absolute; inset:0;
+    background-image: linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+                       linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+    background-size: 48px 48px; }
+  .wrap { position:relative; padding:62px 82px; height:100%; display:flex; flex-direction:column; }
+  .kicker { font-size:13px; letter-spacing:0.14em; text-transform:uppercase; color:#8a96a8; font-weight:600; }
+  h2 { font-size:42px; font-weight:800; letter-spacing:-0.02em; color:#fff; margin-top:10px; }
+
+  .panels { display:flex; gap:26px; margin-top:36px; flex:1; }
+  .panel { flex:1; background:#0d1117; border:1px solid rgba(255,255,255,0.10); border-radius:14px;
+    overflow:hidden; box-shadow:0 30px 80px rgba(0,0,0,0.45); display:flex; flex-direction:column; }
+  .titlebar { display:flex; align-items:center; gap:10px; padding:16px 22px; background:rgba(255,255,255,0.03);
+    border-bottom:1px solid rgba(255,255,255,0.08); }
+  .dot { width:11px; height:11px; border-radius:50%; }
+  .filename { font-family:'SF Mono', Menlo, monospace; font-size:16px; color:#9aa5b6; margin-left:6px; }
+  pre { flex:1; margin:0; padding:26px 28px; font-family:'SF Mono', Menlo, monospace; font-size:16px;
+    line-height:1.62; color:#c9d2de; overflow:hidden; }
+  .kw { color:#ff7ab8; }
+  .fn { color:#82aaff; }
+  .str { color:#c3e88d; }
+  .cm  { color:#5c6773; font-style:italic; }
+  .num { color:#f78c6c; }
+  .cls { color:#ffcb6b; }
+  .cap { margin-top:22px; font-size:17px; color:#8a96a8; }
+  .cap b { color:#dfe6ee; }
+</style></head>
+<body>
+  <div class="grid"></div>
+  <div class="wrap">
+    <div class="kicker">Real Source, Not Pseudocode</div>
+    <h2>What a gate — and the permit that reads it — actually look like.</h2>
+    <div class="panels">
+      <div class="panel">
+        <div class="titlebar"><span class="dot" style="background:#ef6b6b"></span><span class="dot" style="background:#ffcf70"></span><span class="dot" style="background:#4fd189"></span><span class="filename">gates/checks.py</span></div>
+        <pre><span class="kw">def</span> <span class="fn">check_equity_floor</span>(ctx: EvalContext) -> GateResult:
+    <span class="str">"""Below the floor: no new exposure, but exits keep working.
+
+    Crossing this does not flatten the book. Panic-liquidating
+    at a threshold is itself a strategy, and not one this
+    policy authorizes.
+    """</span>
+    start = <span class="fn">float</span>(ctx.manifest.get(<span class="str">"environment"</span>,
+                              <span class="str">"required_starting_equity"</span>))
+    floor_frac = <span class="fn">float</span>(ctx.manifest.get(<span class="str">"risk_caps"</span>,
+                                    <span class="str">"equity_floor_fraction"</span>))
+    equity = _f(<span class="fn">getattr</span>(ctx.account, <span class="str">"equity"</span>, <span class="kw">None</span>))
+    <span class="kw">if</span> equity <span class="kw">is</span> <span class="kw">None</span>:
+        <span class="kw">return</span> GateResult(<span class="kw">False</span>, <span class="str">"no equity reported"</span>)
+    floor = start * floor_frac
+    <span class="kw">if</span> equity < floor:
+        <span class="kw">return</span> GateResult(
+            <span class="kw">False</span>, <span class="str">f"equity {equity:,.2f} below floor "</span>
+            <span class="str">f"{floor:,.2f} -> ENTRY MAINTENANCE"</span>)
+    <span class="kw">return</span> GateResult(<span class="kw">True</span>,
+        <span class="str">f"equity {equity:,.2f} >= floor {floor:,.2f}"</span>)</pre>
+      </div>
+      <div class="panel">
+        <div class="titlebar"><span class="dot" style="background:#ef6b6b"></span><span class="dot" style="background:#ffcf70"></span><span class="dot" style="background:#4fd189"></span><span class="filename">gates/safety_gate.py</span></div>
+        <pre><span class="kw">def</span> <span class="fn">evaluate</span>(*, manifest_sha: <span class="cls">str</span>, path: Path = DEFAULT_STATE,
+             repo: Path = ROOT, now=<span class="kw">None</span>,
+             max_age: timedelta = MAX_AGE) -> PermitDecision:
+    <span class="str">"""Read the permit. Every path that is not an
+    explicit YES is a NO."""</span>
+    now = now <span class="kw">or</span> datetime.now(timezone.utc)
+    <span class="kw">try</span>:
+        payload = json.loads(path.read_text())
+        blockers = <span class="fn">tuple</span>(<span class="fn">str</span>(x) <span class="kw">for</span> x <span class="kw">in</span>
+                        payload.get(<span class="str">"blocking_gates"</span>, []))
+
+        <span class="kw">if</span> payload.get(<span class="str">"schema_version"</span>) != SCHEMA_VERSION:
+            <span class="kw">return</span> PermitDecision(<span class="kw">False</span>,
+                <span class="str">"PERMIT_SCHEMA"</span>, blockers)
+
+        generated = datetime.fromisoformat(
+            <span class="fn">str</span>(payload[<span class="str">"generated_at_utc"</span>])
+                .replace(<span class="str">"Z"</span>, <span class="str">"+00:00"</span>))
+        <span class="cm"># ... git HEAD, manifest SHA, and 90-min age</span>
+        <span class="cm"># checks follow — every one returns False.</span></pre>
+      </div>
+    </div>
+    <div class="cap">No exception handler in either file has a fallback of <b>allow</b>. A refused proposal is the evidence the design works — not an edge case it tolerates.</div>
+  </div>
+</body></html>

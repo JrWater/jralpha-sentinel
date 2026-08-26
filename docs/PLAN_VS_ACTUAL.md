@@ -44,7 +44,7 @@
 | 8/27 Streamlit 面板 + 部署 URL | ✅ **已部署** | 公开 URL：https://jralpha-sentinel.streamlit.app 。GitHub OAuth 登录 + 部署表单本人操作/确认；构建通过，渲染结果与本地实测一致（Entry permit BLOCKED / market_session，账户 PA3K3A9ZBCBI $100,000.00）。托管端无 Alpaca 凭据 |
 | 8/28 开赛日三问（Discord Q&A） | ⏳ **待办（用户）** | 9/4 平仓口径、起算点、one-per-email 三问需用户在开赛日 Q&A 确认 |
 | 8/29–9/2 一页写作/测试/社媒 | ✅ 大部分 | `docs/ONE_PAGE_WRITEUP.md`（v2.2 版）、`docs/SOCIAL_POSTS.md`（5 帖草稿）、测试 82 项（含 fail-closed 覆盖） |
-| 9/2–9/3 视频、slides、长短描述、封面 | ⏳ **待办** | 计划要求 9/2 起录素材、9/3 晚定稿并**当晚提交**（防 9/4 早上翻车） |
+| 9/2–9/3 视频、slides、长短描述、封面 | ✅ **提前完成（8/25）** | 封面图 `media/cover.png`（1920×1080）、9 页 PDF `media/slides.pdf`、5 分钟旁白视频 `media/sentinel_demo.mp4`（4:36，182wpm TTS + headless Chrome 帧 + ffmpeg 合成，全部脚本化可复现见 `media/build/`）。Results 页/段刻意占位——真实 P&L 只能赛后填，提前编数字等于造假。长短描述仍待办 |
 | 9/3 收盘前全平仓 | 🔶 **已修改（见 §4 偏差表）** | 平仓改到 9/4 10:45 ET + NFP 早盘例外；原因见偏差表 |
 | 9/4 提交缓冲 | ⏳ 待办 | 提交物清单逐项打勾（尤其 account ID） |
 
@@ -86,7 +86,7 @@
 
 1. **Streamlit 面板**：`dashboard/app.py` + `agent/snapshot.py` 未提交、未部署 → 无 Application URL（硬性提交项）。先 commit，再部署 Streamlit Community Cloud。
 2. **8/28 Discord Q&A 三问**（起算点 / one-per-email / 9/4 平仓口径）——用户到场。
-3. **视频 + PDF slides + 长短描述 + 封面图**：9/2 起录素材，9/3 晚定稿并当晚提交（计划 §一）。
+3. **视频 + PDF slides + 封面图**：✅ 8/25 提前完成，见上表。长短描述仍待办，9/3 晚一并提交（计划 §一）。
 4. **W-8BEN + 证件 + 银行信息**：提前备好（加拿大居民默认 30% 预扣）。
 5. **社媒帖发布**：`docs/SOCIAL_POSTS.md` 有 5 帖草稿，按日程发布并附链接到提交。
 6. **9/4 平仓口径确认**：10:45 ET 前强平逻辑已实现；若 Q&A 确认"截止时未平仓按市值计入"则现行逻辑无风险；若要求全现金，逻辑不变。

@@ -9,3 +9,12 @@ logs/
 .DS_Store
 .pytest_cache/
 state/*.jsonl
+
+# video/slide build intermediates — large, regenerable from media/build/*.html + script.json
+media/build/*.png
+media/build/*.pdf
+media/build/*.aiff
+media/build/*.mp4
+media/build/clips/
+media/build/qa/
+media/audio/
