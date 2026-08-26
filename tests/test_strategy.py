@@ -425,3 +425,116 @@ def test_straddle_expiry_must_follow_the_event():
                       delta=0.5, iv=0.5, quote_ts=None),
     ]
     assert _expiry_after_event(state, "LULU", d(2026, 9, 3), 4) == d(2026, 9, 4)
+
+
+# ── the bar window must end at TODAY, not `days` ago ─────────────────────────
+
+def test_bars_request_carries_no_limit():
+    """Regression: `limit` silently returned the OLDEST bars in the window.
+
+    Alpaca fills a limited window from `start` FORWARD. With
+    start = now - 2*days and limit=days, the response was the oldest half:
+    measured 2026-08-25, 2026-02-27..2026-07-08, a freshest bar 48 days old.
+    The staleness guard in daily_bars then dropped every symbol, the engines
+    refused for lack of data, and the regime read "insufficient history"
+    forever. Nothing raised; the agent would have traded nothing all week.
+
+    `limit` is also a total across the request rather than per symbol, so a
+    five-symbol batch would have received ~18 bars each regardless.
+    """
+    import inspect
+
+    from strategy import data as data_mod
+    src = inspect.getsource(data_mod.AlpacaData._bars_batch)
+    body = src.split('"""')[-1]          # ignore the explanatory docstring
+    assert "limit=" not in body, (
+        "_bars_batch must not pass `limit`: it truncates to the OLDEST bars "
+        "in the window and silently starves every engine")
+
+
+def test_bars_batch_returns_the_most_recent_days(monkeypatch):
+    """The tail is taken client-side, so callers get the FRESHEST `days`."""
+    from types import SimpleNamespace
+
+    from strategy.data import AlpacaData
+
+    bars = [SimpleNamespace(timestamp=f"day{i}") for i in range(200)]
+    md = AlpacaData.__new__(AlpacaData)
+    md.stocks = SimpleNamespace(
+        get_stock_bars=lambda req: SimpleNamespace(data={"SPY": bars}))
+
+    out = md._bars_batch(["SPY"], days=90)
+    assert len(out["SPY"]) == 90
+    assert out["SPY"][-1].timestamp == "day199"     # newest, not day89
+
+
+# ── RSI must read the END of the series ─────────────────────────────────────
+
+def test_rsi_reads_the_end_not_the_beginning():
+    """Regression: rsi() looped range(1, period+1) — the FIRST 14 bars.
+
+    A ramp-up test cannot catch this, because on a monotonic series the first
+    fortnight looks like the last one. This series falls hard for 40 bars and
+    then rises hard for 40, so the two ends disagree: the broken version
+    reported deep oversold for a series ending in a rally.
+    """
+    from strategy.indicators import rsi
+
+    falling_then_rising = ([100.0 - i for i in range(40)]
+                           + [60.0 + i for i in range(40)])
+    assert rsi(falling_then_rising, 14) > 70, "must reflect the closing rally"
+
+    rising_then_falling = ([60.0 + i for i in range(40)]
+                           + [100.0 - i for i in range(40)])
+    assert rsi(rising_then_falling, 14) < 30, "must reflect the closing selloff"
+
+
+def test_rsi_is_stable_as_history_grows():
+    """The value must not depend on how much history the caller fetched.
+
+    Measured on SPY 2026-08-25, the broken version read 87 on a 100-bar
+    window, 33 on 120 and 56 on 150 — and the regime gate (spy_rsi >= 38)
+    flipped risk_on to chop and back purely on that.
+    """
+    from strategy.indicators import rsi
+
+    import random
+    rng = random.Random(7)
+    series = [100.0]
+    for _ in range(400):
+        series.append(series[-1] * (1.0 + rng.uniform(-0.02, 0.021)))
+
+    values = [rsi(series[-n:], 14) for n in (100, 150, 200, 300, 400)]
+    assert max(values) - min(values) < 0.5, (
+        f"RSI drifted with window length: {[round(v, 1) for v in values]}")
+
+
+def test_rsi_agrees_with_the_series_implementation():
+    """rsi() and rsi_series()[-1] are the same number, by construction."""
+    from strategy.indicators import rsi, rsi_series
+
+    import random
+    rng = random.Random(11)
+    series = [50.0]
+    for _ in range(200):
+        series.append(series[-1] * (1.0 + rng.uniform(-0.03, 0.031)))
+    assert abs(rsi(series, 14) - rsi_series(series, 14)[-1]) < 1e-9
+
+
+def test_an_unbroken_rally_is_overbought_not_neutral():
+    """Regression: avg_loss == 0 returned 50.0, dead neutral.
+
+    A name up fourteen sessions in a row is the most overbought a series can
+    be. Reporting it as 50 let it pass the `RSI <= 65` pullback filter — the
+    one filter whose whole job is to reject names that already ran.
+    """
+    from strategy.indicators import rsi
+
+    straight_up = [100.0 + i for i in range(40)]
+    assert rsi(straight_up, 14) == 100.0
+
+    straight_down = [200.0 - i for i in range(40)]
+    assert rsi(straight_down, 14) == 0.0
+
+    flat = [100.0] * 40
+    assert rsi(flat, 14) == 50.0

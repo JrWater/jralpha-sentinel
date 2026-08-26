@@ -27,7 +27,7 @@ from scripts.verify_account import creds, load_env
 from strategy.signals import score_symbol
 
 HORIZONS = (1, 2, 3)
-THRESHOLD = 0.45
+THRESHOLD = 0.55
 
 
 def main() -> int:

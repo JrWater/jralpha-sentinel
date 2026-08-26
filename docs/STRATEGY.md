@@ -57,13 +57,29 @@ premium. No naked shorts. No market orders. No 3am improvisation.
 - **Breakout override**: a SPY 20-day-high breakout overrides a chop regime for ONE long position at reduced conviction — the record-high tape's main continuation scenario.
 - **Pullback-entry filter** (`engine.py`, manifest `max_*_entry` keys):
   score ≥ 0.55 AND RSI-14 ≤ 65 AND |5d momentum| ≤ 6% AND 20d momentum ≤ 25%.
-  *Why: measured 2026-08-25 over ~170 sessions.* The unfiltered score chased
-  extended names — PLTR (r20 +40%), COIN (+28% in 5d), MSFT (+25% r20) all
-  showed *negative* forward edges (−0.5% to −3.8% at 3d); the filter's
-  aggregate across 222 signals measured **+0.38% (d1) / +1.17% (d2) /
-  +1.25% (d3)** average edge vs SPY, with DELL +4.2% / CRWD +2.8% / MU +2.9%
-  at d2 the standouts. The filter is what separates "buy the move" from
-  "buy the move the market already finished."
+  *Why: measured 2026-08-25 over ~120 sessions, then **re-measured** the same
+  day after fixing the RSI defect described below.* The unfiltered score
+  chased extended names — PLTR, COIN and MSFT all show *negative* forward
+  edges (−2.4% to −3.1% at d3), which the re-measurement confirmed.
+
+  Re-measured aggregate at the manifest's 0.55 threshold, 498 signals:
+  **+0.22% (d1) / +0.51% (d2) / +0.75% (d3)** vs SPY. The edge is monotonic
+  in the threshold (+0.57% → +0.75% → +0.84% at d3 for 0.45 / 0.55 / 0.65),
+  which is the evidence that the score ranks rather than merely fires.
+
+  **Two honest caveats, because a judge can re-run `scripts/backtest_signals.py`:**
+  (a) An earlier version of this document claimed +1.25% at d3. That number
+  was measured with a broken RSI-14 — it read the *first* fourteen bars of the
+  series instead of the last, so the `RSI ≤ 65` filter was gating on a random
+  historical fortnight. Corrected, the edge is about 60% of what was claimed,
+  and one named standout (CRWD, +2.8% at d2) flips sign to −1.0%.
+  (b) **95% of the positive edge comes from three names — DELL, AMD and MU.**
+  Only 6 of 15 universe names show a positive d3 edge. This is one regime and
+  a small sample; it is a reason to size the Trend vector as one of four
+  budgets rather than to believe it in isolation.
+
+  The filter is still what separates "buy the move" from "buy the move the
+  market already finished" — it is just worth less than first measured.
 - **Gap detector**: last close vs 20-day mean. |gap| ≥ 6% = post-earnings gap;
   the catalyst engine buys (or sells) the *drift*, not the gap.
 

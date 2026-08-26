@@ -141,13 +141,32 @@ class AlpacaData:
         return {s: v for s, v in out.items() if not stale(v)}
 
     def _bars_batch(self, batch: list[str], days: int) -> dict:
+        """Daily bars for a batch. Deliberately no `limit`.
+
+        Alpaca fills a limited window from `start` FORWARD, so `limit=days`
+        against a `2*days` start returned the OLDEST `days` bars: measured
+        2026-08-25, that was 2026-02-27..2026-07-08, a freshest bar 48 days
+        old. The staleness guard above then correctly dropped every symbol,
+        and the engines — which refuse rather than guess on missing data —
+        produced zero candidates. Regime read "insufficient history" forever.
+
+        Nothing errored. The agent would simply have traded nothing all week,
+        and the only visible symptom was a plausible-looking "candidates: 0".
+
+        `limit` is also a total across the whole request rather than per
+        symbol, so a five-symbol batch would have received about 18 bars each
+        even if the window had been right.
+
+        Ask for the entire window and take the tail here, where "the most
+        recent `days` bars" is what the caller actually meant.
+        """
         req = StockBarsRequest(
             symbol_or_symbols=batch, timeframe=TimeFrame(1, TimeFrameUnit.Day),
             start=datetime.now(timezone.utc) - timedelta(days=days * 2),
-            limit=days, feed="iex", adjustment="raw")
+            feed="iex", adjustment="raw")
         resp = self.stocks.get_stock_bars(req)
         data = resp.data if isinstance(resp, dict) else getattr(resp, "data", {})
-        return {s: list(v) for s, v in data.items() if s in batch}
+        return {s: list(v)[-days:] for s, v in data.items() if s in batch}
 
     @staticmethod
     def _retry(fn, tries: int = 3, pause: float = 4.0):

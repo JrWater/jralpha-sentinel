@@ -77,7 +77,30 @@ def build_state(data: AlpacaData, manifest, symbols: list[str]) -> MarketState:
     return state
 
 
+def _code_identity() -> tuple:
+    """The commit this cycle runs, and whether the tree was edited.
+
+    Without this the release_integrity gate reported "git head unknown" every
+    cycle, and every decision record carried no code identity at all — which
+    defeats the point of recording one. Failure is not fatal: the gate is
+    ATTENTION, and (None, None) is the honest answer when git cannot be read.
+    """
+    import subprocess
+    try:
+        head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=str(ROOT),
+                              capture_output=True, text=True, timeout=10,
+                              check=True).stdout.strip()
+        dirty = bool(subprocess.run(["git", "status", "--porcelain"],
+                                    cwd=str(ROOT), capture_output=True,
+                                    text=True, timeout=10,
+                                    check=True).stdout.strip())
+        return head, dirty
+    except (OSError, subprocess.SubprocessError):
+        return None, None
+
+
 def run_preflight(state: MarketState, manifest, ledger) -> dict:
+    head, dirty = _code_identity()
     ctx = checks.EvalContext(
         manifest=manifest, now_utc=state.now_utc, account=state.account,
         is_paper_session=True, clock=state.clock, positions=state.positions,
@@ -85,6 +108,7 @@ def run_preflight(state: MarketState, manifest, ledger) -> dict:
         option_quote_age_seconds=state.chain_ages.get("SPY"),
         underlying_bar_age_seconds=_underlying_bar_age(state),
         decision_log_writable=_decisions_writable(),
+        git_head=head, git_dirty=dirty,
     )
     results = {}
     for gate in checks.GATES:

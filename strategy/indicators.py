@@ -28,21 +28,52 @@ def ema_series(values: Sequence[float], period: int) -> list[float]:
     return out
 
 
+def _wilder(avg_gain: float, avg_loss: float) -> float:
+    """RSI from Wilder averages, including the degenerate cases.
+
+    `avg_loss == 0` used to return 50.0 — dead neutral — for a series that has
+    risen every single day. That is the most overbought a series can be, and it
+    was being reported as the least informative reading available.
+
+    It mattered because the per-name pullback filter admits anything with
+    RSI <= 65: a name up fourteen sessions in a row scored 50 and sailed
+    through the one filter whose entire job is to reject names that already
+    finished their move.
+
+    Only a genuinely flat series — no gains and no losses — is 50.
+    """
+    if avg_loss == 0:
+        return 100.0 if avg_gain > 0 else 50.0
+    return 100.0 - 100.0 / (1.0 + avg_gain / avg_loss)
+
+
 def rsi(closes: Sequence[float], period: int = 14) -> float:
-    """Wilder RSI at the end of the series."""
+    """Wilder RSI at the end of the series.
+
+    This used to loop `for i in range(1, period + 1)`, which reads the FIRST
+    fourteen bars of whatever series it is handed, not the last fourteen. The
+    docstring said "at the end of the series"; the code measured the beginning
+    of it.
+
+    It never raised, and the existing test did not catch it: on a monotonic
+    ramp the first fortnight rises just like the last one, so `rsi(up) > 70`
+    passed either way. What it did instead was make the value depend on how
+    much history the caller happened to fetch. Measured 2026-08-25 on SPY, the
+    same day's "RSI-14" read 87 on a 100-bar window, 33 on 120 and 56 on 150 —
+    it was reporting a random historical fortnight that slid as the window
+    changed.
+
+    That value fed the regime gate (`spy_rsi >= 38`, which flipped risk_on to
+    chop at one window and back at the next) and the per-name pullback filter
+    (`RSI <= 65`), so the largest budget vector was gated on noise.
+
+    rsi_series already implements Wilder smoothing correctly and was used
+    nowhere. Delegate to it and take the last value, which is what every caller
+    already believed it was getting.
+    """
     if len(closes) < period + 1:
         return 50.0
-    gains = losses = 0.0
-    for i in range(1, period + 1):
-        d = float(closes[i]) - float(closes[i - 1])
-        if d >= 0:
-            gains += d
-        else:
-            losses -= d
-    if losses == 0:
-        return 100.0
-    rs = (gains / period) / (losses / period)
-    return 100.0 - 100.0 / (1.0 + rs)
+    return rsi_series(closes, period)[-1]
 
 
 def rsi_series(closes: Sequence[float], period: int = 14) -> list[float]:
@@ -64,8 +95,7 @@ def rsi_series(closes: Sequence[float], period: int = 14) -> list[float]:
             continue
         avg_gain = (avg_gain * (period - 1) + gain) / period
         avg_loss = (avg_loss * (period - 1) + loss) / period
-        out.append(50.0 if avg_loss == 0 else
-                   100.0 - 100.0 / (1.0 + avg_gain / avg_loss))
+        out.append(_wilder(avg_gain, avg_loss))
     return out
 
 

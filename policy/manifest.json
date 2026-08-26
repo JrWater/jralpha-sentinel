@@ -218,6 +218,7 @@
     "_comment_authority": "The model produces PROPOSALS, never orders. It has no broker credentials and no submission tool. Its output is a structured selection among engine candidates plus a written thesis; the gates then accept or refuse.",
     "max_proposals_per_cycle": 3,
     "cycle_minutes": 30,
-    "market_summary_window_days": 60
+    "market_summary_window_days": 120,
+    "_comment_window": "120, not 60. Two reasons, both measured 2026-08-25 on SPY. (a) EMA50 has not converged at 60 bars: spy_vs_ema50 read +1.08% on a 60-bar window against a true +1.59% that is stable from 120 bars on, so the regime's largest score term was biased low. (b) regime.classify refuses below 60 closes, so a 60-bar fetch had ZERO margin — one exchange holiday inside the window and the regime would have read 'insufficient history' and traded nothing."
   }
 }
