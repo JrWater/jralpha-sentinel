@@ -128,6 +128,39 @@ execution through the Trading API.
 4. Sep 3: LULU straddle 15:00–15:15 + NFP strangle, both 1 DTE
 5. Sep 4: 09:30–09:45 NFP gap vertical; 10:45 aggressive flatten; 15:00 UTC submit
 
+## Backtest (model-based simulation, 2026-08-26)
+
+`scripts/backtest_strategy.py` replays the Trend Vector **as the engine trades
+it**: regime gate, score threshold, pullback filter, top-3 ranking, $1,000
+per-trade cap, $6,000 daily exposure cap, 10 concurrent, debit verticals
+priced with Black-Scholes (IV proxied by trailing 30-day realized vol,
+clamped 12–80%), TP/SL, expiry at 2-DTE intrinsic. Marks are daily closes
+only. 250 sessions, 2025-12-08 .. 2026-08-26, 18 symbols.
+
+| config | trades | win% | avg | total | maxDD |
+|---|---|---|---|---|---|
+| shipped v2.2 (Δ0.45, TP60%) | 279 | 37% | −$26 | **−$7.3k** | $24.0k |
+| **shipped v2.3 (Δ0.40, TP40%)** | 283 | **64%** | **+$112** | **+$31.8k** | **$9.6k** |
+| best sweep cell (Δ0.40, TP40%, SL40%) | 283 | 64% | +$112 | +$31.8k | $9.6k |
+
+The direction is economically sensible, not a single lucky cell: lower delta
+(0.40 > 0.45 > 0.55) and earlier profit-taking (40% > 60% > 80%) dominate
+across the grid. This drove the v2.3 manifest change.
+
+Signal-level companion (`scripts/backtest_signals.py`, now applying the same
+shipped entry rules): the raw 3-day forward edge is **mixed by name** —
+DELL +4.9%, AVGO +2.1%, AMD +1.4% vs NVDA −1.4%, META −2.0% — which is
+exactly why the structure + exit timing, not the raw score, is where the
+simulated P&L comes from.
+
+**Caveats, stated plainly:** realized vol is a *proxy* for implied vol; marks
+are daily (real cycles mark every 30 min, so TP/SL trigger more often in
+both directions); no fills/slippage; the Catalyst/Event/Vol vectors have no
+history to replay (they are the specific scheduled events of this window);
+parameter selection on one 250-session sample carries overfit risk. The
+number is a prior, not a promise — the same words that were true before the
+strategy earned a simulated dollar.
+
 ## What is *not* claimed
 
 No backtest can establish a "guaranteed" P&L, and anyone who promises one
