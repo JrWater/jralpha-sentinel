@@ -79,11 +79,12 @@ spec in [`docs/STRATEGY.md`](docs/STRATEGY.md); every parameter is in
 Every structure is defined risk — no naked shorts, no market orders (declared
 order shapes are limit-only). Caps are fractions of *declared starting*
 equity, so a drawdown shrinks absolute risk: max loss per trade $800–$2,000
-by vector (hard cap $2,000), $13,000 portfolio at-risk, 10 concurrent, 2 per
-underlying, daily kill switch at −$3,000, Entry Maintenance at $92,000. The
+by vector (hard cap $2,000), $13,000 portfolio at-risk, 10 concurrent,
+≤3 structures (≤6 contracts) per underlying, daily kill switch at −$3,000, Entry Maintenance at $92,000. The
 competition account is mechanically untradeable until kickoff
 (`competition_window` gate) and everything is flattened by limit at the
-touch before 10:45 ET on 09-04, the submission day.
+touch before 10:45 ET on 09-04, the submission day — the one exception is
+the pre-declared 0-DTE NFP gap continuation (09:30–09:50 ET).
 
 ## Running it
 

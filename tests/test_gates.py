@@ -354,6 +354,19 @@ def test_entry_window_excludes_the_open_and_the_close(manifest):
     assert not checks.check_market_session(at(15, 35)).ok   # closing 30 min
 
 
+def test_event_macro_may_enter_the_nfp_gap_window(manifest):
+    """The declared exception: the 0-DTE gap continuation enters 09:30-09:50
+    on the report morning. Everyone else still waits for 10:00."""
+    def at(hour, minute, engine="event_macro"):
+        return _ctx(manifest,
+                    now_utc=datetime(2026, 9, 4, hour + 4, minute, tzinfo=UTC),
+                    proposal=_proposal(engine=engine, legs=[1]))
+
+    assert checks.check_market_session(at(9, 35)).ok
+    assert not checks.check_market_session(at(9, 25)).ok
+    assert not checks.check_market_session(at(9, 35, "trend_directional")).ok
+
+
 def test_closed_market_blocks_entries(manifest):
     assert not checks.check_market_session(
         _ctx(manifest, clock=SimpleNamespace(is_open=False))).ok

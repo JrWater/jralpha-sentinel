@@ -69,7 +69,10 @@ class EngineContext:
 def run(ctx: EngineContext) -> list[Candidate]:
     """All candidates this cycle, ranked by score. Empty is a valid answer."""
     if ctx.final_date_entry_frozen:
-        return []
+        # The submission-day freeze stands, with exactly one pre-declared
+        # exception: the 0-DTE NFP gap continuation (09:30-09:50 ET, hard
+        # time-stop 10:40 ET). Nothing else may open on the final morning.
+        return [c for c in _event(ctx) if c.label == "event-nfp-gap"]
 
     out: list[Candidate] = []
     out.extend(_trend(ctx))
@@ -111,14 +114,14 @@ def _trend(ctx: EngineContext) -> list[Candidate]:
         picks = [s for s in sorted(candidates, key=lambda s: s.score, reverse=True)
                  if s.score >= float(cfg["score_threshold"]) and entry_ok(s, 1)][: int(cfg["max_positions"])]
         for sig in picks:
-            c = _one_trend(ctx, sig, direction=1)
+            c = _one_trend(ctx, sig, direction=1, inc_cfg=inc_cfg)
             if c:
                 out.append(c)
     elif ctx.regime.short_allowed:
         picks = [s for s in sorted(candidates, key=lambda s: s.score)
                  if s.score <= -float(cfg["score_threshold"]) and entry_ok(s, -1)][: int(cfg["max_positions"])]
         for sig in picks:
-            c = _one_trend(ctx, sig, direction=-1)
+            c = _one_trend(ctx, sig, direction=-1, inc_cfg=inc_cfg)
             if c:
                 out.append(c)
     elif _breakout(ctx, cfg):
@@ -129,7 +132,7 @@ def _trend(ctx: EngineContext) -> list[Candidate]:
         picks = [s for s in sorted(candidates, key=lambda s: s.score, reverse=True)
                  if s.score >= float(cfg["score_threshold"]) and entry_ok(s, 1)][: 1]
         for sig in picks:
-            c = _one_trend(ctx, sig, direction=1)
+            c = _one_trend(ctx, sig, direction=1, inc_cfg=inc_cfg)
             if c:
                 c.proposal.conviction = round(c.proposal.conviction * 0.6, 2)
                 c.label = "trend-breakout"
@@ -152,15 +155,15 @@ def _breakout(ctx: EngineContext, cfg) -> bool:
     return prior_high > 0 and spot > prior_high
 
 
-def _one_trend(ctx: EngineContext, sig: Signal, direction: int) -> Candidate | None:
+def _one_trend(ctx: EngineContext, sig: Signal, direction: int,
+               inc_cfg) -> Candidate | None:
     cfg = ctx.manifest.get("strategies", "trend_directional")
     state = ctx.state
     s = state.latest.get(sig.symbol)
     if s is None:
         return None
-    spot = float(getattr(s, "close_price",
-                         getattr(s, "ask_price", getattr(s, "bid_price", 0.0))))
-    if spot <= 0:
+    spot = _spot(state, sig.symbol)
+    if spot is None:
         return None
 
     expiries = sorted({c.expiration for c in
@@ -177,18 +180,22 @@ def _one_trend(ctx: EngineContext, sig: Signal, direction: int) -> Candidate | N
     richness = ivr(iv, rv) if iv else None
 
     proposal = None
+    engine = "trend_directional"
     if richness is not None and richness >= float(inc_cfg["min_ivr"]):
+        # rich premium prefers the credit structure; if the ladder cannot
+        # build it (e.g. no strike near the short-delta target), fall back
+        # to the debit structure rather than dropping the signal
         proposal = build_credit_vertical(
             spot, state.now_utc.date(), expiry, sig.symbol, direction,
             contracts, float(inc_cfg["target_short_delta"]),
             float(inc_cfg["delta_tolerance"]), 5.0)
-        engine = "trend_income"
-    else:
+        if proposal is not None:
+            engine = "trend_income"
+    if proposal is None:
         proposal = build_debit_vertical(
             spot, state.now_utc.date(), expiry, sig.symbol, direction,
             contracts, float(cfg["target_long_delta"]),
             float(cfg["delta_tolerance"]), int(cfg["width_strikes"]))
-        engine = "trend_directional"
 
     if proposal is None:
         return None
@@ -255,12 +262,8 @@ def _expiry_after_event(state, symbol: str, event_date, max_days: int):
 
 def _earnings_straddle(ctx: EngineContext, symbol: str, cat, cfg) -> Candidate | None:
     state = ctx.state
-    s = state.latest.get(symbol)
-    if s is None:
-        return None
-    spot = float(getattr(s, "close_price",
-                         getattr(s, "ask_price", getattr(s, "bid_price", 0.0))))
-    if spot <= 0:
+    spot = _spot(state, symbol)
+    if spot is None:
         return None
     # Round-2 fix: the expiry must be strictly AFTER the event. US options
     # expire at 16:00 ET on expiry day, and an after-close report (LULU
@@ -292,7 +295,8 @@ def _earnings_straddle(ctx: EngineContext, symbol: str, cat, cfg) -> Candidate |
                        f"expected move, exited {proposal.event_exit_date} at "
                        f"{proposal.event_exit_time} ET. Confirmed event, "
                        f"defined risk.")
-    sized = fixed_quantity(proposal, ctx.manifest, "catalyst", ctx.portfolio)
+    sized = fixed_quantity(proposal, ctx.manifest, "catalyst", ctx.portfolio,
+                           cap_key="pre_event_max_loss_per_trade_fraction")
     if sized is None:
         return None
     return Candidate(sized, 0.9, "catalyst-straddle")
@@ -303,9 +307,8 @@ def _pead_vertical(ctx: EngineContext, sig: Signal, cfg) -> Candidate | None:
     s = state.latest.get(sig.symbol)
     if s is None:
         return None
-    spot = float(getattr(s, "close_price",
-                         getattr(s, "ask_price", getattr(s, "bid_price", 0.0))))
-    if spot <= 0:
+    spot = _spot(state, sig.symbol)
+    if spot is None:
         return None
     # drift leg: 0-3 DTE, direction of the gap
     expiries = sorted({c.expiration for c in state.contracts(sig.symbol)})
@@ -326,7 +329,8 @@ def _pead_vertical(ctx: EngineContext, sig: Signal, cfg) -> Candidate | None:
     proposal.thesis = (f"Catalyst Vector (PEAD): {sig.symbol} gapped "
                        f"{sig.gap_pct:+.1f}% post-earnings and held it; "
                        f"buying the drift within {dte} DTE.")
-    sized = fixed_quantity(proposal, ctx.manifest, "catalyst", ctx.portfolio)
+    sized = fixed_quantity(proposal, ctx.manifest, "catalyst", ctx.portfolio,
+                           cap_key="pead_max_loss_per_trade_fraction")
     if sized is None:
         return None
     return Candidate(sized, 0.8, "catalyst-pead")
@@ -478,12 +482,33 @@ def _score_signals(ctx: EngineContext) -> list[Signal]:
 
 
 def _spot(state: MarketState, symbol: str) -> float | None:
+    """Real-time underlying price: bid/ask midpoint, or last daily close.
+
+    The IEX quote model carries bid_price/ask_price only - there is no
+    close_price field. Taking the ask would bias every delta selection and
+    Black-Scholes fair value toward the offer. The midpoint is the honest
+    number, and the market_session gate already keeps us out of the auction
+    where mid and edge disagree most.
+    """
     q = state.latest.get(symbol)
-    if q is None:
-        return None
-    val = float(getattr(q, "close_price",
-                        getattr(q, "ask_price", getattr(q, "bid_price", 0.0))))
-    return val if val > 0 else None
+    if q is not None:
+        bid = getattr(q, "bid_price", None)
+        ask = getattr(q, "ask_price", None)
+        if bid and ask:
+            val = (float(bid) + float(ask)) / 2.0
+        elif bid:
+            val = float(bid)
+        elif ask:
+            val = float(ask)
+        else:
+            val = 0.0
+        if val > 0:
+            return val
+    bars = state.bars.get(symbol, [])
+    if bars:
+        val = float(getattr(bars[-1], "close", 0.0))
+        return val if val > 0 else None
+    return None
 
 
 def _hm(value: str) -> tuple[int, int]:

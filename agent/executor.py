@@ -57,8 +57,12 @@ class Executor:
                 f"this indicates a code bug, not a market decision")
 
         limit = proposal.limit_price
-        if limit <= 0:
-            raise RuntimeError(f"non-positive limit price {limit}")
+        if limit == 0:
+            raise RuntimeError(f"zero limit price {limit}")
+        if proposal.order_class == "simple" and limit < 0:
+            raise RuntimeError(
+                f"negative limit on a simple order: {limit} — only mleg "
+                f"credit structures may carry a negative (credit) price")
 
         legs = [OptionLegRequest(
             symbol=leg.symbol,

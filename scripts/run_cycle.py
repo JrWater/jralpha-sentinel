@@ -95,15 +95,22 @@ def run_preflight(state: MarketState, manifest, ledger) -> dict:
 
 
 def _underlying_bar_age(state: MarketState) -> float | None:
-    bars = state.bars.get("SPY", [])
-    if not bars:
+    """Freshness of the underlying the signal consumes.
+
+    The signal reads real-time IEX quotes (plus daily bars for trend); the
+    freshness gate must measure the QUOTE, not the daily bar - a 1-Day bar's
+    timestamp is the session open, which would read hours old all day and
+    keep the gate permanently red. IEX quote timestamps tick all session.
+    """
+    q = state.latest.get("SPY")
+    if q is None:
         return None
-    ts = getattr(bars[-1], "timestamp", None)
+    ts = getattr(q, "timestamp", None)
     if ts is None:
         return None
     if ts.tzinfo is None:
         ts = ts.replace(tzinfo=timezone.utc)
-    return max(0.0, (state.now_utc - ts).total_seconds() - 15 * 60)
+    return max(0.0, (state.now_utc - ts).total_seconds())
 
 
 def _decisions_writable() -> bool:
@@ -376,14 +383,13 @@ def main() -> int:
     blockers = [n for n, r in results.items()
                 if not r.ok and severity_of(checks.GATES, n) == "BLOCKING"]
 
-    if blockers and not args.dry_run:
-        print(f"\n{RED}PERMIT REFUSED{RESET}: {', '.join(blockers)} — no new "
-              f"exposure this cycle.")
-        return 1
     if not args.dry_run:
         write_permit(results, checks.GATES, manifest_sha=manifest.sha)
 
     # ── 2. exits FIRST: the book is settled before we size anything new ─────
+    # Exits are risk-REDUCING, so they run even when preflight gates are red;
+    # the permit only gates NEW exposure. This is what keeps the final-day
+    # flatten alive even if a data gate is red at 10:45 ET.
     executor = Executor(data.trading, manifest)
     if not args.dry_run:
         executor.retry_open_orders_cleanup()
@@ -393,6 +399,11 @@ def main() -> int:
                                if p.asset_class == "us_option"]
             mirror_from_broker(data.positions())
             ledger = ledger_positions()
+
+    if blockers and not args.dry_run:
+        print(f"\n{RED}PERMIT REFUSED{RESET}: {', '.join(blockers)} — no new "
+              f"exposure this cycle.")
+        return 1
 
     # ── 3. engine candidates ────────────────────────────────────────────────
     signals = {}

@@ -41,7 +41,7 @@ class Proposal:
     legs: list[OptionLeg] = field(default_factory=list)
     expiry: date | None = None
     dte: int = 0
-    limit_price: float = 0.0        # NET price: debit paid (long strategies) or credit received
+    limit_price: float = 0.0        # NET strategy price: POSITIVE = debit paid, NEGATIVE = credit received (Alpaca mleg convention)
     max_loss_dollars: float = 0.0
     max_gain_dollars: float | None = None
     conviction: float = 0.0         # 0..1 engine conviction, for ranking

@@ -179,6 +179,8 @@ def test_iron_condor_is_four_legs():
     p = build_iron_condor(770.0, date(2026, 9, 3), exp, "SPY", contracts)
     assert p is not None and len(p.legs) == 4
     assert p.max_loss_dollars > 0
+    # credit structures carry a NEGATIVE limit (Alpaca mleg: credit < 0)
+    assert p.limit_price < 0
 
 
 # ── sizing ───────────────────────────────────────────────────────────────────
@@ -343,8 +345,8 @@ def test_close_proposal_flips_sides_at_touch():
     close = build_close_proposal(gv, touch)
     assert len(close.legs) == 2
     assert {leg.side for leg in close.legs} == {"sell"}
-    # proceeds 5.0 + 0.4, net positive
-    assert close.limit_price == 5.4
+    # receives 5.4 of credit -> Alpaca mleg convention: NEGATIVE price
+    assert close.limit_price == -5.4
 
 
 def test_credit_structure_pnl_sign():
@@ -356,6 +358,23 @@ def test_credit_structure_pnl_sign():
 
 
 # ── v2.1: single-leg gap play + sizing scale ─────────────────────────────────
+
+def test_credit_vertical_price_is_negative():
+    from datetime import date as d
+    from strategy.structures import build_credit_vertical
+    from strategy.data import contract_symbol
+    exp = d(2026, 9, 4)
+    contracts = [
+        make_contract(contract_symbol("SPY", exp, "put", 755.0),
+                      bid=2.0, ask=2.2, delta=-0.20),
+        make_contract(contract_symbol("SPY", exp, "put", 750.0),
+                      bid=1.0, ask=1.2, delta=-0.12),
+    ]
+    p = build_credit_vertical(766.0, d(2026, 9, 3), exp, "SPY", 1,
+                              contracts, 0.20, 0.08, 5.0)
+    assert p is not None and p.structure == "credit_vertical"
+    assert p.limit_price < 0  # credit received => negative per mleg convention
+
 
 def test_single_long_is_defined_risk():
     from datetime import date

@@ -21,7 +21,7 @@ premium. No naked shorts. No market orders. No 3am improvisation.
 |---|---|---|---|---|
 | **Trend** | 45% | 0–2 DTE debit verticals in the regime's direction (or credit verticals when IV is rich) | Regime = risk_on/risk_off AND name score ≥ 0.55 | +60% TP / −50% SL / time-stop |
 | **Catalyst** | 25% | LULU ATM straddle (entered 09-02, **expiry 09-04 — the first expiry AFTER the after-close report**) + PEAD verticals on NVDA/CRM/CRWD gaps from the 08-26 earnings | Confirmed calendar entries only | +80% TP / −45% SL / post-event time-stop |
-| **Event** | 15% | 1-DTE SPY strangle for NFP (entered 09-03, structure-exited 09:35 ET on 09-04); **0-DTE single-leg long** in the 09-04 gap direction (risk = debit, upside uncapped) | BLS August Employment Situation | hard flat 10:40 ET on 09-04 |
+| **Event** | 15% | 1-DTE SPY strangle for NFP (entered 09-03, structure-exited 09:35 ET on 09-04); **0-DTE single-leg long** in the 09-04 gap direction (risk = debit, upside uncapped) — the ONE declared exception to the final-day freeze, entering 09:30–09:50 | BLS August Employment Situation | hard flat 10:40 ET on 09-04 |
 | **Vol** | 15% | SPY iron condor, 0–2 DTE | Regime = chop AND IVR ≥ 0.25 | 50% TP / 2× credit SL |
 
 ## Why this wins a five-day *judged* window
@@ -83,7 +83,7 @@ first and last 30 minutes (the only time when a delayed chain is also
 - Per-trade hard cap: **$2,000** (any engine; `risk_caps.max_loss_per_position_fraction`)
 - Engine caps: trend $1,000 / $800, catalyst $2,000 (straddle) / $1,500 (PEAD), event $1,500 / $800, vol $800
 - Portfolio at-risk cap: **$13,000** = 13% of starting equity, all open structures combined
-- Concurrent positions ≤ 10; ≤ 2 per underlying; ≤ 3 satellites per vector
+- Concurrent positions ≤ 10; ≤ 3 structures (≤ 6 contracts) per underlying; ≤ 3 satellites per vector
 - **Daily kill switch (enforced):** day P&L ≤ −$3,000 → no new entries for the rest of the day; next day's sizes ×0.5 (`strategy/daystate.py`)
 - **Daily exposure cap (enforced):** max $6,000 of new max-loss submitted per day
 - **Fire-once guards (enforced):** catalyst/event entries submit once per day per name — later cycles cannot double-buy
@@ -91,7 +91,7 @@ first and last 30 minutes (the only time when a delayed chain is also
 - **Entry Maintenance:** equity < $92,000 → no new exposure at all; exits and reconciliation keep running
 - **No market orders, ever** — declared order shapes are limit-only; `order_shape_declared` makes it structural
 - **Account lock:** the competition account is mechanically untradeable before 2026-08-28 15:00 UTC (`competition_window` gate)
-- Final day (09-04): no new exposure; everything flattened by **limit at the touch** before **10:45 ET** (deadline 11:00 ET)
+- Final day (09-04): no new exposure **except** the pre-declared 0-DTE NFP gap continuation (09:30–09:50 ET); everything flattened by **limit at the touch** before **10:45 ET** (deadline 11:00 ET)
 
 ## The AI layer (what the judges see)
 

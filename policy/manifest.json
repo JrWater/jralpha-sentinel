@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "policy_id": "SENTINEL-OPTIONS-V2",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "_comment_authority": "This manifest is the ONLY authority for strategy parameters. Code reads values from here; it never restates them. Prose documents describe this file, they do not define a competing source of truth. Every semantic change creates a new version rather than rewriting history.",
   "environment": {
     "broker": "ALPACA",
@@ -120,6 +120,7 @@
     },
     "event_macro": {
       "enabled": true,
+      "entry_open_override": "09:30",
       "engine_label": "Event Vector",
       "risk_budget_fraction": 0.15,
       "structures": [
@@ -162,7 +163,8 @@
     "max_loss_per_position_fraction": 0.02,
     "_comment_top": "HARD outer bound for ANY proposal, all engines, $2,000. Engine-level caps in the strategies section are stricter; this is what a mis-configuration cannot exceed.",
     "max_concurrent_positions": 10,
-    "max_positions_per_underlying": 2,
+    "max_positions_per_underlying": 6,
+    "_comment_per_underlying": "v2.2: counts CONTRACTS at the broker (a 4-leg condor alone is 4). 6 = one condor + one 2-leg structure, or three 2-leg structures; per-engine max_positions still cap structure count.",
     "equity_floor_fraction": 0.92,
     "at_risk_cap_fraction": 0.13,
     "daily_new_exposure_cap_fraction": 0.06,

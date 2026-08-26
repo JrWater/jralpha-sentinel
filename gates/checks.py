@@ -158,6 +158,12 @@ def check_market_session(ctx: EvalContext) -> GateResult:
     local = ctx.now_utc.astimezone(tz).time()
     open_after = ctx.manifest.get("session", "no_new_exposure_before")
     close_before = ctx.manifest.get("session", "no_new_exposure_after")
+    if ctx.proposal is not None and             getattr(ctx.proposal, "engine", "") == "event_macro":
+        # the declared exception: the 0-DTE NFP gap continuation trades the
+        # 09:30-09:50 window on the report morning (then hard-flattens)
+        open_after = ctx.manifest.get("strategies", "event_macro",
+                                      "entry_open_override",
+                                      default="09:30")
     hh, mm = map(int, open_after.split(":"))
     if (local.hour, local.minute) < (hh, mm):
         return GateResult(False, f"{local:%H:%M} before entry window {open_after}")

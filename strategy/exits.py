@@ -104,10 +104,11 @@ def build_close_proposal(gv: GroupView, touch_prices: dict) -> Proposal:
                               strike=0.0, contract_type="",
                               expiration=date.min,
                               ref_bid=price, ref_ask=price))
-        net += price if flip == "buy" else -price
-    # Alpaca takes the strategy's net premium as a positive number, whether
-    # the close receives credit or pays debit.
+        # selling yields +price, buying costs -price
+        net += price if flip == "sell" else -price
+    # Alpaca's mleg convention: positive limit = debit to pay, negative =
+    # credit to receive. net is proceeds-minus-cost, so the wire price is -net.
     return Proposal(
         engine="exit", underlying=gv.underlying, direction="neutral",
-        structure="close_structure", legs=legs, limit_price=round(abs(net), 2),
+        structure="close_structure", legs=legs, limit_price=round(-net, 2),
         max_loss_dollars=0.0, thesis="close structure", reason="EXIT")

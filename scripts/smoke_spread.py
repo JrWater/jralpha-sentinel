@@ -133,7 +133,7 @@ def select_credit_spread(manifest, chain, underlying: str,
         type="limit",
         time_in_force="day",
         legs=[short_leg, long_leg],
-        limit_price=credit,
+        limit_price=-credit,
         credit=credit,
         max_loss_dollars=round((width - credit) * 100, 2),
         rationale=(f"short {short_strike:g}P delta {short_leg.delta:.3f}, "
@@ -242,7 +242,7 @@ def main() -> int:
         qty=1,
         order_class=OrderClass.MLEG,
         time_in_force=TimeInForce.DAY,
-        limit_price=proposal.limit_price,
+        limit_price=-proposal.credit,
         legs=[OptionLegRequest(
             symbol=leg.symbol, ratio_qty=1,
             side=OrderSide.SELL if leg.side == "sell" else OrderSide.BUY,
