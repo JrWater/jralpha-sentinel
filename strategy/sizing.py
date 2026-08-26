@@ -3,11 +3,13 @@
 
 The per_trade_risk gate enforces the outer bound; this layer applies the
 stricter per-engine caps and the portfolio at-risk cap, so a drawdown shrinks
-absolute risk instead of rescaling the same aggression downward.
+absolute risk instead of rescaling the same aggression downward. v2.1 adds
+the daily drawdown scale (a killed day halves the next day's sizes) and a
+per-engine cap-key override (the NFP gap add-on is smaller than the strangle).
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from strategy.proposal import Proposal
 
@@ -17,36 +19,46 @@ MIN_QUANTITY = 1
 @dataclass
 class PortfolioState:
     """What sizing needs to know about the open book."""
-    max_loss_by_underlying: dict[str, float]
-    max_loss_total: float
-    count_by_engine: dict[str, int]
-    current_equity: float
-    starting_equity: float
+    max_loss_by_underlying: dict[str, float] = field(default_factory=dict)
+    max_loss_total: float = 0.0
+    count_by_engine: dict[str, int] = field(default_factory=dict)
+    current_equity: float = 100000.0
+    starting_equity: float = 100000.0
     day_pl_dollars: float = 0.0
     loss_days_in_row: int = 0
     is_final_date: bool = False
+    scale: float = 1.0          # 0.5 the day after a killed day
 
     def count(self, engine: str) -> int:
         return self.count_by_engine.get(engine, 0)
 
 
-def engine_cap(manifest, engine: str) -> float:
+def engine_cap(manifest, engine: str, cap_key: str | None = None,
+               scale: float = 1.0) -> float:
+    """The engine's per-trade max-loss cap, in dollars.
+
+    cap_key overrides which manifest key holds the fraction (the Event Vector
+    has one cap for the strangle and a smaller one for the gap add-on). scale
+    is the drawdown scale carried in PortfolioState.
+    """
     start = float(manifest.get("environment", "required_starting_equity"))
     cfg = manifest.get("strategies", engine)
-    key = "max_loss_per_trade_fraction"
+    key = cap_key or "max_loss_per_trade_fraction"
     frac = float(cfg.get(key, 0.01)) if isinstance(cfg, dict) else 0.01
-    return start * frac
+    return start * frac * scale
 
 
 def fixed_quantity(proposal: Proposal, manifest, engine: str,
-                   state: PortfolioState) -> Proposal | None:
+                   state: PortfolioState,
+                   cap_key: str | None = None) -> Proposal | None:
     """Size by max loss: how many contracts keep the trade inside its cap.
 
     Returns None when the trade is refused at this layer (too big for the
     engine cap at even one contract, or the portfolio at-risk cap would be
-    exceeded, or a mandated cap exists per engine).
+    exceeded).
     """
-    cap = engine_cap(manifest, engine)
+    scale = getattr(state, "scale", 1.0) or 1.0
+    cap = engine_cap(manifest, engine, cap_key=cap_key, scale=scale)
     max_per_contract = proposal.max_loss_dollars  # with qty == 1
     if max_per_contract <= 0:
         return None

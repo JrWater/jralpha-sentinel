@@ -76,6 +76,34 @@ def _shift(contracts: list[ChainContract], base: ChainContract,
     return None
 
 
+def build_single_long(s: float, now: date, expiry: date, underlying: str,
+                      direction: int, contracts: list[ChainContract],
+                      delta_target: float, tol: float) -> Proposal | None:
+    """One long option, risk = debit paid, upside uncapped.
+
+    The only single-leg shape in the policy. Used exclusively by the Event
+    Vector's 0-DTE NFP gap continuation, where a vertical would cap the
+    payoff at its width — the asymmetry is the entire reason to be there.
+    """
+    ctype = "call" if direction > 0 else "put"
+    leg = _pick(contracts, s, expiry, ctype, delta_target, tol, now)
+    if leg is None:
+        return None
+    debit = round(_fair(leg, s, now), 2)
+    if debit <= 0.01:
+        return None
+    return Proposal(
+        engine="", underlying=underlying,
+        direction="long" if direction > 0 else "short",
+        structure="single_long", expiry=expiry, dte=(expiry - now).days,
+        legs=[_leg(leg, "buy", 1)],
+        limit_price=debit,
+        max_loss_dollars=round(debit * 100, 2),
+        max_gain_dollars=None,
+        reason=f"single long {leg.symbol} @ {debit:.2f} (debit = risk)",
+    )
+
+
 def build_debit_vertical(s: float, now: date, expiry: date,
                          underlying: str, direction: int,
                          contracts: list[ChainContract],

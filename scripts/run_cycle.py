@@ -1,22 +1,27 @@
 #!/usr/bin/env python3
-"""One decision cycle: verify -> snapshot -> gates -> engine -> proposer ->
-pretrade gates -> execute -> manage exits. Run every 30 minutes during the
-competition session (cron or launchd).
+"""One decision cycle: verify -> snapshot -> day gates -> exits -> engine ->
+proposer -> pretrade gates -> execute. Run every 30 minutes in the entry
+window.
 
     .venv/bin/python scripts/run_cycle.py --dry-run     # nothing touches disk
     .venv/bin/python scripts/run_cycle.py               # live (requires permit)
 
-The dry run is the interesting one before kickoff: the competition_window
-gate must refuse to trade the pristine account until 2026-08-28 15:00 UTC.
-If a dry run ever shows a green preflight before kickoff, that is a bug in
-the policy, not a gift.
+v2.1 changes from v2.0:
+  * exits run BEFORE entries, and a multi-leg structure is marked, decided,
+    and closed as ONE unit (strategy/exits.py) — legs are never closed
+    independently, so a naked short leg cannot be manufactured by an exit;
+  * the manifest's daily gates are actually enforced: daily new-exposure cap,
+    daily kill switch, next-day drawdown scale (strategy/daystate.py);
+  * catalyst/event entries fire once per day per name (no duplicate buys
+    from later cycles);
+  * chains are fetched for today..+3, so 0-DTE structures exist.
 """
 from __future__ import annotations
 
 import argparse
 import json
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -32,35 +37,40 @@ from gates.safety_gate import write_permit
 from policy.loader import load as load_manifest
 from scripts.verify_account import creds, load_env
 from strategy.data import AlpacaData, MarketState, parse_contract
+from strategy.daystate import (check_kill, fire_key, fired, load_or_reset,
+                               mark_fired, record_risk)
 from strategy.engine import EngineContext, run as run_engines
+from strategy.exits import (GroupView, build_close_proposal, decide_exit,
+                            group_key, pnl_of)
 from strategy.proposal import OptionLeg, Proposal
 from strategy.regime import classify, universe_breadth
 from strategy.signals import score_symbol
+from strategy.sizing import PortfolioState
 
 GREEN, RED, YELLOW, DIM, RESET = (
     "\033[32m", "\033[31m", "\033[33m", "\033[2m", "\033[0m")
 
 META_PATH = ROOT / "state" / "positions_meta.json"
+DAY_PATH = ROOT / "state" / "day_state.json"
 
 
 def build_state(data: AlpacaData, manifest, symbols: list[str]) -> MarketState:
-    """Fetch everything one cycle needs. Failures are loud, never silent."""
     account = data.account()
     clock = data.clock()
     positions = [p for p in data.positions() if p.asset_class == "us_option"]
-
     state = MarketState(account=account, clock=clock,
                         equity=float(account.equity), positions=positions,
                         now_utc=datetime.now(timezone.utc))
-
     bars = data.daily_bars(
         symbols, days=int(manifest.get("agent", "market_summary_window_days",
                                        default=60)))
     state.bars = bars
     state.latest = data.latest_quotes(symbols)
-
+    # v2.1: today..+3 so 0-DTE engines and post-event expiries both exist
+    today = state.now_utc.date()
+    expiries = [today + timedelta(days=d) for d in range(0, 4)]
     for sym in symbols:
-        contracts = data.option_chain(sym)
+        contracts = data.option_chains_multi(sym, expiries)
         if contracts:
             state.chains[sym] = contracts
             state.chain_ages[sym] = data.chain_age_seconds(contracts)
@@ -115,26 +125,214 @@ def print_gates(results: dict) -> None:
         print(f"  [{mark}] {name:<22} {r.detail}")
 
 
-def save_meta(symbol: str, entry_price: float, engine: str, take_profit: float,
-              stop_loss: float, expiry: str) -> None:
+# ── meta (structure records) ─────────────────────────────────────────────────
+
+def load_meta() -> dict:
     try:
-        meta = json.loads(META_PATH.read_text())
+        return json.loads(META_PATH.read_text())
     except (OSError, json.JSONDecodeError):
-        meta = {"positions": {}}
-    meta["positions"][symbol] = {
-        "engine": engine, "entry_price": entry_price,
-        "take_profit_pct": take_profit, "stop_loss_pct": stop_loss,
-        "expiry": expiry,
-    }
+        return {"groups": {}}
+
+
+def save_meta(meta: dict) -> None:
     atomic_write(META_PATH, meta)
 
 
+def record_group(proposal: Proposal, entered_at: str) -> None:
+    meta = load_meta()
+    gid = group_key(proposal.engine, proposal.underlying,
+                    proposal.expiry.isoformat() if proposal.expiry else "",
+                    entered_at)
+    entry_net = sum(leg.mid * (1.0 if leg.side == "buy" else -1.0)
+                    for leg in proposal.legs)
+    kind = "credit" if proposal.structure in ("credit_vertical",
+                                              "iron_condor") else "debit"
+    ref_amount = -entry_net if kind == "credit" else entry_net
+    meta["groups"][gid] = {
+        "engine": proposal.engine,
+        "underlying": proposal.underlying,
+        "expiry": proposal.expiry.isoformat() if proposal.expiry else "",
+        "kind": kind,
+        "entry_net": round(entry_net, 4),
+        "ref_amount": round(abs(ref_amount), 4),
+        "max_loss_dollars": proposal.max_loss_dollars,
+        "take_profit_fraction": 0.0,
+        "stop_loss_fraction": 0.0,
+        "event_exit_date": proposal.event_exit_date,
+        "event_exit_time": proposal.event_exit_time,
+        "legs": {leg.symbol: {"side": leg.side, "qty": leg.quantity,
+                              "entry_mid": leg.mid}
+                 for leg in proposal.legs},
+        "closed": False,
+    }
+    save_meta(meta)
+
+
+def patch_group_tp_sl(gid: str, take_profit: float, stop_loss: float) -> None:
+    meta = load_meta()
+    group = meta.get("groups", {}).get(gid)
+    if group:
+        group["take_profit_fraction"] = take_profit
+        group["stop_loss_fraction"] = stop_loss
+        save_meta(meta)
+
+
+# ── exits ────────────────────────────────────────────────────────────────────
+
+def manage_exits(state: MarketState, manifest, executor: Executor) -> int:
+    """Structure-level exits. Legs of one structure close as one order.
+
+    Marked on the STRUCTURE net (all legs together), so a debit spread's
+    losing long leg can never be closed alone while its short leg survives
+    naked. Every close is a DAY limit at the touch - no market orders exist
+    in this policy.
+    """
+    from zoneinfo import ZoneInfo
+    now_et = state.now_utc.astimezone(ZoneInfo("America/New_York"))
+    final_date = str(manifest.get("session", "final_trading_date"))
+    flatten_at = str(manifest.get("session", "flatten_all_at"))
+
+    meta = load_meta()
+    groups = meta.get("groups", {})
+    broker = {p.symbol: p for p in state.positions}
+    closed_any = 0
+
+    for gid, g in groups.items():
+        if g.get("closed"):
+            continue
+        legs = g.get("legs", {})
+        open_legs = {sym: info for sym, info in legs.items()
+                     if sym in broker and int(float(broker[sym].qty)) != 0}
+        if not open_legs:
+            continue
+
+        prices = {}
+        touch = {}
+        for sym, info in open_legs.items():
+            pos = broker[sym]
+            price = float(getattr(pos, "current_price", 0.0) or 0.0)
+            contract = _contract(state, sym)
+            if price <= 0 and contract is not None:
+                price = contract.bid if info["side"] == "buy" else contract.ask
+            if price is None or price <= 0:
+                continue
+            signed = price * (1.0 if info["side"] == "buy" else -1.0)
+            prices[sym] = signed
+            t = None
+            if contract is not None:
+                t = contract.bid if info["side"] == "buy" else contract.ask
+            touch[sym] = t if t else price
+
+        if not prices:
+            continue
+
+        net = sum(prices.values())
+        entry_net = float(g.get("entry_net", 0.0))
+        qty0 = int(list(open_legs.values())[0]["qty"])
+        pnl_contract = pnl_of(entry_net, net)
+        pnl = pnl_contract * abs(qty0)
+        gv = GroupView(
+            group_id=gid, engine=g.get("engine", ""),
+            underlying=g.get("underlying", ""), expiry=g.get("expiry", ""),
+            kind=g.get("kind", "debit"),
+            entry_net=entry_net,
+            ref_amount=float(g.get("ref_amount", 0.0) or 0.0),
+            take_profit_fraction=float(g.get("take_profit_fraction", 0.0)),
+            stop_loss_fraction=float(g.get("stop_loss_fraction", 0.0)),
+            event_exit_date=g.get("event_exit_date", ""),
+            event_exit_time=g.get("event_exit_time", ""),
+            legs=[(sym, info["side"], int(info["qty"]))
+                  for sym, info in open_legs.items()],
+        )
+        reason = decide_exit(gv, pnl_contract, now_et=now_et,
+                             final_date=final_date, flatten_at=flatten_at)
+        if not reason:
+            continue
+
+        if g.get("take_profit_fraction", 0.0) <= 0:
+            # unset tp/sl (should not happen) - only event/flatten closes
+            if "event" not in reason and "flatten" not in reason and \
+                    "time-stop" not in reason:
+                continue
+
+        close = build_close_proposal(gv, touch)
+        if not close.legs:
+            continue
+        try:
+            order = executor.submit(close, closing=True)
+            append_decision({"kind": "structure_closed", "group": gid,
+                             "reason": reason, "pnl": round(pnl, 2),
+                             "order_id": str(order.id)})
+            g["closed"] = True
+            closed_any += 1
+            print(f"  {GREEN}EXIT{RESET} {gid} {reason} (pnl ${pnl:,.0f}) "
+                  f"net {close.limit_price:.2f}")
+        except Exception as exc:                            # noqa: BLE001
+            print(f"  {RED}EXIT FAILED{RESET} {gid}: {exc}")
+
+    # orphan positions (no meta) close at the touch as singles - defensive
+    # only; the agent never creates structures outside the meta.
+    for pos in state.positions:
+        sym = pos.symbol
+        if any(sym in (g.get("legs") or {}) for g in groups.values()
+               if not g.get("closed")):
+            continue
+        contract = _contract(state, sym)
+        if contract is None:
+            continue
+        qty = int(float(pos.qty))
+        if qty == 0:
+            continue
+        price = contract.bid if qty > 0 else contract.ask
+        if price is None or price <= 0:
+            continue
+        close = Proposal(engine="exit", underlying=_underlying(sym),
+                         direction="neutral", structure="single_close",
+                         legs=[OptionLeg(symbol=sym,
+                                         side="sell" if qty > 0 else "buy",
+                                         quantity=abs(qty),
+                                         strike=contract.strike,
+                                         contract_type=contract.contract_type,
+                                         expiration=contract.expiration,
+                                         ref_bid=contract.bid or 0.0,
+                                         ref_ask=contract.ask or 0.0)],
+                         limit_price=price, max_loss_dollars=0.0,
+                         thesis="orphan close", reason="ORPHAN")
+        try:
+            order = executor.submit(close, closing=True)
+            append_decision({"kind": "orphan_closed", "symbol": sym,
+                             "order_id": str(order.id)})
+            closed_any += 1
+            print(f"  {GREEN}EXIT{RESET} orphan {sym} @ {price:.2f}")
+        except Exception as exc:                            # noqa: BLE001
+            print(f"  {RED}EXIT FAILED{RESET} orphan {sym}: {exc}")
+
+    if closed_any:
+        save_meta(meta)
+    return closed_any
+
+
+def _contract(state: MarketState, sym: str):
+    parsed = parse_contract(sym)
+    if not parsed:
+        return None
+    for c in state.chains.get(parsed[0], []):
+        if c.symbol == sym:
+            return c
+    return None
+
+
+def _underlying(sym: str) -> str:
+    parsed = parse_contract(sym)
+    return parsed[0] if parsed else sym[:4]
+
+
+# ── the cycle ────────────────────────────────────────────────────────────────
+
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--dry-run", action="store_true",
-                    help="no writes, no orders; gates + candidates only")
-    ap.add_argument("--no-llm", action="store_true",
-                    help="skip the LLM selection; use engine ranking")
+    ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--no-llm", action="store_true")
     ap.add_argument("--env", default=".env")
     args = ap.parse_args()
 
@@ -148,14 +346,29 @@ def main() -> int:
     data = AlpacaData(key, secret)
     symbols = sorted(set(manifest.declared_symbols()))
     state = build_state(data, manifest, symbols)
-
     now_utc = state.now_utc
     print(f"{DIM}manifest {manifest.identity}{RESET}")
     print(f"{DIM}account  {state.account.account_number}  equity "
           f"${state.equity:,.2f}  market "
           f"{'OPEN' if state.clock.is_open else 'CLOSED'}{RESET}")
 
+    # ── 0. day-state gates (daily exposure cap, kill switch, scale) ─────────
+    today = now_utc.date().isoformat()
+    try:
+        raw_day = json.loads(DAY_PATH.read_text())
+    except (OSError, json.JSONDecodeError):
+        raw_day = None
+    day = load_or_reset(raw_day, today=today, equity_now=state.equity)
+    killed = check_kill(day, state.equity,
+                        float(manifest.get("risk_caps",
+                                           "daily_loss_kill_fraction")))
+    exposure_cap = (float(manifest.get("risk_caps",
+                                       "daily_new_exposure_cap_fraction"))
+                    * float(manifest.get("environment",
+                                         "required_starting_equity")))
+
     # ── 1. preflight gates ──────────────────────────────────────────────────
+    mirror_from_broker(data.positions())
     ledger = ledger_positions()
     results = run_preflight(state, manifest, ledger)
     print("\npreflight gates")
@@ -167,11 +380,21 @@ def main() -> int:
         print(f"\n{RED}PERMIT REFUSED{RESET}: {', '.join(blockers)} — no new "
               f"exposure this cycle.")
         return 1
-
     if not args.dry_run:
         write_permit(results, checks.GATES, manifest_sha=manifest.sha)
 
-    # ── 2. engine: candidates ───────────────────────────────────────────────
+    # ── 2. exits FIRST: the book is settled before we size anything new ─────
+    executor = Executor(data.trading, manifest)
+    if not args.dry_run:
+        executor.retry_open_orders_cleanup()
+        n_exits = manage_exits(state, manifest, executor)
+        if n_exits:
+            state.positions = [p for p in data.positions()
+                               if p.asset_class == "us_option"]
+            mirror_from_broker(data.positions())
+            ledger = ledger_positions()
+
+    # ── 3. engine candidates ────────────────────────────────────────────────
     signals = {}
     spy_closes = [b.close for b in state.bars.get("SPY", [])]
     qqq_closes = [b.close for b in state.bars.get("QQQ", [])]
@@ -188,11 +411,30 @@ def main() -> int:
         if len(closes) >= 60:
             signals[sym] = score_symbol(closes, spy_closes, highs, lows, sym)
 
+    meta = load_meta()
+    open_groups = [g for g in meta.get("groups", {}).values()
+                   if not g.get("closed")]
+    portfolio = PortfolioState(
+        max_loss_by_underlying={},
+        max_loss_total=sum(float(g.get("max_loss_dollars", 0.0))
+                           for g in open_groups),
+        count_by_engine={},
+        current_equity=state.equity,
+        starting_equity=float(
+            manifest.get("environment", "required_starting_equity")),
+        scale=day.scale,
+    )
+    for g in open_groups:
+        eng = g.get("engine", "?")
+        portfolio.count_by_engine[eng] = portfolio.count_by_engine.get(eng, 0) + 1
+
     ctx = EngineContext(state=state, manifest=manifest, regime=regime,
-                        now_et=now_et, signals=signals)
+                        now_et=now_et, signals=signals, portfolio=portfolio)
     candidates = run_engines(ctx)
 
     print(f"\nregime  {regime.mode} ({regime.confidence:.2f}) — {regime.reason}")
+    print(f"day     new_risk=${day.new_risk_dollars:,.0f}/{exposure_cap:,.0f} "
+          f"killed={day.killed} scale={day.scale}")
     print(f"candidates: {len(candidates)}")
     for i, c in enumerate(candidates):
         p = c.proposal
@@ -205,9 +447,8 @@ def main() -> int:
         print(f"{DIM}no candidate met the manifests' criteria — a refusal, "
               f"not an error.{RESET}")
 
-    # ── 3. proposer (LLM) ────────────────────────────────────────────────────
     chosen = []
-    if candidates:
+    if candidates and not (blockers or killed or args.dry_run):
         chosen = (list(range(min(int(manifest.get("agent",
                                                   "max_proposals_per_cycle",
                                                   default=3)),
@@ -216,21 +457,45 @@ def main() -> int:
                       candidates, regime=regime.mode,
                       portfolio={"equity": state.equity,
                                  "open_positions": len(state.positions),
-                                 "regime": regime.mode},
+                                 "regime": regime.mode, "killed": day.killed},
                       manifest=manifest))
     print(f"\nproposer chose candidates: {chosen}")
 
-    if blockers or args.dry_run or not chosen:
-        print(f"\n{DIM}demonstration state: "
-              f"{'dry run' if args.dry_run else 'no selection'} — nothing was "
-              f"sent.{RESET}")
+    if args.dry_run:
+        print(f"\n{DIM}dry run — nothing was sent.{RESET}")
+        return 0
+    if blockers or killed or not chosen:
+        why = "kill switch" if killed else (
+            "permit refused" if blockers else "no selection")
+        print(f"\n{DIM}{why} — nothing was sent.{RESET}")
+        atomic_write(DAY_PATH, day.as_dict())
         return 0
 
-    # ── 4. executor: pretrade gates + submit ────────────────────────────────
-    executor = Executor(data.trading, manifest)
+    # ── 4. fire-once guards, exposure cap, pretrade gates, submit ───────────
+    entered_at = now_utc.strftime("%H%M%S")
+    submitted = 0
     for idx in chosen:
         c = candidates[idx]
         p = c.proposal
+
+        if p.engine in ("catalyst", "event_macro", "vol_income"):
+            key = fire_key(p.engine, p.underlying, today)
+            if fired(day, key):
+                print(f"  {YELLOW}SKIP (already fired today){RESET} "
+                      f"{p.underlying} {p.structure}")
+                continue
+        if p.engine in ("catalyst", "event_macro") and p.expiry and \
+                p.expiry.isoformat() < today:
+            # 0-DTE is legitimate during session hours; only the PAST is refused
+            print(f"  {YELLOW}SKIP{RESET} {p.underlying}: expired-by-design "
+                  f"entry ({p.expiry})")
+            continue
+
+        if not record_risk(day, p.max_loss_dollars, exposure_cap):
+            print(f"  {YELLOW}SKIP{RESET} {p.underlying} {p.structure}: daily "
+                  f"exposure cap reached")
+            continue
+
         pre = {}
         for g in checks.GATES:
             if g.phase != "pretrade":
@@ -254,107 +519,27 @@ def main() -> int:
             print(f"  {RED}SUBMIT FAILED{RESET}: {exc}")
             continue
         print(f"  {GREEN}OK{RESET} {order.id}")
+
         cfg = manifest.get("strategies", p.engine)
-        for leg in p.legs:
-            save_meta(
-                leg.symbol, entry_price=leg.mid or 0.0, engine=p.engine,
-                take_profit=float(cfg.get("take_profit_fraction", 0.5)) * 100.0,
-                stop_loss=(float(cfg.get("stop_loss_fraction", 0.5)) * 100.0
-                           if p.structure in ("debit_vertical", "straddle",
-                                              "strangle") else 0.0),
-                expiry=p.expiry.isoformat() if p.expiry else "")
+        gid = group_key(p.engine, p.underlying,
+                        p.expiry.isoformat() if p.expiry else "", entered_at)
+        record_group(p, entered_at)
+        if p.structure in ("credit_vertical", "iron_condor"):
+            tp, sl = float(cfg.get("take_profit_fraction", 0.5)), \
+                float(cfg.get("stop_loss_multiple", 2.0))
+        else:
+            tp, sl = float(cfg.get("take_profit_fraction", 0.5)), \
+                float(cfg.get("stop_loss_fraction", 0.5))
+        patch_group_tp_sl(gid, tp, sl)
 
-    # ── 5. exits & hygiene ──────────────────────────────────────────────────
-    executor.retry_open_orders_cleanup()
-    manage_exits(data, manifest, state, executor)
+        if p.engine in ("catalyst", "event_macro", "vol_income"):
+            mark_fired(day, fire_key(p.engine, p.underlying, today))
+        submitted += 1
+
+    atomic_write(DAY_PATH, day.as_dict())
     mirror_from_broker(data.positions())
+    print(f"\nsubmitted {submitted} proposal(s) this cycle")
     return 0
-
-
-def manage_exits(data: AlpacaData, manifest, state, executor: Executor) -> None:
-    """Defined-risk exits: TP/SL by mark, time-stops, final-day flatten.
-
-    Every exit is a LIMIT order at the touch (sell at bid, buy at ask). No
-    market orders exist in this policy. On the final date everything is
-    flattened by order before 10:45 ET so nothing expires for a next-day
-    paper settlement that would not exist by judging time.
-    """
-    from zoneinfo import ZoneInfo
-    now_et = state.now_utc.astimezone(ZoneInfo("America/New_York"))
-    final_date = str(manifest.get("session", "final_trading_date"))
-    is_final = now_et.date().isoformat() == final_date
-    flatten_at = str(manifest.get("session", "flatten_all_at"))
-    hh, mm = map(int, flatten_at.split(":"))
-
-    try:
-        meta = json.loads(META_PATH.read_text()).get("positions", {})
-    except (OSError, json.JSONDecodeError):
-        meta = {}
-
-    for pos in state.positions:
-        sym = pos.symbol
-        qty = int(float(pos.qty))
-        if qty == 0:
-            continue
-        info = meta.get(sym, {})
-        entry = float(info.get("entry_price", 0.0))
-        mark = float(getattr(pos, "current_price", 0.0) or 0.0)
-
-        reason = None
-        if entry > 0 and mark > 0:
-            pl_pct = (mark / entry - 1.0) * 100.0
-            tp = float(info.get("take_profit_pct", 0.0))
-            sl = float(info.get("stop_loss_pct", 0.0))
-            if tp and pl_pct >= tp:
-                reason = f"take-profit {pl_pct:+.1f}%"
-            elif sl and pl_pct <= -sl:
-                reason = f"stop-loss {pl_pct:+.1f}%"
-        if is_final and (now_et.hour, now_et.minute) >= (hh, mm):
-            reason = "final-day flatten"
-
-        if not reason:
-            continue
-
-        contract = next((c for c in state.chains.get(_underlying(sym), [])
-                         if c.symbol == sym), None)
-        if contract is None:
-            parsed = parse_contract(sym)
-            if parsed:
-                contract = next(
-                    (c for c in state.chains.get(parsed[0], [])
-                     if c.symbol == sym), None)
-        if contract is None:
-            print(f"  {YELLOW}EXIT SKIPPED{RESET} {sym}: no touch available")
-            continue
-
-        price = contract.bid if qty > 0 else contract.ask
-        if price is None or price <= 0:
-            print(f"  {YELLOW}EXIT SKIPPED{RESET} {sym}: no bid/ask")
-            continue
-
-        close = Proposal(
-            engine="exit", underlying=_underlying(sym), direction="neutral",
-            structure="single_close",
-            legs=[OptionLeg(symbol=sym, side="sell" if qty > 0 else "buy",
-                            quantity=abs(qty), strike=contract.strike,
-                            contract_type=contract.contract_type,
-                            expiration=contract.expiration,
-                            ref_bid=contract.bid or 0.0,
-                            ref_ask=contract.ask or 0.0)],
-            limit_price=price, max_loss_dollars=0.0,
-            thesis=reason, reason=reason)
-        try:
-            order = executor.submit(close, closing=True)
-            append_decision({"kind": "position_closed", "symbol": sym,
-                             "reason": reason, "order_id": str(order.id)})
-            print(f"  {GREEN}EXIT{RESET} {sym} {reason} @ {price:.2f}")
-        except Exception as exc:                            # noqa: BLE001
-            print(f"  {RED}EXIT FAILED{RESET} {sym}: {exc}")
-
-
-def _underlying(sym: str) -> str:
-    parsed = parse_contract(sym)
-    return parsed[0] if parsed else sym[:4]
 
 
 if __name__ == "__main__":

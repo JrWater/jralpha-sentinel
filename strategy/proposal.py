@@ -47,6 +47,8 @@ class Proposal:
     conviction: float = 0.0         # 0..1 engine conviction, for ranking
     thesis: str = ""
     reason: str = ""                # machine-readable rationale for the decision log
+    event_exit_date: str = ""       # ISO date the structure must exit (post-event)
+    event_exit_time: str = ""       # "09:35" ET on that date
 
     # ── the attributes the pretrade gates read ────────────────────────────────
     @property

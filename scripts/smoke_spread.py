@@ -80,10 +80,10 @@ def select_credit_spread(manifest, chain, underlying: str,
     this function. The manifest is the parameter authority; this file is only
     the mechanism that applies it.
     """
-    cfg = manifest.get("strategies", "core_credit_spread")
+    cfg = manifest.get("strategies", "trend_income")
     target = float(cfg["target_short_delta"])
-    tol = float(cfg["short_delta_tolerance"])
-    width = float(cfg["spread_width_dollars"])
+    tol = float(cfg["delta_tolerance"])
+    width = 5.0  # manifest v2 fixed SPY/QQQ width
     min_credit_frac = float(cfg["min_credit_fraction_of_width"])
 
     puts = {}
@@ -198,7 +198,7 @@ def main() -> int:
         return 0
 
     today = datetime.now(timezone.utc).date()
-    cfg = manifest.get("strategies", "core_credit_spread")
+    cfg = manifest.get("strategies", "trend_income")
     window = (today + timedelta(days=int(cfg["min_dte"])),
               today + timedelta(days=int(cfg["max_dte"])))
     print(f"\nselecting {args.symbol} put credit spread, expiry "

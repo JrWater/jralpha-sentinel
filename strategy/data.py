@@ -188,39 +188,59 @@ class AlpacaData:
                      expiry: date | None = None) -> list[ChainContract]:
         """Fetch the chain for the target expiry; fall back to nearby days.
 
-        Returns normalized ChainContract records. Quote age is carried per
-        contract; the caller reports the freshest age as the feed age.
+        v2.1: the search starts at TODAY, not tomorrow — 0-DTE structures
+        (NFP gap play, zero-DTE time-stops) need today's expiry. Returns
+        normalized ChainContract records; quote age travels with each one.
         """
-        target = expiry or (date.today() + timedelta(days=1))
+        target = expiry or date.today()
         for offset in range(0, 8):
             day = target + timedelta(days=offset)
-            try:
-                resp = self.options.get_option_chain(
-                    OptionChainRequest(underlying_symbol=underlying,
-                                       expiration_date=day))
-            except Exception:                                   # noqa: BLE001
-                continue
-            out: list[ChainContract] = []
-            for sym, snap in resp.items():
-                parsed = parse_contract(sym)
-                if not parsed:
-                    continue
-                _, exp, ctype, strike = parsed
-                quote = getattr(snap, "latest_quote", None)
-                greeks = getattr(snap, "greeks", None)
-                bid = getattr(quote, "bid_price", None) if quote else None
-                ask = getattr(quote, "ask_price", None) if quote else None
-                ts = getattr(quote, "timestamp", None) if quote else None
-                out.append(ChainContract(
-                    symbol=sym, expiration=exp, contract_type=ctype,
-                    strike=strike, bid=bid, ask=ask,
-                    delta=getattr(greeks, "delta", None) if greeks else None,
-                    iv=getattr(snap, "implied_volatility", None),
-                    quote_ts=ts,
-                ))
-            if out:
-                return out
+            contracts = self._chain_for_expiry(underlying, day)
+            if contracts:
+                return contracts
         return []
+
+    def option_chains_multi(self, underlying: str,
+                            expiries: list[date]) -> list[ChainContract]:
+        """Chains for several expiries merged, in one list. The engines filter
+        by expiration afterwards; a 0-DTE engine and a 2-DTE engine can both
+        find their strikes in the same snapshot."""
+        out: list[ChainContract] = []
+        seen: set[str] = set()
+        for day in expiries:
+            for c in self._chain_for_expiry(underlying, day):
+                if c.symbol not in seen:
+                    seen.add(c.symbol)
+                    out.append(c)
+        return out
+
+    def _chain_for_expiry(self, underlying: str,
+                          day: date) -> list[ChainContract]:
+        try:
+            resp = self.options.get_option_chain(
+                OptionChainRequest(underlying_symbol=underlying,
+                                   expiration_date=day))
+        except Exception:                                       # noqa: BLE001
+            return []
+        out: list[ChainContract] = []
+        for sym, snap in resp.items():
+            parsed = parse_contract(sym)
+            if not parsed:
+                continue
+            _, exp, ctype, strike = parsed
+            quote = getattr(snap, "latest_quote", None)
+            greeks = getattr(snap, "greeks", None)
+            bid = getattr(quote, "bid_price", None) if quote else None
+            ask = getattr(quote, "ask_price", None) if quote else None
+            ts = getattr(quote, "timestamp", None) if quote else None
+            out.append(ChainContract(
+                symbol=sym, expiration=exp, contract_type=ctype,
+                strike=strike, bid=bid, ask=ask,
+                delta=getattr(greeks, "delta", None) if greeks else None,
+                iv=getattr(snap, "implied_volatility", None),
+                quote_ts=ts,
+            ))
+        return out
 
     def chain_age_seconds(self, contracts: list[ChainContract]) -> float | None:
         """Age of the freshest quote in the chain, per the clock."""

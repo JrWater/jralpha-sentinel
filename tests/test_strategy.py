@@ -244,3 +244,165 @@ def test_engine_never_emits_without_evidence(manifest):
                         [100 + i * 0.6 for i in range(80)], [0.5]),
         now_et=datetime(2026, 9, 1, 11, 30))
     assert run_engines(ctx) == []
+
+
+# ── v2.1: day-state gates ────────────────────────────────────────────────────
+
+def test_daystate_risk_cap():
+    from strategy.daystate import DayState, record_risk
+    ds = DayState(date="2026-09-01", start_equity=100000.0)
+    assert record_risk(ds, 4000.0, cap=6000.0)
+    assert ds.new_risk_dollars == 4000.0
+    assert not record_risk(ds, 2500.0, cap=6000.0)
+    assert ds.new_risk_dollars == 4000.0  # refused, not added
+
+
+def test_daystate_kill_switch_latches():
+    from strategy.daystate import DayState, check_kill
+    ds = DayState(date="2026-09-01", start_equity=100000.0)
+    assert not check_kill(ds, 98000.0, 0.03)
+    assert check_kill(ds, 96999.0, 0.03)
+    assert check_kill(ds, 105000.0, 0.03)  # recovery does not unlatch
+
+
+def test_daystate_scale_after_killed_day():
+    from strategy.daystate import load_or_reset
+    ds = load_or_reset({"date": "2026-09-01", "start_equity": 100000.0,
+                        "killed": True},
+                       today="2026-09-02", equity_now=99000.0)
+    assert ds.scale == 0.5
+    ds2 = load_or_reset({"date": "2026-09-01", "start_equity": 100000.0,
+                         "killed": False},
+                        today="2026-09-02", equity_now=99000.0)
+    assert ds2.scale == 1.0
+
+
+def test_daystate_fired_once():
+    from strategy.daystate import DayState, fire_key, fired, mark_fired
+    ds = DayState(date="2026-09-03", start_equity=100000.0)
+    key = fire_key("catalyst", "LULU", "2026-09-03")
+    assert not fired(ds, key)
+    mark_fired(ds, key)
+    assert fired(ds, key)
+
+
+# ── v2.1: structure-level exits ──────────────────────────────────────────────
+
+def _gv():
+    from strategy.exits import GroupView
+    return GroupView(
+        group_id="catalyst:LULU:2026-09-04:150001", engine="catalyst",
+        underlying="LULU", expiry="2026-09-04", kind="debit",
+        entry_net=3.40, ref_amount=3.40,
+        take_profit_fraction=0.80, stop_loss_fraction=0.45,
+        event_exit_date="2026-09-04", event_exit_time="09:35",
+        legs=[("LULU260904C00118000", "buy", 1),
+              ("LULU260904P00118000", "buy", 1)])
+
+
+def test_exit_decision_take_profit_and_stop_loss():
+    from datetime import datetime, timezone
+    from strategy.exits import decide_exit
+    now = datetime(2026, 9, 3, 12, 0, tzinfo=timezone.utc)
+    assert decide_exit(_gv(), 3.0, now_et=now, final_date="2026-09-04",
+                       flatten_at="10:45") == "take-profit $3"
+    assert decide_exit(_gv(), -2.0, now_et=now, final_date="2026-09-04",
+                       flatten_at="10:45") == "stop-loss $-2"
+    assert decide_exit(_gv(), 0.5, now_et=now, final_date="2026-09-04",
+                       flatten_at="10:45") is None
+
+
+def test_exit_decision_post_event_time_stop():
+    from datetime import datetime, timezone
+    from strategy.exits import decide_exit
+    before = datetime(2026, 9, 4, 9, 20, tzinfo=timezone.utc)
+    after = datetime(2026, 9, 4, 13, 40, tzinfo=timezone.utc)
+    assert decide_exit(_gv(), 0.0, now_et=before, final_date="2026-09-04",
+                       flatten_at="10:45") is None
+    assert decide_exit(_gv(), 0.0, now_et=after, final_date="2026-09-04",
+                       flatten_at="10:45") == "post-event time-stop"
+
+
+def test_exit_decision_final_flatten():
+    from datetime import datetime, timezone
+    from strategy.exits import GroupView, decide_exit
+    now = datetime(2026, 9, 4, 14, 50, tzinfo=timezone.utc)  # 10:50 ET
+    gv = GroupView(group_id="t", engine="trend_directional", underlying="SPY",
+                   expiry="2026-09-04", kind="debit", entry_net=1.0,
+                   ref_amount=1.0, take_profit_fraction=0.6,
+                   stop_loss_fraction=0.5,
+                   legs=[("SPY260904C00770000", "buy", 1)])
+    assert decide_exit(gv, 0.1, now_et=now, final_date="2026-09-04",
+                       flatten_at="10:45") == "final-day flatten"
+
+
+def test_close_proposal_flips_sides_at_touch():
+    from strategy.exits import build_close_proposal
+    gv = _gv()
+    touch = {"LULU260904C00118000": 5.0, "LULU260904P00118000": 0.4}
+    close = build_close_proposal(gv, touch)
+    assert len(close.legs) == 2
+    assert {leg.side for leg in close.legs} == {"sell"}
+    # proceeds 5.0 + 0.4, net positive
+    assert close.limit_price == 5.4
+
+
+def test_credit_structure_pnl_sign():
+    from strategy.exits import pnl_of
+    # entry: sold for 1.10 credit (entry_net negative); closing costs 0.40
+    assert abs(pnl_of(-1.10, -0.40) - 0.70) < 1e-9
+    # entry: paid 3.40 debit; now worth 4.00
+    assert abs(pnl_of(3.40, 4.00) - 0.60) < 1e-9
+
+
+# ── v2.1: single-leg gap play + sizing scale ─────────────────────────────────
+
+def test_single_long_is_defined_risk():
+    from datetime import date
+    from strategy.structures import build_single_long
+    from strategy.data import contract_symbol
+    exp = date(2026, 9, 4)
+    contracts = [
+        make_contract(contract_symbol("SPY", exp, "call", 770.0),
+                      bid=3.0, ask=3.2, delta=0.42),
+        make_contract(contract_symbol("SPY", exp, "put", 755.0),
+                      bid=2.0, ask=2.2, delta=-0.42),
+    ]
+    p = build_single_long(766.0, date(2026, 9, 4), exp, "SPY", 1,
+                          contracts, 0.42, 0.10)
+    assert p is not None and p.structure == "single_long"
+    assert len(p.legs) == 1
+    assert p.max_loss_dollars > 0
+    assert p.max_gain_dollars is None  # uncapped upside
+
+
+def test_sizing_scale_halves_cap(manifest):
+    p = Proposal(engine="event_macro", underlying="SPY", direction="long",
+                 structure="single_long", limit_price=4.0,
+                 max_loss_dollars=400.0,
+                 legs=[OptionLeg("x", "buy", 1, 770.0, "call",
+                                 date(2026, 9, 4))])
+    state = PortfolioState(max_loss_by_underlying={}, max_loss_total=0.0,
+                           count_by_engine={}, current_equity=100000,
+                           starting_equity=100000, scale=0.5)
+    sized = fixed_quantity(p, manifest, "event_macro", state,
+                           cap_key="addon_max_loss_per_trade_fraction")
+    # add-on cap 0.8% = $800; halved = $400 -> exactly 1 contract
+    assert sized is not None and sized.legs[0].quantity == 1
+
+
+def test_straddle_expiry_must_follow_the_event():
+    """An after-close report needs an expiry AFTER the event date."""
+    from datetime import date as d
+    from strategy.data import MarketState
+    from strategy.engine import _expiry_after_event
+    state = MarketState(equity=100000.0)
+    state.chains["LULU"] = [
+        ChainContract(symbol="LULU260903C00118000", expiration=d(2026, 9, 3),
+                      contract_type="call", strike=118.0, bid=1.0, ask=1.2,
+                      delta=0.5, iv=0.5, quote_ts=None),
+        ChainContract(symbol="LULU260904C00118000", expiration=d(2026, 9, 4),
+                      contract_type="call", strike=118.0, bid=1.2, ask=1.4,
+                      delta=0.5, iv=0.5, quote_ts=None),
+    ]
+    assert _expiry_after_event(state, "LULU", d(2026, 9, 3), 4) == d(2026, 9, 4)

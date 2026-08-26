@@ -1,9 +1,8 @@
 {
   "schema_version": 2,
   "policy_id": "SENTINEL-OPTIONS-V2",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "_comment_authority": "This manifest is the ONLY authority for strategy parameters. Code reads values from here; it never restates them. Prose documents describe this file, they do not define a competing source of truth. Every semantic change creates a new version rather than rewriting history.",
-
   "environment": {
     "broker": "ALPACA",
     "mode": "PAPER",
@@ -14,7 +13,6 @@
     "required_options_level": 3,
     "_comment_level": "Level 3 (multi-leg) is auto-approved on Alpaca paper accounts. The gate asserts it rather than assuming it."
   },
-
   "data": {
     "options_feed": "indicative",
     "_comment_feed": "Free tier serves an OPRA derivative delayed 15 minutes. Every parameter below is chosen to be insensitive to that delay; nothing here may depend on quote freshness finer than the delay itself.",
@@ -24,19 +22,39 @@
     "strike_delta_step": 1,
     "_comment_ages": "1500s = the 15-minute feed delay plus a 5-minute tolerance. A quote older than that is not 'slightly stale', it means the feed stopped."
   },
-
   "universe": {
-    "core": ["SPY", "QQQ"],
-    "satellite": ["NVDA", "MSFT", "AMZN", "META", "AAPL", "TSLA", "NFLX", "MU", "DELL", "PLTR", "COIN", "AMD", "AVGO", "LULU", "CRM", "CRWD"],
+    "core": [
+      "SPY",
+      "QQQ"
+    ],
+    "satellite": [
+      "NVDA",
+      "MSFT",
+      "AMZN",
+      "META",
+      "AAPL",
+      "TSLA",
+      "NFLX",
+      "MU",
+      "DELL",
+      "PLTR",
+      "COIN",
+      "AMD",
+      "AVGO",
+      "LULU",
+      "CRM",
+      "CRWD"
+    ],
     "_comment_universe": "Core names carry every-weekday expirations and the tightest spreads in the market. Satellites are the liquid optionable leaders with the highest dispersion and the two confirmed in-window catalysts (LULU earnings 09-03; NVDA/CRM/CRWD earnings 08-26 feeding post-earnings drift). Any symbol not listed here is refused by the executor."
   },
-
   "strategies": {
     "trend_directional": {
       "enabled": true,
       "engine_label": "Trend Vector",
       "risk_budget_fraction": 0.25,
-      "structures": ["debit_vertical"],
+      "structures": [
+        "debit_vertical"
+      ],
       "min_dte": 0,
       "max_dte": 2,
       "target_long_delta": 0.45,
@@ -44,29 +62,33 @@
       "width_strikes": 2,
       "score_threshold": 0.55,
       "max_positions": 3,
-      "max_loss_per_trade_fraction": 0.010,
-      "take_profit_fraction": 0.60,
-      "stop_loss_fraction": 0.50,
+      "max_loss_per_trade_fraction": 0.01,
+      "take_profit_fraction": 0.6,
+      "stop_loss_fraction": 0.5,
       "max_rsi_entry": 65.0,
       "max_momentum_5d_entry": 6.0,
       "max_momentum_20d_entry": 25.0,
-      "_comment": "Directional momentum engine: debit call verticals in a risk-on tape, debit put verticals in a risk-off tape, 0-2 DTE, defined risk = debit paid. The three max_*_entry keys are the pullback-entry filter: buy strength on a pullback, never after a blow-off. Validated 2026-08-25 on ~170 daily bars: the unfiltered score chased extended names (PLTR/COIN/NVDA/MSFT negative forward edge); the filtered signal measured +1.17% day-2 and +1.25% day-3 edge vs SPY across 222 signals."
+      "_comment": "Directional momentum engine: debit call verticals in a risk-on tape, debit put verticals in a risk-off tape, 0-2 DTE, defined risk = debit paid. The three max_*_entry keys are the pullback-entry filter: buy strength on a pullback, never after a blow-off. Validated 2026-08-25 on ~170 daily bars: the unfiltered score chased extended names (PLTR/COIN/NVDA/MSFT negative forward edge); the filtered signal measured +1.17% day-2 and +1.25% day-3 edge vs SPY across 222 signals. breakout_allow_long: a 20-day-high SPY breakout overrides a chop regime for one long position at reduced conviction - the record-high tape's main continuation scenario.",
+      "breakout_allow_long": true,
+      "breakout_max_positions": 1
     },
     "trend_income": {
       "enabled": true,
       "engine_label": "Trend Vector (income mode)",
-      "risk_budget_fraction": 0.20,
-      "structures": ["credit_vertical"],
+      "risk_budget_fraction": 0.2,
+      "structures": [
+        "credit_vertical"
+      ],
       "min_dte": 0,
       "max_dte": 2,
-      "target_short_delta": 0.20,
+      "target_short_delta": 0.2,
       "delta_tolerance": 0.05,
-      "min_credit_fraction_of_width": 0.20,
+      "min_credit_fraction_of_width": 0.2,
       "min_ivr": 0.15,
       "score_threshold": 0.55,
       "max_positions": 3,
       "max_loss_per_trade_fraction": 0.008,
-      "take_profit_fraction": 0.50,
+      "take_profit_fraction": 0.5,
       "stop_loss_multiple": 2.0,
       "max_rsi_entry": 65.0,
       "max_momentum_5d_entry": 6.0,
@@ -77,39 +99,52 @@
       "enabled": true,
       "engine_label": "Catalyst Vector",
       "risk_budget_fraction": 0.25,
-      "structures": ["straddle", "strangle", "debit_vertical"],
+      "structures": [
+        "straddle",
+        "strangle",
+        "debit_vertical"
+      ],
       "min_dte": 1,
       "max_dte": 3,
-      "pre_event_max_loss_per_trade_fraction": 0.020,
+      "pre_event_max_loss_per_trade_fraction": 0.02,
       "pead_max_loss_per_trade_fraction": 0.015,
-      "target_atm_delta": 0.50,
+      "target_atm_delta": 0.5,
       "pead_gap_threshold": 0.06,
-      "pead_gap_hold_fraction": 0.50,
-      "take_profit_fraction": 0.80,
+      "pead_gap_hold_fraction": 0.5,
+      "take_profit_fraction": 0.8,
       "stop_loss_fraction": 0.45,
       "entry_before_et": "15:15",
-      "_comment": "Confirmed in-window catalysts only: LULU Q2-FY26 earnings 09-03 16:30 ET (straddle entered 09-02), and post-earnings drift (PEAD) on NVDA/CRM/CRWD gaps from the 08-26 reports. The PEAD legs are entered the morning after a day-one gap and exited within 3 days."
+      "_comment": "Round-2 expiry fix: an after-close report (LULU 09-03 16:30 ET) is released AFTER any 09-03 option has expired, so the straddle lives on the first expiry strictly after the event (the Friday weekly), entered T-1 and structure-exited the next session at post_event_exit_time_et.",
+      "straddle_expiry_after_event_max_days": 4,
+      "post_event_exit_time_et": "09:35"
     },
     "event_macro": {
       "enabled": true,
       "engine_label": "Event Vector",
       "risk_budget_fraction": 0.15,
-      "structures": ["strangle", "debit_vertical"],
+      "structures": [
+        "strangle",
+        "debit_vertical"
+      ],
       "min_dte": 0,
       "max_dte": 1,
       "max_loss_per_trade_fraction": 0.015,
       "addon_max_loss_per_trade_fraction": 0.008,
       "gap_threshold": 0.006,
-      "take_profit_fraction": 0.60,
-      "stop_loss_fraction": 0.50,
+      "take_profit_fraction": 0.6,
+      "stop_loss_fraction": 0.5,
       "final_day_close_by_et": "10:40",
-      "_comment": "The one scheduled macro event with genuine intraday distribution: the August Employment Situation, 09-04 08:30 ET. 1-DTE SPY strangle entered 09-03; on 09-04 a 0-DTE directional vertical in the NFP gap direction, hard-flattened by 10:40 ET before the 11:00 ET submission deadline."
+      "_comment": "The one scheduled macro event with genuine intraday distribution: the August Employment Situation, 09-04 08:30 ET. 1-DTE SPY strangle entered 09-03; on 09-04 a 0-DTE directional vertical in the NFP gap direction, hard-flattened by 10:40 ET before the 11:00 ET submission deadline. Round-2 changes: the 09-04 gap continuation is a 0-DTE SINGLE-LEG long (risk = debit paid, upside uncapped - a vertical would cap the payoff at its width), sized under addon_max_loss_per_trade_fraction; the 09-03 strangle is structure-exited at 09:35 ET on 09-04.",
+      "target_delta": 0.42,
+      "post_event_exit_time_et": "09:35"
     },
     "vol_income": {
       "enabled": true,
       "engine_label": "Vol Vector",
       "risk_budget_fraction": 0.15,
-      "structures": ["iron_condor"],
+      "structures": [
+        "iron_condor"
+      ],
       "min_dte": 0,
       "max_dte": 2,
       "target_short_delta": 0.16,
@@ -118,12 +153,11 @@
       "regime": "chop",
       "max_positions": 2,
       "max_loss_per_trade_fraction": 0.008,
-      "take_profit_fraction": 0.50,
+      "take_profit_fraction": 0.5,
       "stop_loss_multiple": 2.0,
       "_comment": "SPY-only: sell the wings when realized-vol-based IVR is elevated and the market is range-bound. Four-legged iron condor, defined risk = width minus credit."
     }
   },
-
   "risk_caps": {
     "max_loss_per_position_fraction": 0.02,
     "_comment_top": "HARD outer bound for ANY proposal, all engines, $2,000. Engine-level caps in the strategies section are stricter; this is what a mis-configuration cannot exceed.",
@@ -136,9 +170,8 @@
     "drawdown_scale_fraction": 0.5,
     "_comment_caps": "Fractions are of the declared starting equity, not of current equity: a drawdown must shrink absolute risk. equity_floor 0.92 puts the Entry Maintenance trip at $92,000. at_risk_cap 13% = $13,000 of maximum loss across all open positions, which is the portfolio-level stop the write-up describes.",
     "_comment_floor": "Crossing the floor does not flatten the book. It forbids NEW exposure while leaving reconciliation and risk-reducing exits fully operational.",
-    "_comment_kill": "A day that loses more than 3% ($3,000) kills new entries for the rest of the day and halves sizing the next day. Two such days halve sizing for the remainder of the competition."
+    "_comment_kill": "A day that loses more than 3% ($3,000) kills new entries for the rest of the day and halves sizing the next day. Two such days halve sizing for the remainder of the competition. v2.1: these gates are now ENFORCED in scripts/run_cycle.py via strategy/daystate.py - daily cap, kill switch, and the 0.5x next-day scale."
   },
-
   "order_shapes": [
     {
       "id": "single_leg_limit_day",
@@ -165,10 +198,7 @@
       "legs": 4
     }
   ],
-  "_comment_shapes": "The wire form of every order this policy may emit. The executor builds an order FROM this list and validates any order it sees at the broker AGAINST the same list. Note the absence of 'market': on a 15-minute-delayed feed a market order is a blank cheque; on the final morning a market close would also be unverifiable. Every exit is a limit order at the current bid/ask, so 'flatten' means 'liquidate by limit, confirm, then liquidate the remainder at the improved touch', never 'market everything'."
-
-  ,
-
+  "_comment_shapes": "The wire form of every order this policy may emit. The executor builds an order FROM this list and validates any order it sees at the broker AGAINST the same list. Note the absence of 'market': on a 15-minute-delayed feed a market order is a blank cheque; on the final morning a market close would also be unverifiable. Every exit is a limit order at the current bid/ask, so 'flatten' means 'liquidate by limit, confirm, then liquidate the remainder at the improved touch', never 'market everything'.",
   "session": {
     "timezone": "America/New_York",
     "no_new_exposure_before": "10:00",
@@ -181,7 +211,6 @@
     "final_trading_date": "2026-09-04",
     "_comment_final": "Submissions close 2026-09-04 15:00 UTC (11:00 ET). Alpaca paper syncs non-trading activity (expiration, assignment) only on the following day, so 09-04 positions are closed by live orders, never left to expire."
   },
-
   "agent": {
     "model": "claude-opus-5",
     "_comment_authority": "The model produces PROPOSALS, never orders. It has no broker credentials and no submission tool. Its output is a structured selection among engine candidates plus a written thesis; the gates then accept or refuse.",

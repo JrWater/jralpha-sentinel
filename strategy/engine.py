@@ -28,7 +28,8 @@ from strategy.signals import Signal, conviction, score_symbol
 from strategy.sizing import PortfolioState, fixed_quantity
 from strategy.structures import (atm_iv, build_credit_vertical,
                                  build_debit_vertical, build_iron_condor,
-                                 build_straddle, build_strangle, pick_expiry)
+                                 build_single_long, build_straddle,
+                                 build_strangle, pick_expiry)
 
 
 @dataclass
@@ -120,7 +121,35 @@ def _trend(ctx: EngineContext) -> list[Candidate]:
             c = _one_trend(ctx, sig, direction=-1)
             if c:
                 out.append(c)
+    elif _breakout(ctx, cfg):
+        # Round-2 addition: a 20-day-high breakout overrides 'chop' for longs.
+        # The market is at record highs and the biggest 5-day P&L scenario in
+        # this window is a fresh-high continuation. One position, half
+        # conviction, same pullback filter.
+        picks = [s for s in sorted(candidates, key=lambda s: s.score, reverse=True)
+                 if s.score >= float(cfg["score_threshold"]) and entry_ok(s, 1)][: 1]
+        for sig in picks:
+            c = _one_trend(ctx, sig, direction=1)
+            if c:
+                c.proposal.conviction = round(c.proposal.conviction * 0.6, 2)
+                c.label = "trend-breakout"
+                out.append(c)
     return out
+
+
+def _breakout(ctx: EngineContext, cfg) -> bool:
+    """SPY trading above its prior 20 sessions' high while the regime is chop."""
+    if not bool(cfg.get("breakout_allow_long", False)):
+        return False
+    bars = ctx.state.bars.get("SPY", [])
+    if len(bars) < 21:
+        return False
+    spot = _spot(ctx.state, "SPY")
+    if spot is None:
+        return False
+    # exclude today's forming bar: the breakout is against PRIOR sessions
+    prior_high = max(getattr(b, "high", 0.0) for b in bars[-21:-1])
+    return prior_high > 0 and spot > prior_high
 
 
 def _one_trend(ctx: EngineContext, sig: Signal, direction: int) -> Candidate | None:
@@ -184,15 +213,14 @@ def _catalyst(ctx: EngineContext) -> list[Candidate]:
     today = ctx.now_et.date()
     entry_before = _hm(cfg.get("entry_before_et", "15:15"))
 
-    # Pre-event straddle: LULU earnings 09-03 16:30 ET -> enter 09-02.
+    # Pre-event straddle: LULU earnings 09-03 16:30 ET -> enter 09-02 only
+    # (T-1). The event day itself is skipped (the straddle needs an expiry
+    # AFTER the event), and the day after belongs to the exit, not a new entry.
     for cat in catalysts.major_catalysts():
         if cat.kind != "earnings" or not cat.underlying:
             continue
-        start, end = catalysts.entry_window(cat)
-        if not (start <= today <= end):
+        if today != cat.date - timedelta(days=1):
             continue
-        if today == cat.date:
-            continue  # event day: no pre-event straddle (the PEAD leg takes over)
         if (ctx.now_et.hour, ctx.now_et.minute) > entry_before:
             continue  # too late in the afternoon to pay a straddle
         cand = _earnings_straddle(ctx, cat.underlying, cat, cfg)
@@ -212,6 +240,19 @@ def _catalyst(ctx: EngineContext) -> list[Candidate]:
     return out
 
 
+def _expiry_after_event(state, symbol: str, event_date, max_days: int):
+    """First available expiry strictly AFTER the event date (pure, testable).
+
+    US options expire at 16:00 ET on expiry day; an after-close report is
+    released after any same-day option has already expired, so the straddle
+    must live on the following expiry (for LULU on 09-03: the 09-04 weekly).
+    """
+    after = sorted({c.expiration for c in state.contracts(symbol)
+                    if c.expiration > event_date
+                    and (c.expiration - event_date).days <= max_days})
+    return after[0] if after else None
+
+
 def _earnings_straddle(ctx: EngineContext, symbol: str, cat, cfg) -> Candidate | None:
     state = ctx.state
     s = state.latest.get(symbol)
@@ -221,8 +262,15 @@ def _earnings_straddle(ctx: EngineContext, symbol: str, cat, cfg) -> Candidate |
                          getattr(s, "ask_price", getattr(s, "bid_price", 0.0))))
     if spot <= 0:
         return None
-    # expiry: the event date itself (1 DTE at entry on 09-02)
-    expiry = cat.date
+    # Round-2 fix: the expiry must be strictly AFTER the event. US options
+    # expire at 16:00 ET on expiry day, and an after-close report (LULU
+    # 09-03 16:30 ET) is released AFTER any 09-03 option has already expired.
+    # The straddle therefore lives on the first expiry after the event date
+    # (the Friday weekly), is entered on T-1, and is exited the next session.
+    max_after = int(cfg.get("straddle_expiry_after_event_max_days", 4))
+    expiry = _expiry_after_event(state, symbol, cat.date, max_after)
+    if expiry is None:
+        return None
     dte = (expiry - state.now_utc.date()).days
     if not (int(cfg["min_dte"]) <= dte <= int(cfg["max_dte"])):
         return None
@@ -236,9 +284,14 @@ def _earnings_straddle(ctx: EngineContext, symbol: str, cat, cfg) -> Candidate |
         return None
     proposal.engine = "catalyst"
     proposal.conviction = 0.75
+    proposal.event_exit_date = (cat.date + timedelta(days=1)).isoformat()
+    proposal.event_exit_time = str(cfg.get("post_event_exit_time_et", "09:35"))
     proposal.thesis = (f"Catalyst Vector: {symbol} {cat.name} on "
-                       f"{cat.date} {cat.time_et} ET; ATM straddle to monetize "
-                       f"the expected move. Confirmed event, defined risk.")
+                       f"{cat.date} {cat.time_et} ET; ATM straddle expiring "
+                       f"{expiry} (the expiry AFTER the event) to monetize the "
+                       f"expected move, exited {proposal.event_exit_date} at "
+                       f"{proposal.event_exit_time} ET. Confirmed event, "
+                       f"defined risk.")
     sized = fixed_quantity(proposal, ctx.manifest, "catalyst", ctx.portfolio)
     if sized is None:
         return None
@@ -300,8 +353,8 @@ def _event(ctx: EngineContext) -> list[Candidate]:
                 out.append(cand)
 
     # Gap-day continuation: 09-04, after the 09:30 open, before 09:50.
-    if today == nfp.date and (ctx.now_et.hour, ctx.now_et.minute) >= (9, 30):
-        cand = _nfp_gap_vertical(ctx, cfg)
+    if today == nfp.date and (9, 30) <= (ctx.now_et.hour, ctx.now_et.minute) <= (9, 50):
+        cand = _nfp_gap_play(ctx, cfg)
         if cand:
             out.append(cand)
     return out
@@ -320,21 +373,27 @@ def _nfp_strangle(ctx: EngineContext, cfg) -> Candidate | None:
         return None
     proposal.engine = "event_macro"
     proposal.conviction = 0.65
+    # exit the morning after the report, at the first post-open cycle
+    proposal.event_exit_date = expiry.isoformat()
+    proposal.event_exit_time = str(cfg.get("post_event_exit_time_et", "09:35"))
     proposal.thesis = ("Event Vector: August Employment Situation tomorrow "
-                       "08:30 ET; 1-DTE SPY strangle for the distribution. "
-                       "Flat by 10:40 ET tomorrow by order, never by expiry.")
+                       "08:30 ET; 1-DTE SPY strangle for the distribution, "
+                       "structure-exited 09:35 ET after the report by order, "
+                       "never by expiry.")
     sized = fixed_quantity(proposal, ctx.manifest, "event_macro", ctx.portfolio)
     if sized is None:
         return None
     return Candidate(sized, 0.7, "event-nfp-strangle")
 
 
-def _nfp_gap_vertical(ctx: EngineContext, cfg) -> Candidate | None:
-    """0-DTE directional vertical in the direction of the NFP gap.
+def _nfp_gap_play(ctx: EngineContext, cfg) -> Candidate | None:
+    """0-DTE SINGLE-LEG long in the direction of the NFP gap.
 
-    The 08:30 report moves futures; the 09:30 open shows the gap. If the gap
-    is >= 0.6% of yesterday's close, the market has voted — buy the follow-
-    through on SPY with a 0-DTE vertical and hard time-stop at 10:40 ET.
+    Round-2 change: a 2-wide vertical caps the payoff at the width; a single
+    long option keeps the upside uncapped while the risk stays defined at the
+    debit paid. For a 0-DTE gap-continuation trade the asymmetry is the whole
+    point — this is the one place in the policy where single-leg long is the
+    right instrument. Hard time-stop at 10:40 ET (the final flatten).
     """
     state = ctx.state
     spot = _spot(state, "SPY")
@@ -353,17 +412,21 @@ def _nfp_gap_vertical(ctx: EngineContext, cfg) -> Candidate | None:
     direction = 1 if gap_pct > 0 else -1
     expiry = ctx.now_et.date()   # 0 DTE today
     contracts = state.contracts("SPY", expiry)
-    proposal = build_debit_vertical(
+    proposal = build_single_long(
         spot, ctx.now_et.date(), expiry, "SPY", direction,
-        contracts, 0.55, 0.10, 2)
+        contracts, float(cfg.get("target_delta", 0.42)), 0.10)
     if proposal is None:
         return None
     proposal.engine = "event_macro"
     proposal.conviction = 0.6
+    proposal.event_exit_date = ""
+    proposal.event_exit_time = ""
     proposal.thesis = (f"Event Vector: NFP gap {gap_pct * 100:+.2f}% -> "
                        f"{'long' if direction > 0 else 'short'} 0-DTE SPY "
-                       f"vertical, time-stop 10:40 ET.")
-    sized = fixed_quantity(proposal, ctx.manifest, "event_macro", ctx.portfolio)
+                       f"single-leg, time-stop 10:40 ET, risk = debit paid.")
+    sized = fixed_quantity(proposal, ctx.manifest, "event_macro",
+                            ctx.portfolio,
+                            cap_key="addon_max_loss_per_trade_fraction")
     if sized is None:
         return None
     return Candidate(sized, 0.65, "event-nfp-gap")
