@@ -18,3 +18,9 @@ media/build/*.mp4
 media/build/clips/
 media/build/qa/
 media/audio/
+
+# sentinel-video (HyperFrames) build intermediates
+sentinel-video/.snapshots*/
+sentinel-video/node_modules/
+sentinel-video/out/
+media/audio_el/
