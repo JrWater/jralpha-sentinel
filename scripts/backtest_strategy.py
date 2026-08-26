@@ -110,10 +110,23 @@ class Book:
 
     def mark(self, trade: dict, spot: float, sigma: float,
              tau: float) -> float | None:
-        value = (intrinsic_vertical(spot, trade["k1"], trade["k2"],
-                                    trade["is_call"]) if tau <= 0
-                 else price_vertical(spot, trade["k1"], trade["k2"], tau,
-                                     sigma, trade["is_call"]))
+        if trade["k2"] is None:
+            value = (max(spot - trade["k1"], 0.0) if trade["is_call"]
+                     else max(trade["k1"] - spot, 0.0)) if tau <= 0 else \
+                black_scholes(spot, trade["k1"], tau, sigma, RATE,
+                              trade["is_call"])
+        else:
+            value = (intrinsic_vertical(spot, trade["k1"], trade["k2"],
+                                        trade["is_call"]) if tau <= 0
+                     else price_vertical(spot, trade["k1"], trade["k2"], tau,
+                                         sigma, trade["is_call"]))
+        if trade["mode"] == "credit":
+            credit = trade["credit"]
+            if value <= (1.0 - trade["tp"]) * credit:
+                return (credit - value) * 100.0 * trade["qty"]
+            if value >= trade["sl"] * credit:
+                return (credit - value) * 100.0 * trade["qty"]
+            return None
         debit = trade["debit"]
         if value >= (1.0 + trade["tp"]) * debit:
             return (value - debit) * 100.0 * trade["qty"]
@@ -133,7 +146,7 @@ def precompute(manifest, data) -> dict:
 
     scores = {}
     for sym in symbols:
-        if sym in ("SPY", "QQQ"):
+        if sym in ("SPY", "QQQ") and len(closes.get(sym, [])) < 60:
             continue
         c = closes[sym]
         scores[sym] = {}
@@ -153,7 +166,10 @@ def precompute(manifest, data) -> dict:
 
 
 def run_backtest(pre, *, tp: float, sl: float, delta_target: float,
-                 dte: int) -> dict:
+                 dte: int, mode: str = "vertical",
+                 cap_per_trade: float = CAP_PER_TRADE,
+                 daily_cap: float = DAILY_CAP,
+                 at_risk_cap: float = 13000.0) -> dict:
     closes, dates, scores, regimes, n = (pre["closes"], pre["dates"],
                                          pre["scores"], pre["regimes"],
                                          pre["n"])
@@ -164,17 +180,26 @@ def run_backtest(pre, *, tp: float, sl: float, delta_target: float,
         for trade in list(book.open):
             spot = closes[trade["sym"]][t]
             sigma = clamp_vol(realized_vol(closes[trade["sym"]][: t + 1], 30))
-            tau = max(trade["expiry_t"] - t, 0)
+            # tau in YEARS: the mark is 1..N days from expiry, not 1..N years
+            tau = max(trade["expiry_t"] - t, 0) / 365.0
             pnl = book.mark(trade, spot, sigma, tau)
             if pnl is not None:
                 book.close(trade, pnl)
         for trade in list(book.open):
             if trade["expiry_t"] <= t:
                 spot = closes[trade["sym"]][t]
-                value = intrinsic_vertical(spot, trade["k1"], trade["k2"],
-                                           trade["is_call"])
-                book.close(trade, (value - trade["debit"]) * 100.0
-                           * trade["qty"])
+                if trade["k2"] is None:
+                    value = (max(spot - trade["k1"], 0.0) if trade["is_call"]
+                             else max(trade["k1"] - spot, 0.0))
+                else:
+                    value = intrinsic_vertical(spot, trade["k1"], trade["k2"],
+                                               trade["is_call"])
+                if trade["mode"] == "credit":
+                    book.close(trade, (trade["credit"] - value) * 100.0
+                               * trade["qty"])
+                else:
+                    book.close(trade, (value - trade["debit"]) * 100.0
+                               * trade["qty"])
 
         regime = regimes[t]
         if not (regime.long_allowed or regime.short_allowed):
@@ -194,6 +219,12 @@ def run_backtest(pre, *, tp: float, sl: float, delta_target: float,
                 ok = (sig.score <= -0.55 and sig.rsi14 >= 35.0
                       and abs(sig.momentum_5d) <= 6.0
                       and sig.momentum_20d >= -25.0)
+            # credit mode takes the same signal but only when the name is
+            # NOT breaking down: put-selling needs a floor, call-selling a cap
+            if mode == "credit" and direction > 0 and sig.momentum_5d < -2.0:
+                ok = False
+            if mode == "credit" and direction < 0 and sig.momentum_5d > 2.0:
+                ok = False
             if ok:
                 picks.append((sig.score * direction, sym))
         picks.sort(reverse=True)
@@ -206,25 +237,67 @@ def run_backtest(pre, *, tp: float, sl: float, delta_target: float,
             sigma = clamp_vol(realized_vol(c[: t + 1], 30))
             tau = dte / 365.0
             is_call = direction > 0
-            k1 = strike_for_delta(spot, tau, sigma, delta_target, is_call)
-            k2 = strike_for_delta(spot, tau, sigma, 0.25, is_call)
-            if not k1 or not k2 or k1 == k2:
+            if mode == "vertical":
+                k1 = strike_for_delta(spot, tau, sigma, delta_target, is_call)
+                k2 = strike_for_delta(spot, tau, sigma, 0.25, is_call)
+                if not k1 or not k2 or k1 == k2:
+                    continue
+                debit = max(price_vertical(spot, k1, k2, tau, sigma,
+                                           is_call), 0.01)
+                per_contract = debit * 100.0
+                if per_contract > cap_per_trade:
+                    continue
+                qty = max(1, int(cap_per_trade // per_contract))
+                risk = per_contract * qty
+                trade = {"sym": sym, "dir": direction, "k1": k1, "k2": k2,
+                         "debit": debit, "qty": qty, "risk": risk,
+                         "is_call": is_call, "tp": tp, "sl": sl,
+                         "expiry_t": t + dte, "mode": mode,
+                         "credit": 0.0}
+            elif mode == "credit":
+                k_short = strike_for_delta(spot, tau, sigma, 0.20, is_call)
+                k_long = strike_for_delta(spot, tau, sigma, 0.12, is_call)
+                if not k_short or not k_long or k_short == k_long:
+                    continue
+                if is_call:
+                    k1, k2 = k_short, k_long      # short call below long call
+                else:
+                    k1, k2 = k_long, k_short      # long put below short put
+                credit = max(price_vertical(spot, k1, k2, tau, sigma,
+                                            is_call), 0.01)
+                width = abs(k2 - k1)
+                per_contract = (width - credit) * 100.0
+                if per_contract <= 0 or per_contract > cap_per_trade:
+                    continue
+                qty = max(1, int(cap_per_trade // per_contract))
+                risk = per_contract * qty
+                trade = {"sym": sym, "dir": direction, "k1": k1, "k2": k2,
+                         "debit": credit, "qty": qty, "risk": risk,
+                         "is_call": is_call, "tp": tp, "sl": sl,
+                         "expiry_t": t + dte, "mode": mode,
+                         "credit": credit}
+            else:  # single
+                k1 = strike_for_delta(spot, tau, sigma, delta_target, is_call)
+                if not k1:
+                    continue
+                debit = max(black_scholes(spot, k1, tau, sigma, RATE,
+                                          is_call), 0.01)
+                per_contract = debit * 100.0
+                if per_contract > cap_per_trade:
+                    continue
+                qty = max(1, int(cap_per_trade // per_contract))
+                risk = per_contract * qty
+                trade = {"sym": sym, "dir": direction, "k1": k1, "k2": None,
+                         "debit": debit, "qty": qty, "risk": risk,
+                         "is_call": is_call, "tp": tp, "sl": sl,
+                         "expiry_t": t + dte, "mode": mode,
+                         "credit": 0.0}
+            open_risk = sum(x["risk"] for x in book.open)
+            if open_risk + risk > at_risk_cap:
                 continue
-            debit = max(price_vertical(spot, k1, k2, tau, sigma, is_call),
-                        0.01)
-            per_contract = debit * 100.0
-            if per_contract > CAP_PER_TRADE:
-                continue
-            qty = max(1, int(CAP_PER_TRADE // per_contract))
-            risk = per_contract * qty
             if not book.can_open(day, risk):
                 continue
-            book.open_trade(day, {
-                "sym": sym, "dir": direction, "k1": k1, "k2": k2,
-                "debit": debit, "qty": qty, "risk": risk,
-                "is_call": is_call, "tp": tp, "sl": sl,
-                "expiry_t": t + dte,
-            })
+            book.open_trade(day, trade)
 
     trades = book.trades
     if trades:
@@ -248,6 +321,10 @@ def run_backtest(pre, *, tp: float, sl: float, delta_target: float,
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--sweep", action="store_true")
+    ap.add_argument("--structures", action="store_true",
+                    help="compare vertical/credit/single on shipped signals")
+    ap.add_argument("--sizing", action="store_true",
+                    help="sweep per-trade cap / daily cap / at-risk cap")
     args = ap.parse_args()
 
     manifest = load_manifest()
@@ -273,6 +350,34 @@ def main() -> int:
           f"{data['SPY'][-1].timestamp.date()}")
 
     pre = precompute(manifest, data)
+
+    if args.structures:
+        print(f"{'mode':<10} {'n':>4} {'win%':>6} {'avg$':>7} {'total$':>9} "
+              f"{'best$':>7} {'worst$':>7} {'maxDD$':>7} {'equity$':>9}")
+        for mode in ("vertical", "credit", "single"):
+            # credit mode: TP at 50% of credit, SL at 2x credit (shipped rules)
+            r = run_backtest(pre, tp=0.5 if mode == "credit" else 0.4,
+                             sl=2.0 if mode == "credit" else 0.5,
+                             delta_target=0.40, dte=2, mode=mode)
+            print(f"{mode:<10} {r['n']:>4} {r['win_rate'] * 100:>5.0f}% "
+                  f"{r['avg']:>7} {r['total_pnl']:>9} {r['best']:>7} "
+                  f"{r['worst']:>7} {r['max_dd']:>7} {r['final_equity']:>9}")
+        return 0
+
+    if args.sizing:
+        print(f"{'cap$':>6} {'day$':>6} {'risk$':>6} {'n':>4} {'win%':>6} "
+              f"{'total$':>9} {'maxDD$':>7} {'equity$':>9}")
+        for cap in (1000, 1500, 2000):
+            for day_cap in (6000, 8000):
+                for at_risk in (13000, 15000, 20000):
+                    r = run_backtest(pre, tp=0.4, sl=0.5,
+                                     delta_target=0.40, dte=2,
+                                     cap_per_trade=cap, daily_cap=day_cap,
+                                     at_risk_cap=at_risk)
+                    print(f"{cap:>6} {day_cap:>6} {at_risk:>6} {r['n']:>4} "
+                          f"{r['win_rate'] * 100:>5.0f}% {r['total_pnl']:>9} "
+                          f"{r['max_dd']:>7} {r['final_equity']:>9}")
+        return 0
 
     if args.sweep:
         print(f"{'TP':>5} {'SL':>5} {'Δ':>5} {'DTE':>3} {'n':>4} "

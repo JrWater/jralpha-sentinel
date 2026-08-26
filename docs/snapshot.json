@@ -11,7 +11,7 @@
     "starting_equity": 100000.0
   },
   "code": {
-    "git_head": "1584d1f795d26b5a3e79047fbe09e21486520cdb",
+    "git_head": "003d8212bf3c2c547b3e479f002b9f46484660fa",
     "worktree_dirty": true
   },
   "day": {
@@ -72,6 +72,36 @@
       "reason": "permit refused: market_session",
       "structure": "debit_vertical",
       "underlying": "NFLX"
+    },
+    {
+      "accepted": false,
+      "at": "2026-08-26T23:20:06.737627+00:00",
+      "conviction": 0.869,
+      "engine": "trend_income",
+      "max_loss_dollars": 1296.0,
+      "reason": "permit refused: market_session",
+      "structure": "credit_vertical",
+      "underlying": "CRM"
+    },
+    {
+      "accepted": false,
+      "at": "2026-08-26T23:20:06.737627+00:00",
+      "conviction": 0.7,
+      "engine": "catalyst",
+      "max_loss_dollars": 1684.0,
+      "reason": "permit refused: market_session",
+      "structure": "debit_vertical",
+      "underlying": "CRWD"
+    },
+    {
+      "accepted": false,
+      "at": "2026-08-26T23:20:06.737627+00:00",
+      "conviction": 0.832,
+      "engine": "trend_directional",
+      "max_loss_dollars": 1496.0,
+      "reason": "permit refused: market_session",
+      "structure": "debit_vertical",
+      "underlying": "NFLX"
     }
   ],
   "equity_history": [
@@ -82,6 +112,10 @@
     {
       "equity": 100000.0,
       "t": "2026-08-26T22:50:01.138460+00:00"
+    },
+    {
+      "equity": 100000.0,
+      "t": "2026-08-26T23:20:06.737627+00:00"
     }
   ],
   "gates": [
@@ -167,7 +201,7 @@
       "severity": "BLOCKING"
     },
     {
-      "detail": "SENTINEL-OPTIONS-V2@2.2.0+7e9a1307f354",
+      "detail": "SENTINEL-OPTIONS-V2@2.4.0+a88a64153502",
       "dimension": "Release Integrity",
       "name": "manifest_identity",
       "ok": true,
@@ -176,7 +210,7 @@
       "severity": "BLOCKING"
     },
     {
-      "detail": "worktree dirty at 1584d1f795d2",
+      "detail": "worktree dirty at 003d8212bf3c",
       "dimension": "Release Integrity",
       "name": "release_integrity",
       "ok": false,
@@ -185,7 +219,7 @@
       "severity": "ATTENTION"
     }
   ],
-  "generated_at_utc": "2026-08-26T22:50:01.138460+00:00",
+  "generated_at_utc": "2026-08-26T23:20:06.737627+00:00",
   "market": {
     "is_open": false
   },
@@ -197,10 +231,10 @@
     "status": "BLOCKED"
   },
   "policy": {
-    "identity": "SENTINEL-OPTIONS-V2@2.2.0+7e9a1307f354",
+    "identity": "SENTINEL-OPTIONS-V2@2.4.0+a88a64153502",
     "policy_id": "SENTINEL-OPTIONS-V2",
-    "sha": "7e9a1307f354e0017db7282fb23d1ceadce200d3e57a1878dfe9bcf10bca9097",
-    "version": "2.2.0"
+    "sha": "a88a64153502e9435fdd0bb81d4c6af2db1cb23caada36c5240cada0d8311078",
+    "version": "2.4.0"
   },
   "positions": [],
   "regime": {

@@ -319,18 +319,18 @@ def test_invented_ticker_is_refused(manifest):
         _ctx(manifest, proposal=_proposal(underlying="TSLQ"))).ok
 
 
-def test_per_trade_risk_cap_is_two_thousand(manifest):
+def test_per_trade_risk_cap_is_three_thousand(manifest):
     assert checks.check_per_trade_risk(
-        _ctx(manifest, proposal=_proposal(max_loss_dollars=2000.0))).ok
+        _ctx(manifest, proposal=_proposal(max_loss_dollars=3000.0))).ok
     assert not checks.check_per_trade_risk(
-        _ctx(manifest, proposal=_proposal(max_loss_dollars=2000.01))).ok
+        _ctx(manifest, proposal=_proposal(max_loss_dollars=3000.01))).ok
 
 
 def test_risk_cap_does_not_rescale_after_a_drawdown(manifest):
     """Caps are fractions of DECLARED STARTING equity, not current equity.
 
     Sizing off current equity would keep the same relative aggression all the
-    way down. At $80k equity the cap must still be $2,000, not $1,600.
+    way down. At $80k equity the cap must still be $3,000, not $2,400.
     """
     ctx = _ctx(manifest, account=_account(equity="80000"),
                proposal=_proposal(max_loss_dollars=450.0))

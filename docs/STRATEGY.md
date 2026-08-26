@@ -96,9 +96,9 @@ first and last 30 minutes (the only time when a delayed chain is also
 
 ## Risk gates (the ones the write-up will brag about)
 
-- Per-trade hard cap: **$2,000** (any engine; `risk_caps.max_loss_per_position_fraction`)
-- Engine caps: trend $1,000 / $800, catalyst $2,000 (straddle) / $1,500 (PEAD), event $1,500 / $800, vol $800
-- Portfolio at-risk cap: **$13,000** = 13% of starting equity, all open structures combined
+- Per-trade hard cap: **$3,000** (any engine; `risk_caps.max_loss_per_position_fraction`, v2.4)
+- Engine caps (v2.4): trend $1,500, catalyst $3,000 (straddle) / $2,000 (PEAD), event $2,500 / $1,500, vol $800
+- Portfolio at-risk cap: **$15,000** = 15% of starting equity, all open structures combined (v2.4)
 - Concurrent positions ≤ 10; ≤ 3 structures (≤ 6 contracts) per underlying; ≤ 3 satellites per vector
 - **Daily kill switch (enforced):** day P&L ≤ −$3,000 → no new entries for the rest of the day; next day's sizes ×0.5 (`strategy/daystate.py`)
 - **Daily exposure cap (enforced):** max $6,000 of new max-loss submitted per day
@@ -128,38 +128,54 @@ execution through the Trading API.
 4. Sep 3: LULU straddle 15:00–15:15 + NFP strangle, both 1 DTE
 5. Sep 4: 09:30–09:45 NFP gap vertical; 10:45 aggressive flatten; 15:00 UTC submit
 
-## Backtest (model-based simulation, 2026-08-26)
+## Backtest (model-based simulation, 2026-08-26, v2.4 correction)
 
-`scripts/backtest_strategy.py` replays the Trend Vector **as the engine trades
-it**: regime gate, score threshold, pullback filter, top-3 ranking, $1,000
-per-trade cap, $6,000 daily exposure cap, 10 concurrent, debit verticals
-priced with Black-Scholes (IV proxied by trailing 30-day realized vol,
-clamped 12–80%), TP/SL, expiry at 2-DTE intrinsic. Marks are daily closes
-only. 250 sessions, 2025-12-08 .. 2026-08-26, 18 symbols.
+`scripts/backtest_strategy.py` replays the Trend Vector as the engine trades
+it: regime gate, score threshold, pullback filter, top-3 ranking, position
+caps, BS-priced 2-DTE structures (IV proxied by trailing 30-day realized
+vol, clamped 12-80%), TP/SL, expiry at intrinsic. Marks are daily closes.
+250 sessions, 2025-12-08 .. 2026-08-26, 18 symbols incl. SPY/QQQ.
 
-| config | trades | win% | avg | total | maxDD |
+**Erratum (honesty first):** the first published run of this backtest marked
+positions with tau in DAYS instead of years — every daily mark priced the
+option as if a year remained, inflating values and triggering take-profit
+on nearly any move (the reported +$31.8k/64% was that artifact). The table
+below is the CORRECTED result; the earlier numbers in git history are wrong.
+
+Structure comparison, same signal/regime/filters, $1,000 cap, 250 sessions:
+
+| structure | trades | win% | avg | total | maxDD |
 |---|---|---|---|---|---|
-| shipped v2.2 (Δ0.45, TP60%) | 279 | 37% | −$26 | **−$7.3k** | $24.0k |
-| **shipped v2.3 (Δ0.40, TP40%)** | 283 | **64%** | **+$112** | **+$31.8k** | **$9.6k** |
-| best sweep cell (Δ0.40, TP40%, SL40%) | 283 | 64% | +$112 | +$31.8k | $9.6k |
+| debit vertical (old default) | 296 | 40% | +$53 | +$15.7k | $14.1k |
+| **credit spread (v2.4 default)** | 280 | **87%** | **+$66** | **+$18.4k** | **$4.6k** |
+| single-leg long | 291 | 35% | +$192 | +$55.9k | $20.9k |
 
-The direction is economically sensible, not a single lucky cell: lower delta
-(0.40 > 0.45 > 0.55) and earlier profit-taking (40% > 60% > 80%) dominate
-across the grid. This drove the v2.3 manifest change.
-
-Signal-level companion (`scripts/backtest_signals.py`, now applying the same
-shipped entry rules): the raw 3-day forward edge is **mixed by name** —
-DELL +4.9%, AVGO +2.1%, AMD +1.4% vs NVDA −1.4%, META −2.0% — which is
-exactly why the structure + exit timing, not the raw score, is where the
-simulated P&L comes from.
+- **Credit is the default** because a one-week window rewards win
+  probability: 87% wins with the pullback-filtered signal, drawdown a third
+  of the debit book's. Debit verticals stay as the fallback when the credit
+  ladder cannot be built.
+- **Single-leg is NOT the default**: the fat mean comes with 35% wins and a
+  $20.9k drawdown — the right tool for a 10-month run, the wrong default for
+  a 4.5-session judging window. The NFP gap play keeps its single-leg shape
+  as the one declared convexity bet.
+- Parameter grid (corrected): delta 0.40 > 0.45 > 0.55 and TP 40% ≥ 60% ≥
+  80% hold; SL 0.40 slightly beats 0.50 for the vertical book; DTE 2 > 1.
+- Sizing scales nearly linearly ($1,500 cap -> +$22.4k/250d), which grounds
+  the v2.4 cap raise to 1.5% per trend trade.
+- v2.4 tournament sizing: catalyst pre-event 2%->3%, PEAD 1.5%->2%, NFP
+  strangle 1.5%->2.5%, gap add-on 0.8%->1.5%, hard cap $2k->$3k, at-risk
+  13%->15%, daily exposure 6%->8%. Worst-case all-engine failure is ~15.5%
+  of the account — still north of the $92k Entry Maintenance floor. This is
+  the maximum P&L firepower the discipline allows; going further is
+  unbounded-risk territory and would falsify the one-page write-up's risk
+  gates.
 
 **Caveats, stated plainly:** realized vol is a *proxy* for implied vol; marks
-are daily (real cycles mark every 30 min, so TP/SL trigger more often in
+are daily (live cycles mark every 30 min, so TP/SL trigger more often in
 both directions); no fills/slippage; the Catalyst/Event/Vol vectors have no
 history to replay (they are the specific scheduled events of this window);
 parameter selection on one 250-session sample carries overfit risk. The
-number is a prior, not a promise — the same words that were true before the
-strategy earned a simulated dollar.
+number is a prior, not a promise.
 
 ## What is *not* claimed
 
