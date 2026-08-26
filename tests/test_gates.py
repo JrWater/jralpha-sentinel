@@ -240,11 +240,11 @@ def test_live_session_is_refused_even_with_matching_account(manifest, tmp_path):
     assert not r.ok and "not paper" in r.detail
 
 
-def test_equity_floor_trips_at_80_percent(manifest):
+def test_equity_floor_trips_at_70_percent(manifest):
     assert checks.check_equity_floor(
-        _ctx(manifest, account=_account(equity="80000.01"))).ok
+        _ctx(manifest, account=_account(equity="70000.01"))).ok
     tripped = checks.check_equity_floor(
-        _ctx(manifest, account=_account(equity="79999.99")))
+        _ctx(manifest, account=_account(equity="69999.99")))
     assert not tripped.ok and "ENTRY MAINTENANCE" in tripped.detail
 
 
@@ -319,18 +319,18 @@ def test_invented_ticker_is_refused(manifest):
         _ctx(manifest, proposal=_proposal(underlying="TSLQ"))).ok
 
 
-def test_per_trade_risk_cap_is_ten_thousand(manifest):
+def test_per_trade_risk_cap_is_twelve_thousand(manifest):
     assert checks.check_per_trade_risk(
-        _ctx(manifest, proposal=_proposal(max_loss_dollars=10000.0))).ok
+        _ctx(manifest, proposal=_proposal(max_loss_dollars=12000.0))).ok
     assert not checks.check_per_trade_risk(
-        _ctx(manifest, proposal=_proposal(max_loss_dollars=10000.01))).ok
+        _ctx(manifest, proposal=_proposal(max_loss_dollars=12000.01))).ok
 
 
 def test_risk_cap_does_not_rescale_after_a_drawdown(manifest):
     """Caps are fractions of DECLARED STARTING equity, not current equity.
 
     Sizing off current equity would keep the same relative aggression all the
-    way down. At $80k equity the cap must still be $10,000, not $8,000.
+    way down. At $80k equity the cap must still be $12,000, not $9,600.
     """
     ctx = _ctx(manifest, account=_account(equity="80000"),
                proposal=_proposal(max_loss_dollars=450.0))

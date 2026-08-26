@@ -11,7 +11,7 @@
     "starting_equity": 100000.0
   },
   "code": {
-    "git_head": "128b107c4c1108a1d77fb475adee198fa31a5849",
+    "git_head": "5be0cf1d9580f3ad4e3caa9174a422558fb4e150",
     "worktree_dirty": true
   },
   "day": {
@@ -132,6 +132,26 @@
       "reason": "permit refused: market_session",
       "structure": "debit_vertical",
       "underlying": "NFLX"
+    },
+    {
+      "accepted": false,
+      "at": "2026-08-26T23:44:05.842016+00:00",
+      "conviction": 0.869,
+      "engine": "trend_income",
+      "max_loss_dollars": 1728.0,
+      "reason": "permit refused: market_session",
+      "structure": "credit_vertical",
+      "underlying": "CRM"
+    },
+    {
+      "accepted": false,
+      "at": "2026-08-26T23:44:05.842016+00:00",
+      "conviction": 0.832,
+      "engine": "trend_directional",
+      "max_loss_dollars": 2000.0,
+      "reason": "permit refused: market_session",
+      "structure": "debit_vertical",
+      "underlying": "NFLX"
     }
   ],
   "equity_history": [
@@ -150,6 +170,10 @@
     {
       "equity": 100000.0,
       "t": "2026-08-26T23:35:17.353674+00:00"
+    },
+    {
+      "equity": 100000.0,
+      "t": "2026-08-26T23:44:05.842016+00:00"
     }
   ],
   "gates": [
@@ -199,7 +223,7 @@
       "severity": "BLOCKING"
     },
     {
-      "detail": "equity 100,000.00 >= floor 80,000.00",
+      "detail": "equity 100,000.00 >= floor 70,000.00",
       "dimension": "Entry Authority",
       "name": "equity_floor",
       "ok": true,
@@ -235,7 +259,7 @@
       "severity": "BLOCKING"
     },
     {
-      "detail": "SENTINEL-OPTIONS-V2@3.0.0+788715f1e43b",
+      "detail": "SENTINEL-OPTIONS-V2@3.1.0+e2651be8fcf2",
       "dimension": "Release Integrity",
       "name": "manifest_identity",
       "ok": true,
@@ -244,7 +268,7 @@
       "severity": "BLOCKING"
     },
     {
-      "detail": "worktree dirty at 128b107c4c11",
+      "detail": "worktree dirty at 5be0cf1d9580",
       "dimension": "Release Integrity",
       "name": "release_integrity",
       "ok": false,
@@ -253,7 +277,7 @@
       "severity": "ATTENTION"
     }
   ],
-  "generated_at_utc": "2026-08-26T23:35:17.353674+00:00",
+  "generated_at_utc": "2026-08-26T23:44:05.842016+00:00",
   "market": {
     "is_open": false
   },
@@ -265,10 +289,10 @@
     "status": "BLOCKED"
   },
   "policy": {
-    "identity": "SENTINEL-OPTIONS-V2@3.0.0+788715f1e43b",
+    "identity": "SENTINEL-OPTIONS-V2@3.1.0+e2651be8fcf2",
     "policy_id": "SENTINEL-OPTIONS-V2",
-    "sha": "788715f1e43b3802c37f6869567cb8195f214e3f53f7029e46ee22e091b75d20",
-    "version": "3.0.0"
+    "sha": "e2651be8fcf2e70a8f3a901042842888927605cf384e6dc0282aa64ae070d8c1",
+    "version": "3.1.0"
   },
   "positions": [],
   "regime": {

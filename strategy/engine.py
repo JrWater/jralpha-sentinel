@@ -284,16 +284,20 @@ def _catalyst(ctx: EngineContext) -> list[Candidate]:
         if cand:
             out.append(cand)
 
-    # PEAD: prior-week earnings gaps, entered once the gap held day one.
-    for sym in catalysts.PRE_WINDOW_EARNINGS:
-        sig = ctx.signals.get(sym)
-        if sig is None or sig.gap_dir == 0:
-            continue
-        if abs(sig.gap_pct) < float(cfg["pead_gap_threshold"]) * 100.0:
-            continue
-        cand = _pead_vertical(ctx, sig, cfg)
-        if cand:
-            out.append(cand)
+    # PEAD: DISABLED in v3.1. The 3-year event study (2026-08-26) measured
+    # NEGATIVE 5-day drift after 8%+ gaps across NVDA/CRM/CRWD/DELL/MU
+    # (-1.9% to -7.4% signed) - the effect this leg bet on did not exist in
+    # the sample. The budget moved to the positive-evidence events.
+    if cfg.get("pead_enabled", False):
+        for sym in catalysts.PRE_WINDOW_EARNINGS:
+            sig = ctx.signals.get(sym)
+            if sig is None or sig.gap_dir == 0:
+                continue
+            if abs(sig.gap_pct) < float(cfg["pead_gap_threshold"]) * 100.0:
+                continue
+            cand = _pead_vertical(ctx, sig, cfg)
+            if cand:
+                out.append(cand)
     return out
 
 
@@ -406,8 +410,17 @@ def _event(ctx: EngineContext) -> list[Candidate]:
             if cand:
                 out.append(cand)
 
-    # Gap-day continuation: 09-04, after the 09:30 open, before 09:50.
-    if today == nfp.date and (9, 30) <= (ctx.now_et.hour, ctx.now_et.minute) <= (9, 50):
+    # Gap-day continuation: NFP day, or ANY in-window day (v3.1, gap_any_day)
+    # with a >=0.8% gap - so the 08-28 kickoff-day gap (post-NVDA/PCE) can
+    # fire the first shot. Window 09:30-09:50 ET, hard time-stop 10:40 ET.
+    starts = ctx.manifest.get("session", "competition_starts_utc")
+    try:
+        start_date = datetime.fromisoformat(str(starts).replace("Z", "+00:00")).date()
+    except (ValueError, TypeError):
+        start_date = nfp.date - timedelta(days=4)
+    in_window = start_date <= today <= nfp.date
+    if (today == nfp.date or (bool(cfg.get("gap_any_day", False)) and in_window)) \
+            and (9, 30) <= (ctx.now_et.hour, ctx.now_et.minute) <= (9, 50):
         cand = _nfp_gap_play(ctx, cfg)
         if cand:
             out.append(cand)

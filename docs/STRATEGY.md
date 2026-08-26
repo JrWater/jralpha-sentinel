@@ -96,15 +96,15 @@ first and last 30 minutes (the only time when a delayed chain is also
 
 ## Risk gates (the ones the write-up will brag about)
 
-- Per-trade hard cap: **$10,000** (v3.0 tournament calibration; `risk_caps.max_loss_per_position_fraction`)
-- Engine caps (v3.0): catalyst $10,000 (straddle) / $4,000 (PEAD), event $8,000 / $6,000, trend $2,000 + conviction single-leg $3,000, vol $800
-- Portfolio at-risk cap: **$35,000** = 35% of starting equity (v3.0)
+- Per-trade hard cap: **$12,000** (v3.1 evidence-driven; `risk_caps.max_loss_per_position_fraction`)
+- Engine caps (v3.1): catalyst $12,000 (straddle; PEAD disabled on negative drift evidence), event $10,000 / $8,000, trend $2,000 + conviction single-leg $3,000, vol $800
+- Portfolio at-risk cap: **$40,000** = 40% of starting equity (v3.1)
 - Concurrent positions ≤ 10; ≤ 3 structures (≤ 6 contracts) per underlying; ≤ 3 satellites per vector
-- **Daily kill switch (enforced):** day P&L ≤ −$10,000 (v3.0) → no new entries for the rest of the day; next day's sizes ×0.5 (`strategy/daystate.py`)
+- **Daily kill switch (enforced):** day P&L ≤ −$12,000 (v3.1) → no new entries for the rest of the day; next day's sizes ×0.5 (`strategy/daystate.py`)
 - **Daily exposure cap (enforced):** max $6,000 of new max-loss submitted per day
 - **Fire-once guards (enforced):** catalyst/event entries submit once per day per name — later cycles cannot double-buy
 - **Structure-level exits (v2.1):** a multi-leg structure is marked and closed as ONE unit; an exit can never manufacture a naked short leg
-- **Entry Maintenance:** equity < $80,000 (v3.0) → no new exposure at all; exits and reconciliation keep running
+- **Entry Maintenance:** equity < $70,000 (v3.1) → no new exposure at all; exits and reconciliation keep running
 - **No market orders, ever** — declared order shapes are limit-only; `order_shape_declared` makes it structural
 - **Account lock:** the competition account is mechanically untradeable before 2026-08-28 15:00 UTC (`competition_window` gate)
 - Final day (09-04): no new exposure **except** the pre-declared 0-DTE NFP gap continuation (09:30–09:50 ET); everything flattened by **limit at the touch** before **10:45 ET** (deadline 11:00 ET)
@@ -127,6 +127,24 @@ execution through the Trading API.
 3. `python scripts/run_cycle.py` every 30 min 10:05–15:25 ET via cron/launchd
 4. Sep 3: LULU straddle 15:00–15:15 + NFP strangle, both 1 DTE
 5. Sep 4: 09:30–09:45 NFP gap vertical; 10:45 aggressive flatten; 15:00 UTC submit
+
+## v3.1 Evidence pass (2026-08-26): event studies, PEAD killed
+
+The two biggest all-in bets deserved evidence, so the window's events were
+measured on ~3 years of daily bars before kickoff:
+
+| study | result | decision |
+|---|---|---|
+| NFP first-Fridays (33 samples) | big gaps (>=0.6%) 10/33; **gap-continuation 9/10 = 90% win**, avg continuation 0.77%; all-NFP-day median |move| 0.91% vs strangle breakeven ~0.45% | gap play 8% ($8,000) x2 entries; strangle 8% -> 10% ($10,000) |
+| LULU earnings days (10 detected) | median |move| 11.8%, P(>10%)=60%, P(>15%)=30% vs straddle breakeven ~6% | straddle 10% -> **12% ($12,000)** |
+| post-earnings drift (NVDA/CRM/CRWD/DELL/MU) | signed 5-day drift after 8%+ gaps **negative everywhere** (-1.9%..-7.4%; CRM 0/5) | **PEAD engine disabled**; budget moved to the two positive-evidence events |
+
+Also: the 0-DTE gap continuation is no longer NFP-only - any in-window day
+with a >=0.8% SPY gap fires it, so the 08-28 kickoff-day gap (post-NVDA,
+post-PCE) can open the tournament with the highest-win-rate trade in the
+book. Floors follow the evidence: hard cap $12,000, at-risk 40%, daily
+exposure 30%, kill -12%, Entry Maintenance $70,000 (last-bullet logic: the
+$12k LULU bet is exactly the bet you do NOT skip when hurt).
 
 ## v3.0 ALL-IN (owner directive, 2026-08-26)
 

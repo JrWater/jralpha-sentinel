@@ -194,9 +194,9 @@ def test_sizing_honors_engine_cap(manifest):
                            count_by_engine={}, current_equity=100000,
                            starting_equity=100000)
     sized = fixed_quantity(p, manifest, "event_macro", state)
-    # event_macro cap is 8% = $8,000; $350/contract -> 22 contracts
-    assert sized is not None and sized.legs[0].quantity == 22
-    assert sized.max_loss_dollars <= 8000.0
+    # event_macro cap is 10% = $10,000; $350/contract -> 28 contracts
+    assert sized is not None and sized.legs[0].quantity == 28
+    assert sized.max_loss_dollars <= 10000.0
 
 
 def test_sizing_refuses_when_one_contract_exceeds_cap(manifest):
@@ -215,10 +215,10 @@ def test_sizing_respects_at_risk_cap(manifest):
                  structure="straddle", limit_price=10.0, max_loss_dollars=1000.0,
                  legs=[OptionLeg("x", "buy", 1, 1.0, "call", date(2026, 9, 3))])
     state = PortfolioState(max_loss_by_underlying={},
-                           max_loss_total=34600.0, count_by_engine={},
+                           max_loss_total=39600.0, count_by_engine={},
                            current_equity=100000, starting_equity=100000)
     sized = fixed_quantity(p, manifest, "catalyst", state)
-    # at-risk cap 35% = $35,000; only $400 of headroom -> 0 contracts -> None
+    # at-risk cap 40% = $40,000; only $400 of headroom -> 0 contracts -> None
     assert sized is None
 
 
@@ -406,8 +406,8 @@ def test_sizing_scale_halves_cap(manifest):
                            starting_equity=100000, scale=0.5)
     sized = fixed_quantity(p, manifest, "event_macro", state,
                            cap_key="addon_max_loss_per_trade_fraction")
-    # add-on cap 6% = $6,000; halved = $3,000 -> 7 contracts
-    assert sized is not None and sized.legs[0].quantity == 7
+    # add-on cap 8% = $8,000; halved = $4,000 -> 10 contracts
+    assert sized is not None and sized.legs[0].quantity == 10
 
 
 def test_straddle_expiry_must_follow_the_event():
