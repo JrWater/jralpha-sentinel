@@ -99,6 +99,30 @@ def _code_identity() -> tuple:
         return None, None
 
 
+def publish_snapshot(*, manifest, state, results, blockers, decisions,
+                     regime=None, day=None) -> None:
+    """Write the credential-free page the judges read. Never fatal.
+
+    A dashboard that cannot render must not be able to stop the agent from
+    trading, so every failure here is reported and swallowed.
+    """
+    from agent import snapshot as snap_mod
+    head, dirty = _code_identity()
+    try:
+        payload = snap_mod.build(
+            manifest=manifest, account=state.account, clock=state.clock,
+            gate_results=results, gates=checks.GATES,
+            permit_status="BLOCKED" if blockers else "READY",
+            blockers=blockers, positions=state.positions,
+            decisions=decisions, git_head=head, git_dirty=dirty,
+            regime=regime, day_state=(day.as_dict() if day else None),
+            now_utc=state.now_utc)
+        snap_mod.write(payload)
+    except Exception as exc:                                  # noqa: BLE001
+        print(f"{YELLOW}snapshot not written{RESET}: "
+              f"{type(exc).__name__}: {exc}")
+
+
 def run_preflight(state: MarketState, manifest, ledger) -> dict:
     head, dirty = _code_identity()
     ctx = checks.EvalContext(
@@ -495,6 +519,28 @@ def main() -> int:
                                  "regime": regime.mode, "killed": day.killed},
                       manifest=manifest))
     print(f"\nproposer chose candidates: {chosen}")
+
+    # Every candidate the engines produced, with what happened to it. A refused
+    # proposal is the evidence that the gates do anything at all, so refusals
+    # are recorded exactly as carefully as fills — see agent/snapshot.py.
+    why_none = ("daily kill switch" if killed else
+                (f"permit refused: {', '.join(blockers)}" if blockers else
+                 "not selected by the proposer"))
+    decisions = [{
+        "at": now_utc.isoformat(),
+        "engine": c.proposal.engine,
+        "underlying": c.proposal.underlying,
+        "structure": c.proposal.structure,
+        "max_loss_dollars": c.proposal.max_loss_dollars,
+        "conviction": c.proposal.conviction,
+        "accepted": (i in chosen) and not (blockers or killed or args.dry_run),
+        "reason": (c.label if (i in chosen) and
+                   not (blockers or killed or args.dry_run) else why_none),
+    } for i, c in enumerate(candidates)]
+
+    publish_snapshot(manifest=manifest, state=state, results=results,
+                     blockers=blockers, decisions=decisions, regime=regime,
+                     day=day)
 
     if args.dry_run:
         print(f"\n{DIM}dry run — nothing was sent.{RESET}")

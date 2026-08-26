@@ -1,0 +1,4 @@
+# Streamlit Community Cloud reads this to build the dashboard.
+# The page renders docs/snapshot.json and makes no broker calls, so alpaca-py
+# is deliberately NOT required here — the hosted app needs no credentials.
+streamlit>=1.40

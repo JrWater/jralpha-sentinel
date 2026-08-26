@@ -1,0 +1,178 @@
+{
+  "account": {
+    "account_number": "PA3K3A9ZBCBI",
+    "cash": 100000.0,
+    "equity": 100000.0,
+    "mode": "PAPER",
+    "options_buying_power": 100000.0,
+    "options_level": 3,
+    "pnl_dollars": 0.0,
+    "pnl_percent": 0.0,
+    "starting_equity": 100000.0
+  },
+  "code": {
+    "git_head": "e8f325cdcdbb976378555977fc5a55b03b6994ca",
+    "worktree_dirty": true
+  },
+  "day": {
+    "date": "2026-08-26",
+    "fired_once": [],
+    "killed": false,
+    "new_risk_dollars": 0.0,
+    "scale": 1.0,
+    "start_equity": 100000.0
+  },
+  "decisions": [
+    {
+      "accepted": false,
+      "at": "2026-08-26T02:08:14.020672+00:00",
+      "conviction": 0.942,
+      "engine": "trend_income",
+      "max_loss_dollars": 433.0,
+      "reason": "permit refused: market_session",
+      "structure": "credit_vertical",
+      "underlying": "CRM"
+    },
+    {
+      "accepted": false,
+      "at": "2026-08-26T02:08:14.020672+00:00",
+      "conviction": 0.7,
+      "engine": "catalyst",
+      "max_loss_dollars": 1240.0,
+      "reason": "permit refused: market_session",
+      "structure": "debit_vertical",
+      "underlying": "CRWD"
+    }
+  ],
+  "equity_history": [
+    {
+      "equity": 100000.0,
+      "t": "2026-08-26T02:08:14.020672+00:00"
+    }
+  ],
+  "gates": [
+    {
+      "detail": "market closed; quote freshness n/a",
+      "dimension": "Data Readiness",
+      "name": "option_chain_data",
+      "ok": true,
+      "phase": "preflight",
+      "rationale": "Distinguishes 'delayed as designed' from 'feed stopped'. Only the second one is a reason not to trade, and only this gate can tell.",
+      "severity": "BLOCKING"
+    },
+    {
+      "detail": "market closed; intraday freshness n/a",
+      "dimension": "Data Readiness",
+      "name": "underlying_data",
+      "ok": true,
+      "phase": "preflight",
+      "rationale": "The directional signal reads underlying bars; stale bars produce a confident signal about a market that has moved on.",
+      "severity": "BLOCKING"
+    },
+    {
+      "detail": "decision log writable",
+      "dimension": "Delivery Health",
+      "name": "decision_log",
+      "ok": true,
+      "phase": "preflight",
+      "rationale": "If reporting is broken, a failure happens and nobody finds out. That is the one failure mode that hides all the others.",
+      "severity": "BLOCKING"
+    },
+    {
+      "detail": "account PA3K3A9ZBCBI matches declaration",
+      "dimension": "Entry Authority",
+      "name": "account_identity",
+      "ok": true,
+      "phase": "preflight",
+      "rationale": "Order authority is bound to one named account in paper mode. A key swapped in the environment must not inherit this policy's permit.",
+      "severity": "BLOCKING"
+    },
+    {
+      "detail": "account PA3K3A9ZBCBI ACTIVE",
+      "dimension": "Entry Authority",
+      "name": "broker_session",
+      "ok": true,
+      "phase": "preflight",
+      "rationale": "No session, no authority. Also catches broker-side trading blocks before we spend a decision cycle on a book we cannot touch.",
+      "severity": "BLOCKING"
+    },
+    {
+      "detail": "equity 100,000.00 >= floor 92,000.00",
+      "dimension": "Entry Authority",
+      "name": "equity_floor",
+      "ok": true,
+      "phase": "preflight",
+      "rationale": "The Entry Maintenance trip: below the floor the agent stops creating exposure while exits and reconciliation stay fully operational.",
+      "severity": "BLOCKING"
+    },
+    {
+      "detail": "options level 3",
+      "dimension": "Entry Authority",
+      "name": "options_level",
+      "ok": true,
+      "phase": "preflight",
+      "rationale": "A spread submitted to a level-2 account fails at the broker after we have already committed to one side of it.",
+      "severity": "BLOCKING"
+    },
+    {
+      "detail": "market closed",
+      "dimension": "Process Health",
+      "name": "market_session",
+      "ok": false,
+      "phase": "preflight",
+      "rationale": "Entries are forbidden in the opening and closing 30 minutes, where a delayed chain is least representative of what will actually fill.",
+      "severity": "BLOCKING"
+    },
+    {
+      "detail": "0 position(s) reconciled",
+      "dimension": "Process Health",
+      "name": "position_reconcile",
+      "ok": true,
+      "phase": "preflight",
+      "rationale": "If the ledger and the broker disagree we do not know our exposure, and every downstream risk cap is computed off a number we cannot confirm.",
+      "severity": "BLOCKING"
+    },
+    {
+      "detail": "SENTINEL-OPTIONS-V2@2.2.0+7e9a1307f354",
+      "dimension": "Release Integrity",
+      "name": "manifest_identity",
+      "ok": true,
+      "phase": "preflight",
+      "rationale": "Parameters must come from one machine-verifiable authority; a run whose manifest will not load has no defined semantics.",
+      "severity": "BLOCKING"
+    },
+    {
+      "detail": "worktree dirty at e8f325cdcdbb",
+      "dimension": "Release Integrity",
+      "name": "release_integrity",
+      "ok": false,
+      "phase": "preflight",
+      "rationale": "Running code should be verified code. ATTENTION rather than BLOCKING because editing between cycles is the normal mode during an active build; the dirty state is stamped into every decision record.",
+      "severity": "ATTENTION"
+    }
+  ],
+  "generated_at_utc": "2026-08-26T02:08:14.020672+00:00",
+  "market": {
+    "is_open": false
+  },
+  "permit": {
+    "blocking_gates": [
+      "market_session"
+    ],
+    "entry_maintenance": true,
+    "status": "BLOCKED"
+  },
+  "policy": {
+    "identity": "SENTINEL-OPTIONS-V2@2.2.0+7e9a1307f354",
+    "policy_id": "SENTINEL-OPTIONS-V2",
+    "sha": "7e9a1307f354e0017db7282fb23d1ceadce200d3e57a1878dfe9bcf10bca9097",
+    "version": "2.2.0"
+  },
+  "positions": [],
+  "regime": {
+    "confidence": 0.69,
+    "mode": "risk_on",
+    "reason": "SPY above EMA50 (+1.59%), RSI 54, breadth +1"
+  },
+  "schema_version": 1
+}
