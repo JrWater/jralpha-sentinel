@@ -65,13 +65,25 @@ Alpaca's free tier serves options quotes from an indicative feed delayed 15 minu
 
 ## Strategy
 
-A barbell, sized to a five-day judging window.
+**Quadrant** — four vectors, four risk budgets, one hard at-risk cap. Full
+spec in [`docs/STRATEGY.md`](docs/STRATEGY.md); every parameter is in
+`policy/manifest.json` (identity `SENTINEL-OPTIONS-V2@2.0.0+<sha>`).
 
-**Core (80% of risk budget)** — 1–3 DTE out-of-the-money vertical credit spreads on SPY and QQQ. Theta decay is the only P&L source in a five-day window that does not require predicting direction, and a vertical caps maximum loss at `width − credit` by construction. No single fill can threaten the account.
+| Vector | Budget | Structure | When it fires |
+|---|---|---|---|
+| Trend | 45% | 0–2 DTE debit verticals (credit verticals when IV is rich) | Regime risk_on/risk_off + name score ≥ 0.55 |
+| Catalyst | 25% | LULU ATM straddle (09-02) + PEAD verticals on NVDA/CRM/CRWD gaps | Confirmed in-window calendar entries only |
+| Event | 15% | 1-DTE SPY strangle for NFP (09-03); 0-DTE gap vertical (09-04) | August Employment Situation, 09-04 08:30 ET |
+| Vol | 15% | SPY iron condor | Regime chop + IVR ≥ 0.25 |
 
-**Satellite (20%)** — long single-leg options, 14–35 DTE, on a momentum signal. Long premium only, so maximum loss is the debit paid. Convexity, bounded.
-
-Hard caps, all fractions of *declared starting* equity rather than current equity, so a drawdown shrinks absolute risk instead of quietly rescaling the same aggression on the way down: $500 max loss per position, 12 concurrent positions, 3 per underlying, and an Entry Maintenance trip at $97,000.
+Every structure is defined risk — no naked shorts, no market orders (declared
+order shapes are limit-only). Caps are fractions of *declared starting*
+equity, so a drawdown shrinks absolute risk: max loss per trade $800–$2,000
+by vector (hard cap $2,000), $13,000 portfolio at-risk, 10 concurrent, 2 per
+underlying, daily kill switch at −$3,000, Entry Maintenance at $92,000. The
+competition account is mechanically untradeable until kickoff
+(`competition_window` gate) and everything is flattened by limit at the
+touch before 10:45 ET on 09-04, the submission day.
 
 ## Running it
 
@@ -81,9 +93,32 @@ uv pip install --python .venv/bin/python alpaca-py streamlit pytest anthropic
 cp .env.example .env      # fill in the competition account's keys
 .venv/bin/python scripts/verify_account.py --compare-legacy
 .venv/bin/python -m pytest tests/ -q
+.venv/bin/python scripts/backtest_signals.py      # signal-quality check
+.venv/bin/python scripts/run_cycle.py --dry-run   # gates + candidates, no writes
+.venv/bin/python scripts/run_cycle.py             # live cycle (permit-bound)
+.venv/bin/python scripts/status.py                # what a judge would see
 ```
 
-`verify_account.py` runs first and is loud, because the competition rules are unforgiving about the account: it must be brand new, start at exactly $100,000, and carry options level 3. Getting that wrong is not a bug you find on day three — it is a week of work that scores zero.
+`verify_account.py` runs first and is loud, because the competition rules are
+unforgiving about the account: it must be brand new, start at exactly
+$100,000, and carry options level 3. Getting that wrong is not a bug you
+find on day three — it is a week of work that scores zero.
+
+Schedule the live cycle with cron (closest 30-min marks inside the entry
+window: 10:05/10:35/11:05/.../15:05 ET on weekdays 28 Aug – 4 Sep, plus the
+final-day runs `09:35` and `10:45` on Sep 4 — the 10:45 run is the flatten).
+Adjust for `TZ=America/New_York`:
+
+```cron
+TZ=America/New_York
+*/30 10-14 * * 1-5  cd ~/jralpha-sentinel && .venv/bin/python scripts/run_cycle.py >> logs/cycle.log 2>&1
+5,35 15 * * 1-5     cd ~/jralpha-sentinel && .venv/bin/python scripts/run_cycle.py >> logs/cycle.log 2>&1
+35 9 * * 1-5        cd ~/jralpha-sentinel && .venv/bin/python scripts/run_cycle.py >> logs/cycle.log 2>&1
+45 10 * * 1-5       cd ~/jralpha-sentinel && .venv/bin/python scripts/run_cycle.py >> logs/cycle.log 2>&1
+```
+
+Research reads go through Alpaca's MCP server (`.mcp.json`), status through
+the Alpaca CLI (`brew install alpacahq/tap/cli` then `alpaca account get`).
 
 ## Layout
 
@@ -93,9 +128,12 @@ policy/loader.py         identity hashing, declared order shapes
 gates/registry.py        gate metadata; six mandatory fields
 gates/checks.py          the 16 checks and their rationales
 gates/safety_gate.py     the durable, fail-closed entry permit
-agent/                   proposal generation and execution
-dashboard/               live gate matrix
-tests/                   what each gate is proven to refuse
+strategy/                indicators, regime, signals, catalysts, structures,
+                         sizing, engine, data (Alpaca plumbing)
+agent/                   executor (limit-only), ledger, LLM proposer
+scripts/                 verify_account, run_cycle, backtest_signals, status
+docs/                    STRATEGY.md, ONE_PAGE_WRITEUP.md, SOCIAL_POSTS.md
+tests/                   what each gate is proven to refuse; strategy units
 ```
 
 ## Provenance

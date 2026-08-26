@@ -168,6 +168,16 @@ def check_market_session(ctx: EvalContext) -> GateResult:
 
 
 def check_underlying_data(ctx: EvalContext) -> GateResult:
+    """Fresh bars matter only while the market is open.
+
+    After the close the feed legitimately stops producing intraday bars and
+    quote timestamps stop; the market_session gate already forbids entries
+    then, so this gate reports PASS with a note instead of a misleading
+    "feed stopped" red that the operator would learn to ignore.
+    """
+    clock_open = getattr(getattr(ctx, "clock", None), "is_open", None)
+    if clock_open is False:
+        return GateResult(True, "market closed; intraday freshness n/a")
     limit = float(ctx.manifest.get("data", "max_underlying_bar_age_seconds"))
     age = ctx.underlying_bar_age_seconds
     if age is None:
@@ -183,8 +193,13 @@ def check_option_chain_data(ctx: EvalContext) -> GateResult:
     The free indicative feed is a 15-minute-delayed OPRA derivative. Demanding
     sub-minute quotes here would keep the gate permanently red and teach us to
     ignore it. The threshold is delay + tolerance: past that, the feed has
-    stopped, which is a different fact entirely.
+    stopped, which is a different fact entirely. After the close (clock not
+    open) the feed is legitimately silent, so the gate steps aside - entries
+    are already forbidden by market_session.
     """
+    clock_open = getattr(getattr(ctx, "clock", None), "is_open", None)
+    if clock_open is False:
+        return GateResult(True, "market closed; quote freshness n/a")
     limit = float(ctx.manifest.get("data", "max_option_quote_age_seconds"))
     age = ctx.option_quote_age_seconds
     if age is None:

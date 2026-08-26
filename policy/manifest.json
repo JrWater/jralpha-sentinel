@@ -1,7 +1,7 @@
 {
-  "schema_version": 1,
-  "policy_id": "SENTINEL-OPTIONS-V1",
-  "version": "1.0.0",
+  "schema_version": 2,
+  "policy_id": "SENTINEL-OPTIONS-V2",
+  "version": "2.0.0",
   "_comment_authority": "This manifest is the ONLY authority for strategy parameters. Code reads values from here; it never restates them. Prose documents describe this file, they do not define a competing source of truth. Every semantic change creates a new version rather than rewriting history.",
 
   "environment": {
@@ -9,10 +9,10 @@
     "mode": "PAPER",
     "_comment_mode": "LIVE is not a value this policy accepts. The executor refuses any session where trading_client.paper is not True, so a mis-set env var cannot promote paper semantics onto a funded account.",
     "competition_account_id": "PA3K3A9ZBCBI",
-    "_comment_account": "The dedicated competition paper account, opened 2026-08-25 for this hackathon and never traded before it. Null is not a wildcard: the account_identity gate refuses to run against an unnamed account, so the agent physically cannot trade until this is set. Order authority binds to one account and is never carried forward to another — a key swapped in the environment does not inherit this policy's permission.",
+    "_comment_account": "The dedicated competition paper account, opened 2026-08-25 for this hackathon and never traded before it. Null is not a wildcard: the account_identity gate refuses to run against an unnamed account, so the agent physically cannot trade until this is set. Order authority binds to one account and is never carried forward to another.",
     "required_starting_equity": 100000.0,
     "required_options_level": 3,
-    "_comment_level": "Level 3 (multi-leg) is auto-approved on Alpaca paper accounts. The gate asserts it rather than assuming it, because a spread submitted to a level-2 account fails at the broker after we have already committed to one side."
+    "_comment_level": "Level 3 (multi-leg) is auto-approved on Alpaca paper accounts. The gate asserts it rather than assuming it."
   },
 
   "data": {
@@ -20,48 +20,123 @@
     "_comment_feed": "Free tier serves an OPRA derivative delayed 15 minutes. Every parameter below is chosen to be insensitive to that delay; nothing here may depend on quote freshness finer than the delay itself.",
     "max_option_quote_age_seconds": 1500,
     "max_underlying_bar_age_seconds": 900,
-    "_comment_ages": "1500s = the 15-minute feed delay plus a 5-minute tolerance. A quote older than that is not 'slightly stale', it means the feed stopped; Data Readiness goes red and the agent enters Entry Maintenance."
+    "stock_feed": "iex",
+    "strike_delta_step": 1,
+    "_comment_ages": "1500s = the 15-minute feed delay plus a 5-minute tolerance. A quote older than that is not 'slightly stale', it means the feed stopped."
   },
 
   "universe": {
     "core": ["SPY", "QQQ"],
-    "satellite": ["AAPL", "MSFT", "NVDA", "AMZN", "META"],
-    "_comment_universe": "Core names carry every-weekday expirations and the tightest spreads in the market, which is what makes a 1-3 DTE credit spread executable on delayed quotes. Satellite names are liquid enough for monthly contracts. Any symbol not listed here is refused by the executor."
+    "satellite": ["NVDA", "MSFT", "AMZN", "META", "AAPL", "TSLA", "NFLX", "MU", "DELL", "PLTR", "COIN", "AMD", "AVGO", "LULU", "CRM", "CRWD"],
+    "_comment_universe": "Core names carry every-weekday expirations and the tightest spreads in the market. Satellites are the liquid optionable leaders with the highest dispersion and the two confirmed in-window catalysts (LULU earnings 09-03; NVDA/CRM/CRWD earnings 08-26 feeding post-earnings drift). Any symbol not listed here is refused by the executor."
   },
 
   "strategies": {
-    "core_credit_spread": {
+    "trend_directional": {
       "enabled": true,
-      "risk_budget_fraction": 0.80,
-      "structure": "vertical_credit_spread",
+      "engine_label": "Trend Vector",
+      "risk_budget_fraction": 0.25,
+      "structures": ["debit_vertical"],
+      "min_dte": 0,
+      "max_dte": 2,
+      "target_long_delta": 0.45,
+      "delta_tolerance": 0.08,
+      "width_strikes": 2,
+      "score_threshold": 0.55,
+      "max_positions": 3,
+      "max_loss_per_trade_fraction": 0.010,
+      "take_profit_fraction": 0.60,
+      "stop_loss_fraction": 0.50,
+      "max_rsi_entry": 65.0,
+      "max_momentum_5d_entry": 6.0,
+      "max_momentum_20d_entry": 25.0,
+      "_comment": "Directional momentum engine: debit call verticals in a risk-on tape, debit put verticals in a risk-off tape, 0-2 DTE, defined risk = debit paid. The three max_*_entry keys are the pullback-entry filter: buy strength on a pullback, never after a blow-off. Validated 2026-08-25 on ~170 daily bars: the unfiltered score chased extended names (PLTR/COIN/NVDA/MSFT negative forward edge); the filtered signal measured +1.17% day-2 and +1.25% day-3 edge vs SPY across 222 signals."
+    },
+    "trend_income": {
+      "enabled": true,
+      "engine_label": "Trend Vector (income mode)",
+      "risk_budget_fraction": 0.20,
+      "structures": ["credit_vertical"],
+      "min_dte": 0,
+      "max_dte": 2,
+      "target_short_delta": 0.20,
+      "delta_tolerance": 0.05,
+      "min_credit_fraction_of_width": 0.20,
+      "min_ivr": 0.15,
+      "score_threshold": 0.55,
+      "max_positions": 3,
+      "max_loss_per_trade_fraction": 0.008,
+      "take_profit_fraction": 0.50,
+      "stop_loss_multiple": 2.0,
+      "max_rsi_entry": 65.0,
+      "max_momentum_5d_entry": 6.0,
+      "max_momentum_20d_entry": 25.0,
+      "_comment": "Same trend signal, sold as premium when IV is rich: bull-put verticals in risk-on, bear-call verticals in risk-off. Theta is the P&L source; the short delta is far enough OTM that a 15-minute-old chain still selects the same strike. Pullback-entry filter shared with trend_directional."
+    },
+    "catalyst": {
+      "enabled": true,
+      "engine_label": "Catalyst Vector",
+      "risk_budget_fraction": 0.25,
+      "structures": ["straddle", "strangle", "debit_vertical"],
       "min_dte": 1,
       "max_dte": 3,
-      "target_short_delta": 0.13,
-      "short_delta_tolerance": 0.05,
-      "spread_width_dollars": 5.0,
-      "min_credit_fraction_of_width": 0.12,
-      "_comment_core": "Theta decay is the only P&L source in a five-day window that does not require predicting direction. A vertical spread caps max loss at (width - credit) by construction, so no single fill can threaten the account. Short delta ~0.13 is far enough out that a 15-minute-old chain still selects the same strike."
+      "pre_event_max_loss_per_trade_fraction": 0.020,
+      "pead_max_loss_per_trade_fraction": 0.015,
+      "target_atm_delta": 0.50,
+      "pead_gap_threshold": 0.06,
+      "pead_gap_hold_fraction": 0.50,
+      "take_profit_fraction": 0.80,
+      "stop_loss_fraction": 0.45,
+      "entry_before_et": "15:15",
+      "_comment": "Confirmed in-window catalysts only: LULU Q2-FY26 earnings 09-03 16:30 ET (straddle entered 09-02), and post-earnings drift (PEAD) on NVDA/CRM/CRWD gaps from the 08-26 reports. The PEAD legs are entered the morning after a day-one gap and exited within 3 days."
     },
-    "satellite_directional": {
+    "event_macro": {
       "enabled": true,
-      "risk_budget_fraction": 0.20,
-      "structure": "long_single_leg",
-      "min_dte": 14,
-      "max_dte": 35,
-      "target_delta": 0.45,
-      "delta_tolerance": 0.10,
-      "_comment_satellite": "Convexity sleeve. Long premium only, so max loss is the debit paid. Longer DTE keeps gamma low enough that delayed quotes do not materially change the entry."
+      "engine_label": "Event Vector",
+      "risk_budget_fraction": 0.15,
+      "structures": ["strangle", "debit_vertical"],
+      "min_dte": 0,
+      "max_dte": 1,
+      "max_loss_per_trade_fraction": 0.015,
+      "addon_max_loss_per_trade_fraction": 0.008,
+      "gap_threshold": 0.006,
+      "take_profit_fraction": 0.60,
+      "stop_loss_fraction": 0.50,
+      "final_day_close_by_et": "10:40",
+      "_comment": "The one scheduled macro event with genuine intraday distribution: the August Employment Situation, 09-04 08:30 ET. 1-DTE SPY strangle entered 09-03; on 09-04 a 0-DTE directional vertical in the NFP gap direction, hard-flattened by 10:40 ET before the 11:00 ET submission deadline."
+    },
+    "vol_income": {
+      "enabled": true,
+      "engine_label": "Vol Vector",
+      "risk_budget_fraction": 0.15,
+      "structures": ["iron_condor"],
+      "min_dte": 0,
+      "max_dte": 2,
+      "target_short_delta": 0.16,
+      "delta_tolerance": 0.04,
+      "min_ivr": 0.25,
+      "regime": "chop",
+      "max_positions": 2,
+      "max_loss_per_trade_fraction": 0.008,
+      "take_profit_fraction": 0.50,
+      "stop_loss_multiple": 2.0,
+      "_comment": "SPY-only: sell the wings when realized-vol-based IVR is elevated and the market is range-bound. Four-legged iron condor, defined risk = width minus credit."
     }
   },
 
   "risk_caps": {
-    "max_loss_per_position_fraction": 0.005,
-    "max_concurrent_positions": 12,
-    "max_positions_per_underlying": 3,
-    "equity_floor_fraction": 0.97,
-    "daily_new_exposure_cap_fraction": 0.03,
-    "_comment_caps": "Fractions are of the declared starting equity, not of current equity: a drawdown must shrink absolute risk, not merely rescale it. equity_floor 0.97 puts the Entry Maintenance trip at $97,000 on a $100,000 account.",
-    "_comment_floor": "Crossing the floor does not flatten the book. It forbids NEW exposure while leaving reconciliation and risk-reducing exits fully operational. Panic-liquidating at a threshold is itself a strategy, and not one this policy authorizes."
+    "max_loss_per_position_fraction": 0.02,
+    "_comment_top": "HARD outer bound for ANY proposal, all engines, $2,000. Engine-level caps in the strategies section are stricter; this is what a mis-configuration cannot exceed.",
+    "max_concurrent_positions": 10,
+    "max_positions_per_underlying": 2,
+    "equity_floor_fraction": 0.92,
+    "at_risk_cap_fraction": 0.13,
+    "daily_new_exposure_cap_fraction": 0.06,
+    "daily_loss_kill_fraction": 0.03,
+    "drawdown_scale_fraction": 0.5,
+    "_comment_caps": "Fractions are of the declared starting equity, not of current equity: a drawdown must shrink absolute risk. equity_floor 0.92 puts the Entry Maintenance trip at $92,000. at_risk_cap 13% = $13,000 of maximum loss across all open positions, which is the portfolio-level stop the write-up describes.",
+    "_comment_floor": "Crossing the floor does not flatten the book. It forbids NEW exposure while leaving reconciliation and risk-reducing exits fully operational.",
+    "_comment_kill": "A day that loses more than 3% ($3,000) kills new entries for the rest of the day and halves sizing the next day. Two such days halve sizing for the remainder of the competition."
   },
 
   "order_shapes": [
@@ -74,32 +149,44 @@
       "legs": 1
     },
     {
-      "id": "mleg_credit_spread_limit_day",
+      "id": "mleg_2_leg_limit_day",
       "asset_class": "us_option",
       "order_class": "mleg",
       "type": "limit",
       "time_in_force": "day",
       "legs": 2
+    },
+    {
+      "id": "mleg_4_leg_limit_day",
+      "asset_class": "us_option",
+      "order_class": "mleg",
+      "type": "limit",
+      "time_in_force": "day",
+      "legs": 4
     }
   ],
-  "_comment_shapes": "The wire form of every order this policy may emit. The executor builds an order FROM this list and validates any order it sees at the broker AGAINST the same list, so an undeclared shape is refused before submission rather than discovered after. Note the absence of 'market': on a 15-minute-delayed feed a market order is a blank cheque.",
+  "_comment_shapes": "The wire form of every order this policy may emit. The executor builds an order FROM this list and validates any order it sees at the broker AGAINST the same list. Note the absence of 'market': on a 15-minute-delayed feed a market order is a blank cheque; on the final morning a market close would also be unverifiable. Every exit is a limit order at the current bid/ask, so 'flatten' means 'liquidate by limit, confirm, then liquidate the remainder at the improved touch', never 'market everything'."
+
+  ,
 
   "session": {
     "timezone": "America/New_York",
     "no_new_exposure_before": "10:00",
     "no_new_exposure_after": "15:30",
-    "flatten_all_at": "15:45",
-    "_comment_session": "No entries in the first 30 minutes (opening auction noise makes a delayed chain especially misleading) or the last 30 minutes. flatten_all_at is armed on the declared final trading day so the submitted account shows fully realized P&L rather than a mix of open positions and pending settlement.",
+    "flatten_all_at": "10:45",
+    "no_new_exposure_on_final_date": true,
+    "_comment_session": "No entries in the first 30 minutes (opening auction noise makes a delayed chain especially misleading) or the last 30 minutes. On the declared final trading day (09-04, the submission day) NO new exposure at all: engine candidates are suppressed and the executor flattens from 10:00 ET, with everything closed by 10:45 ET — submissions close 11:00 ET and nothing may still be marked-to-market or expire unsettled.",
     "competition_starts_utc": "2026-08-28T15:00:00+00:00",
-    "_comment_starts": "The competition account must still read exactly $100,000 when judging begins, so it may not be traded before this instant. Development happens on a separate legacy paper account. This is enforced by the competition_window gate rather than by remembering which .env file is loaded — a convention that depends on a human not making a typo is not a control.",
-    "final_trading_date": "2026-09-03",
-    "_comment_final": "Competition submissions close 2026-09-04 08:00 PDT, mid-session. Alpaca paper syncs non-trading activity (expiration, assignment) only on the following day, so anything expiring 09-04 would not settle until after judging. Flattening 09-03 makes the judged number unambiguous."
+    "_comment_starts": "The competition account must still read exactly $100,000 when judging begins, so it may not be traded before this instant. Development happens on the separate legacy paper account (PA31GLG5O9HU). Enforced by the competition_window gate.",
+    "final_trading_date": "2026-09-04",
+    "_comment_final": "Submissions close 2026-09-04 15:00 UTC (11:00 ET). Alpaca paper syncs non-trading activity (expiration, assignment) only on the following day, so 09-04 positions are closed by live orders, never left to expire."
   },
 
   "agent": {
     "model": "claude-opus-5",
-    "_comment_authority": "The model produces PROPOSALS, never orders. It has no broker credentials and no submission tool. Its output is a structured proposal that the gates then accept or refuse. This is the central design claim of the project: the LLM cannot place an order, it can only propose one.",
-    "max_proposals_per_cycle": 4,
-    "cycle_minutes": 30
+    "_comment_authority": "The model produces PROPOSALS, never orders. It has no broker credentials and no submission tool. Its output is a structured selection among engine candidates plus a written thesis; the gates then accept or refuse.",
+    "max_proposals_per_cycle": 3,
+    "cycle_minutes": 30,
+    "market_summary_window_days": 60
   }
 }

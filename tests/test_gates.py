@@ -240,11 +240,11 @@ def test_live_session_is_refused_even_with_matching_account(manifest, tmp_path):
     assert not r.ok and "not paper" in r.detail
 
 
-def test_equity_floor_trips_at_97_percent(manifest):
+def test_equity_floor_trips_at_92_percent(manifest):
     assert checks.check_equity_floor(
-        _ctx(manifest, account=_account(equity="97000.01"))).ok
+        _ctx(manifest, account=_account(equity="92000.01"))).ok
     tripped = checks.check_equity_floor(
-        _ctx(manifest, account=_account(equity="96999.99")))
+        _ctx(manifest, account=_account(equity="91999.99")))
     assert not tripped.ok and "ENTRY MAINTENANCE" in tripped.detail
 
 
@@ -301,10 +301,16 @@ def test_gtc_is_refused_because_it_is_not_declared(manifest):
         _ctx(manifest, proposal=_proposal(time_in_force="gtc"))).ok
 
 
-def test_four_leg_condor_is_refused_until_declared(manifest):
-    """The policy declares 1- and 2-leg shapes. A condor is not authorized."""
-    assert not checks.check_order_shape_declared(
+def test_four_leg_condor_is_declared_and_accepted(manifest):
+    """V2 declares 1-, 2- and 4-leg shapes (condors are part of the plan)."""
+    assert checks.check_order_shape_declared(
         _ctx(manifest, proposal=_proposal(legs=[1, 2, 3, 4]))).ok
+
+
+def test_three_leg_shape_is_still_refused(manifest):
+    """A shape nobody declared — 3 legs — must stay impossible to submit."""
+    assert not checks.check_order_shape_declared(
+        _ctx(manifest, proposal=_proposal(legs=[1, 2, 3]))).ok
 
 
 def test_invented_ticker_is_refused(manifest):
@@ -313,18 +319,18 @@ def test_invented_ticker_is_refused(manifest):
         _ctx(manifest, proposal=_proposal(underlying="TSLQ"))).ok
 
 
-def test_per_trade_risk_cap_is_five_hundred(manifest):
+def test_per_trade_risk_cap_is_two_thousand(manifest):
     assert checks.check_per_trade_risk(
-        _ctx(manifest, proposal=_proposal(max_loss_dollars=500.0))).ok
+        _ctx(manifest, proposal=_proposal(max_loss_dollars=2000.0))).ok
     assert not checks.check_per_trade_risk(
-        _ctx(manifest, proposal=_proposal(max_loss_dollars=500.01))).ok
+        _ctx(manifest, proposal=_proposal(max_loss_dollars=2000.01))).ok
 
 
 def test_risk_cap_does_not_rescale_after_a_drawdown(manifest):
     """Caps are fractions of DECLARED STARTING equity, not current equity.
 
     Sizing off current equity would keep the same relative aggression all the
-    way down. At $80k equity the cap must still be $500, not $400.
+    way down. At $80k equity the cap must still be $2,000, not $1,600.
     """
     ctx = _ctx(manifest, account=_account(equity="80000"),
                proposal=_proposal(max_loss_dollars=450.0))
