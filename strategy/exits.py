@@ -59,10 +59,12 @@ def decide_exit(gv: GroupView, pnl: float, *, now_et: datetime,
     hhmm = (now_et.hour, now_et.minute)
 
     tp_abs = gv.take_profit_fraction * gv.ref_amount
-    if gv.kind == "credit":
-        sl_abs = gv.stop_loss_fraction * gv.ref_amount
-    else:
-        sl_abs = gv.stop_loss_fraction * gv.ref_amount
+    # Same formula for both kinds — what differs is which manifest key the
+    # caller loaded into stop_loss_fraction before building this GroupView:
+    # a debit's is stop_loss_fraction (e.g. 0.5x the debit paid), a
+    # credit's is stop_loss_multiple (e.g. 2.0x the credit received). See
+    # scripts/run_cycle.py's patch_group_tp_sl call site.
+    sl_abs = gv.stop_loss_fraction * gv.ref_amount
     if pnl >= tp_abs:
         return f"take-profit ${pnl:,.0f}"
     if pnl <= -sl_abs:

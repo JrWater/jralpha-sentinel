@@ -47,13 +47,24 @@ class DayState:
         )
 
 
-def load_or_reset(raw: dict | None, *, today: str, equity_now: float) -> DayState:
-    """Roll the state onto today. A killed yesterday halves today's sizing."""
+def load_or_reset(raw: dict | None, *, today: str, equity_now: float,
+                  scale_fraction: float = 0.5) -> DayState:
+    """Roll the state onto today. A killed yesterday halves today's sizing.
+
+    `scale_fraction` is a plain float, not a Manifest lookup, so this stays
+    pure logic with no I/O (see module docstring) — the caller reads
+    risk_caps.drawdown_scale_fraction from the manifest and passes the
+    number in, rather than this module importing policy.loader itself. The
+    default matches the manifest's declared value only by convention; the
+    production call site in scripts/run_cycle.py must pass it explicitly so
+    an edited manifest actually changes behavior instead of silently
+    drifting from a hardcoded copy.
+    """
     if raw and str(raw.get("date")) == today:
         return DayState.from_dict(raw)
     scale = 1.0
     if raw and bool(raw.get("killed", False)):
-        scale = 0.5
+        scale = scale_fraction
     return DayState(date=today, start_equity=equity_now, scale=scale)
 
 

@@ -6,7 +6,7 @@
   "environment": {
     "broker": "ALPACA",
     "mode": "PAPER",
-    "_comment_mode": "LIVE is not a value this policy accepts. The executor refuses any session where trading_client.paper is not True, so a mis-set env var cannot promote paper semantics onto a funded account.",
+    "_comment_mode": "LIVE is not a value this policy accepts. agent/executor.py::Executor._refuse_unless_authorized checks the trading client's own _sandbox flag before every submit() call, open or close, so a mis-set env var cannot promote paper semantics onto a funded account.",
     "competition_account_id": "PA3K3A9ZBCBI",
     "_comment_account": "The dedicated competition paper account, opened 2026-08-25 for this hackathon and never traded before it. Null is not a wildcard: the account_identity gate refuses to run against an unnamed account, so the agent physically cannot trade until this is set. Order authority binds to one account and is never carried forward to another.",
     "required_starting_equity": 100000.0,

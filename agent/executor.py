@@ -43,9 +43,62 @@ class Executor:
         if self.verbose:
             print(msg)
 
+    # ── authority ────────────────────────────────────────────────────────────
+    def _refuse_unless_authorized(self, *, now: datetime | None = None) -> None:
+        """The one checkpoint every order — open OR close — must pass.
+
+        `now` is injectable (defaults to the real clock) for the same reason
+        gates/safety_gate.py::evaluate() takes one: a "before kickoff" branch
+        that can only ever be exercised by a test running before 2026-08-28
+        is not a test, it is a coin flip that expires.
+
+        manage_exits() calls submit() directly and deliberately skips the
+        pretrade gate loop (exits must survive a red entry gate). That made
+        this check, not check_account_identity/check_competition_window, the
+        only thing actually standing between a close order and the
+        competition account before kickoff — and until now nothing stood
+        here at all. There is no closing=True carve-out: a stray position
+        that should not exist yet is a bug to surface, not one to quietly
+        clean up by trading the pristine account again.
+
+        Mirrors gates/checks.py::check_account_identity and
+        check_competition_window so the two policies can't drift apart, but
+        is stricter than either alone: it always requires the declared
+        account, not just before kickoff.
+        """
+        if getattr(self.client, "_sandbox", None) is not True:
+            raise RuntimeError(
+                "refused: trading_client is not confirmed paper — this "
+                "policy is PAPER-only by declaration")
+        declared = self.manifest.get("environment", "competition_account_id",
+                                     default=None)
+        if not declared:
+            raise RuntimeError(
+                "refused: manifest declares no competition_account_id")
+        account = self.client.get_account()
+        actual = getattr(account, "account_number", None)
+        if actual != declared:
+            raise RuntimeError(
+                f"refused: account {actual} != declared {declared} — order "
+                f"authority is never carried forward to another account")
+        starts = self.manifest.get("session", "competition_starts_utc",
+                                   default=None)
+        if not starts:
+            raise RuntimeError(
+                "refused: manifest declares no competition_starts_utc")
+        start = datetime.fromisoformat(starts)
+        now = now if now is not None else datetime.now(timezone.utc)
+        if now < start:
+            raise RuntimeError(
+                f"refused: competition account {actual} is pristine until "
+                f"{start.isoformat()} ({start - now} away) — trade the dev "
+                f"account instead")
+
     # ── submission ───────────────────────────────────────────────────────────
-    def submit(self, proposal: Proposal, closing: bool = False):
+    def submit(self, proposal: Proposal, closing: bool = False, *,
+              now: datetime | None = None):
         """Submit a proposal as a DAY limit order. Returns the order or raises."""
+        self._refuse_unless_authorized(now=now)
         shape = self.manifest.find_shape(
             order_class=proposal.order_class, type=proposal.type,
             time_in_force=proposal.time_in_force, legs=len(proposal.legs))
@@ -64,20 +117,38 @@ class Executor:
                 f"negative limit on a simple order: {limit} — only mleg "
                 f"credit structures may carry a negative (credit) price")
 
-        legs = [OptionLegRequest(
-            symbol=leg.symbol,
-            ratio_qty=1,
-            side=OrderSide.BUY if leg.side == "buy" else OrderSide.SELL,
-            position_intent=_intent(leg.side, closing),
-        ) for leg in proposal.legs]
-
-        order = self.client.submit_order(LimitOrderRequest(
-            qty=proposal.legs[0].quantity,
-            order_class=(OrderClass.SIMPLE if len(legs) == 1 else OrderClass.MLEG),
-            time_in_force=TimeInForce.DAY,
-            limit_price=limit,
-            legs=legs,
-        ))
+        if len(proposal.legs) == 1:
+            # alpaca-py's OrderRequest validator requires a top-level symbol
+            # (and side/position_intent) for every order_class other than
+            # mleg; a `legs=[OptionLegRequest(...)]` wrapper here is a
+            # pydantic ValidationError, not a smaller/simpler mleg order.
+            # That made every single-leg shape — the manifest declares one,
+            # single_leg_limit_day, and the NFP gap play uses it — fail at
+            # submission with an unhandled exception, never a clean refusal.
+            leg = proposal.legs[0]
+            order = self.client.submit_order(LimitOrderRequest(
+                symbol=leg.symbol,
+                qty=leg.quantity,
+                side=OrderSide.BUY if leg.side == "buy" else OrderSide.SELL,
+                position_intent=_intent(leg.side, closing),
+                order_class=OrderClass.SIMPLE,
+                time_in_force=TimeInForce.DAY,
+                limit_price=limit,
+            ))
+        else:
+            legs = [OptionLegRequest(
+                symbol=leg.symbol,
+                ratio_qty=1,
+                side=OrderSide.BUY if leg.side == "buy" else OrderSide.SELL,
+                position_intent=_intent(leg.side, closing),
+            ) for leg in proposal.legs]
+            order = self.client.submit_order(LimitOrderRequest(
+                qty=proposal.legs[0].quantity,
+                order_class=OrderClass.MLEG,
+                time_in_force=TimeInForce.DAY,
+                limit_price=limit,
+                legs=legs,
+            ))
         self._log(f"  SUBMITTED {order.id} {proposal.structure} "
                   f"{proposal.underlying} @ {limit:.2f} -> {order.status}")
         append_decision({

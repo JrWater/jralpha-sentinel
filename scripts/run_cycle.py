@@ -413,7 +413,9 @@ def main() -> int:
         raw_day = json.loads(DAY_PATH.read_text())
     except (OSError, json.JSONDecodeError):
         raw_day = None
-    day = load_or_reset(raw_day, today=today, equity_now=state.equity)
+    day = load_or_reset(raw_day, today=today, equity_now=state.equity,
+                        scale_fraction=float(manifest.get(
+                            "risk_caps", "drawdown_scale_fraction")))
     killed = check_kill(day, state.equity,
                         float(manifest.get("risk_caps",
                                            "daily_loss_kill_fraction")))
