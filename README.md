@@ -108,15 +108,42 @@ find on day three — it is a week of work that scores zero.
 Schedule the live cycle with cron (closest 30-min marks inside the entry
 window: 10:05/10:35/11:05/.../15:05 ET on weekdays 28 Aug – 4 Sep, plus the
 final-day runs `09:35` and `10:45` on Sep 4 — the 10:45 run is the flatten).
-Adjust for `TZ=America/New_York`:
+
+**A bare `TZ=` line in a crontab does not retime the scheduler** — macOS's
+cron (vixie-cron derived) evaluates every schedule field in the *system's*
+local timezone regardless; `TZ=` only sets that variable in the job's own
+environment. A crontab installed with the ET-literal numbers below and
+`TZ=America/New_York` at the top will fire three hours off real ET on any
+Mac whose system timezone is Pacific — confirmed from an actual fire during
+build: the "15:05 ET" line ran at 15:05 PDT (18:05 ET, two hours after the
+16:00 ET close). `run_cycle.py` itself is unaffected either way — it
+computes `now_et` via `zoneinfo` on real UTC and never reads `$TZ` — so the
+gates always judged the real market correctly; only the schedule's fire
+times were off, which meant most cycles landed outside market hours
+entirely.
+
+The ET-intent schedule, for reference:
 
 ```cron
-TZ=America/New_York
 */30 10-14 * * 1-5  cd ~/jralpha-sentinel && .venv/bin/python scripts/run_cycle.py >> logs/cycle.log 2>&1
 5,35 15 * * 1-5     cd ~/jralpha-sentinel && .venv/bin/python scripts/run_cycle.py >> logs/cycle.log 2>&1
 35 9 * * 1-5        cd ~/jralpha-sentinel && .venv/bin/python scripts/run_cycle.py >> logs/cycle.log 2>&1
 45 10 * * 1-5       cd ~/jralpha-sentinel && .venv/bin/python scripts/run_cycle.py >> logs/cycle.log 2>&1
 ```
+
+**Install the version matching your system's actual timezone**, not this one
+verbatim. On a Pacific-timezone Mac (PDT, this project's build machine),
+subtract 3 hours from every hour field instead:
+
+```cron
+*/30 7-11 * * 1-5   cd ~/jralpha-sentinel && .venv/bin/python scripts/run_cycle.py >> logs/cycle.log 2>&1
+5,35 12 * * 1-5     cd ~/jralpha-sentinel && .venv/bin/python scripts/run_cycle.py >> logs/cycle.log 2>&1
+35 6 * * 1-5        cd ~/jralpha-sentinel && .venv/bin/python scripts/run_cycle.py >> logs/cycle.log 2>&1
+45 7 * * 1-5        cd ~/jralpha-sentinel && .venv/bin/python scripts/run_cycle.py >> logs/cycle.log 2>&1
+```
+
+Verify with `crontab -l` after installing, and sanity-check the very first
+fire against `date` before trusting the rest of the schedule.
 
 Research reads go through Alpaca's MCP server (`.mcp.json`), status through
 the Alpaca CLI (`brew install alpacahq/tap/cli` then `alpaca account get`).

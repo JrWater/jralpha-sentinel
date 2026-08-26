@@ -99,3 +99,23 @@
 - 想看策略细节 → `docs/STRATEGY.md`（v2.2，含回测证据）。
 - 提交材料 → `docs/ONE_PAGE_WRITEUP.md`、`docs/SOCIAL_POSTS.md`。
 - 已知缺陷修复轨迹（评审驱动）→ commit `60b261b`（v2.2 修复 7 项）、`e8f325c`（Claude Code 修 3 个静默缺陷——其中 RSI 两个缺陷源于 v1 `strategy/indicators.py`）。
+
+## 8. 8/26 追加复查（视频重做 + 两项运维缺口）
+
+用户否定了 8/25 的第一版视频（ElevenLabs 配音 + 静态 slide 幻灯片，"更像 PPT"）。用真实 Chrome 直接打开 lablab.ai 逐页核实规则（`WebFetch` 对 lablab.ai 全域返回 403，像反爬，改走 `claude-in-chrome`），原文抓到：
+
+> Video Presentation: A maximum 5-minute video in MP4 format. **Begin with an introduction, discuss your PDF presentation, then showcase your project's functionalities.**
+> Pro Tips: **Showcase User Interaction: A screen recording demonstrating user interaction is impactful.**
+> （均来自 `lablab.ai/delivering-your-hackathon-solution`，8/26 现查现摘）
+
+结论：5 分钟是**上限**不是目标；规则没有"录屏 vs 制作视频"的硬性二选一，但 lablab 自己的取向很清楚——要看真东西在跑。修正后的版本：`sentinel-video/index.html`（HyperFrames），10 个场景全部真 GSAP 动效（不再是静态图片配旁白），第 7 幕（dashboard）用的是**真实**账户截图（`sentinel-video/assets/dash_f*.png`，来自已部署的公开面板），第 8 幕是真实源码截图，第 9 幕（results）保持诚实占位（`— pending —`，不编数字）。旁白沿用 8/25 的 ElevenLabs 十条音轨（内容和时长没问题，问题只在画面）。`npx hyperframes check` 全过（0 error，38/38 对比度），已提交渲染。产出：`sentinel-video/out/sentinel_demo.mp4`。
+
+同一轮核对里，另外查到两个和视频无关、但更要紧的运维缺口——两个都已解决，过程记在这里因为都不是一次搞对的：
+
+| 缺口 | 发现 | 状态 |
+|---|---|---|
+| **agent 从未自动跑过** | `crontab -l` 为空——README §"Schedule the live cycle with cron" 那段调度只写在文档里，从未真正装到系统上。 | ✅ 已装。第一次尝试 `Operation not permitted`（`crontab` 写自己的临时文件被 TCC 拦，追到根是 `/Applications/Claude.app` 没有"完全磁盘访问权限"——这是系统级授权对话框，我这边跨不过去）；用户在系统设置里手动给 Claude 加了权限、Cmd+Q 重启后，`crontab` 装上生效。 |
+| **面板会真的睡死** | 面板今天从"Zzzz, wake it up?"到能打开，实测约 4 分钟。 | ✅ crontab 里加了一条每 3 小时 `curl` 保活。 |
+| **crontab 装上了，但时区算错了** | 上面那条装完之后，实测第一次真实触发（`logs/cycle.log` mtime 15:05）暴露：crontab 里 `TZ=America/New_York` 这行**只是设置任务自己的环境变量，不会改调度器本身用的时区**——`man 5 crontab` 通篇没提 `TZ=` 对调度有任何特殊含义，macOS 的 cron 就是按系统本地时区（这台机器是 America/Vancouver = PDT）字面读那几个数字。所以"15:05"那条其实是 15:05 **PDT** 触发，也就是 18:05 ET——收盘两小时后。整张表全部按 ET 字面数字写、实际按 PDT 触发，等于早了三小时的窗口全部落空、原本该落在盘中的触发点全部滑到了收盘后。`run_cycle.py` 本身没事（`now_et` 是拿真实 UTC 经 `zoneinfo` 转的，从不读 `$TZ`），所以没有任何一次触发会因为这个 bug 而误判"现在是盘中"——`market_session` 闸门该拦的还是拦了；真正的损失是本该发生在盘中的触发点根本没落在盘中，等于这周大部分时间 agent 压根没有机会评估任何候选。已改成把 ET 数字手动转成 PDT 字面量重装（README 和 crontab 文件里都留了换算表和这段踩坑记录，换机器/换时区必须重算，不能直接照抄）。 |
+
+装完之后随便挑一条手动跑一次 `run_cycle.py --dry-run` 确认路径没写错，比空等下一个整点踏实。开赛前（8/28）竞赛账户会被 `competition_window` 闸门挡住，装早了不会误下单。
