@@ -194,9 +194,9 @@ def test_sizing_honors_engine_cap(manifest):
                            count_by_engine={}, current_equity=100000,
                            starting_equity=100000)
     sized = fixed_quantity(p, manifest, "event_macro", state)
-    # event_macro cap is 2.5% = $2,500; $350/contract -> 7 contracts
-    assert sized is not None and sized.legs[0].quantity == 7
-    assert sized.max_loss_dollars <= 2500.0
+    # event_macro cap is 8% = $8,000; $350/contract -> 22 contracts
+    assert sized is not None and sized.legs[0].quantity == 22
+    assert sized.max_loss_dollars <= 8000.0
 
 
 def test_sizing_refuses_when_one_contract_exceeds_cap(manifest):
@@ -215,10 +215,10 @@ def test_sizing_respects_at_risk_cap(manifest):
                  structure="straddle", limit_price=10.0, max_loss_dollars=1000.0,
                  legs=[OptionLeg("x", "buy", 1, 1.0, "call", date(2026, 9, 3))])
     state = PortfolioState(max_loss_by_underlying={},
-                           max_loss_total=14600.0, count_by_engine={},
+                           max_loss_total=34600.0, count_by_engine={},
                            current_equity=100000, starting_equity=100000)
     sized = fixed_quantity(p, manifest, "catalyst", state)
-    # at-risk cap 15% = $15,000; only $400 of headroom -> 0 contracts -> None
+    # at-risk cap 35% = $35,000; only $400 of headroom -> 0 contracts -> None
     assert sized is None
 
 
@@ -406,8 +406,8 @@ def test_sizing_scale_halves_cap(manifest):
                            starting_equity=100000, scale=0.5)
     sized = fixed_quantity(p, manifest, "event_macro", state,
                            cap_key="addon_max_loss_per_trade_fraction")
-    # add-on cap 1.5% = $1,500; halved = $750 -> 1 contract
-    assert sized is not None and sized.legs[0].quantity == 1
+    # add-on cap 6% = $6,000; halved = $3,000 -> 7 contracts
+    assert sized is not None and sized.legs[0].quantity == 7
 
 
 def test_straddle_expiry_must_follow_the_event():
@@ -538,3 +538,67 @@ def test_an_unbroken_rally_is_overbought_not_neutral():
 
     flat = [100.0] * 40
     assert rsi(flat, 14) == 50.0
+
+
+# ── v3.0: ALL-IN conviction single-leg layer ────────────────────────────────
+
+def test_trend_single_fires_on_high_conviction(manifest):
+    """The conviction single-leg layer builds a defined-risk, uncapped-upside
+    long. The entry filter itself is covered elsewhere; this test pins the
+    structure, engine label and cap of the layer."""
+    import math
+    from datetime import date as d, datetime as dt, timezone, timedelta
+    from types import SimpleNamespace
+    from zoneinfo import ZoneInfo
+    from strategy.data import MarketState, ChainContract, contract_symbol
+    from strategy.engine import EngineContext, _one_single
+    from strategy.regime import classify
+    from strategy.signals import Signal
+
+    def fake_quote(bid, ask):
+        return SimpleNamespace(bid_price=bid, ask_price=ask,
+                               timestamp=dt.now(timezone.utc))
+    def fake_bar(off, close):
+        ts = dt(2026, 8, 25, 12, 0, tzinfo=timezone.utc) + timedelta(days=off)
+        return SimpleNamespace(timestamp=ts, close=close,
+                               high=close * 1.005, low=close * 0.995)
+
+    nv = [130.0 + i * 0.6 + 2.5 * math.sin(i / 2.5) for i in range(80)]
+    spy = [100.0 + i * 0.45 for i in range(80)]
+    state = MarketState(equity=100000.0,
+                        now_utc=dt(2026, 8, 31, 15, 30, tzinfo=timezone.utc))
+    state.bars = {"SPY": [fake_bar(i - 80, c) for i, c in enumerate(spy)],
+                  "QQQ": [fake_bar(i - 80, c * 1.1) for i, c in enumerate(spy)],
+                  "NVDA": [fake_bar(i - 80, c) for i, c in enumerate(nv)]}
+    last = nv[-1]
+    state.latest = {"SPY": fake_quote(spy[-1] - 0.05, spy[-1] + 0.05),
+                    "QQQ": fake_quote(spy[-1] * 1.1, spy[-1] * 1.1 + 0.1),
+                    "NVDA": fake_quote(last - 0.05, last + 0.05)}
+    atm = round(last, 1)
+    cs = []
+    for exp in [d(2026, 9, 1), d(2026, 9, 2)]:
+        for ctype, sd in [("call", 1.0), ("put", -1.0)]:
+            for step in range(-6, 7):
+                k = atm + step
+                cs.append(ChainContract(
+                    symbol=contract_symbol("NVDA", exp, ctype, k),
+                    expiration=exp, contract_type=ctype, strike=k,
+                    bid=0.5, ask=0.7,
+                    delta=max(-0.9, min(0.9, 0.5 * sd - 0.04 * step * sd)),
+                    iv=0.25, quote_ts=None))
+    state.chains["NVDA"] = cs
+    regime = classify(spy, [c * 1.1 for c in spy], [0.5])
+    ctx = EngineContext(state=state, manifest=manifest, regime=regime,
+                        now_et=dt(2026, 8, 31, 11, 30,
+                                  tzinfo=ZoneInfo("America/New_York")),
+                        signals={})
+    sig = Signal(symbol="NVDA", score=1.0, trend_pct=9.0, momentum_5d=3.0,
+                 momentum_20d=15.0, rel_5d=2.0, rsi14=55.0, atr_pct=2.0,
+                 gap_pct=0.0, gap_dir=0, reason="synthetic")
+    single_cfg = manifest.get("strategies", "trend_single")
+    cand = _one_single(ctx, sig, direction=1, single_cfg=single_cfg)
+    assert cand is not None
+    p = cand.proposal
+    assert p.structure == "single_long" and len(p.legs) == 1
+    assert p.engine == "trend_single"
+    assert p.max_loss_dollars <= 3000.0

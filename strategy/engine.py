@@ -137,7 +137,59 @@ def _trend(ctx: EngineContext) -> list[Candidate]:
                 c.proposal.conviction = round(c.proposal.conviction * 0.6, 2)
                 c.label = "trend-breakout"
                 out.append(c)
+
+    # ── v3.0 ALL-IN convexity layer: the top conviction name buys a single-leg
+    # long (risk = debit, upside uncapped). The 250-session sim measured
+    # single-legs at +$192/trade (35% wins) - the fat tail on top of the
+    # 87%-win credit base. Max one concurrent.
+    single_cfg = ctx.manifest.get("strategies", "trend_single",
+                                  default=None)
+    if (single_cfg and single_cfg.get("enabled", True)
+            and ctx.portfolio.count("trend_single") < 1):
+        min_conv = float(single_cfg.get("conviction_min", 0.85))
+        top = sorted(
+            (s for s in candidates
+             if entry_ok(s, 1) if s.score >= float(cfg["score_threshold"])
+             if conviction(s, ctx.regime.score) >= min_conv),
+            key=lambda s: conviction(s, ctx.regime.score), reverse=True)[: 1]
+        for sig in top:
+            c = _one_single(ctx, sig, direction=1, single_cfg=single_cfg)
+            if c:
+                out.append(c)
     return out
+
+
+def _one_single(ctx: EngineContext, sig: Signal, direction: int,
+                single_cfg) -> Candidate | None:
+    """One single-leg long on the highest-conviction trend name."""
+    state = ctx.state
+    spot = _spot(state, sig.symbol)
+    if spot is None:
+        return None
+    expiries = sorted({c.expiration for c in state.contracts(sig.symbol)})
+    expiry = pick_expiry(expiries, state.now_utc.date(),
+                         int(single_cfg.get("min_dte", 0)),
+                         int(single_cfg.get("max_dte", 2)))
+    if expiry is None:
+        return None
+    contracts = state.contracts(sig.symbol, expiry)
+    proposal = build_single_long(
+        spot, state.now_utc.date(), expiry, sig.symbol, direction,
+        contracts, float(single_cfg.get("target_delta", 0.40)),
+        float(single_cfg.get("delta_tolerance", 0.10)))
+    if proposal is None:
+        return None
+    proposal.engine = "trend_single"
+    proposal.conviction = conviction(sig, ctx.regime.score)
+    proposal.thesis = (f"Trend Vector (conviction single-leg): {sig.symbol} "
+                       f"score {sig.score:+.2f}, conviction "
+                       f"{proposal.conviction:.2f}; risk = debit paid, upside "
+                       f"uncapped. The all-in convexity layer.")
+    sized = fixed_quantity(proposal, ctx.manifest, "trend_single",
+                           ctx.portfolio)
+    if sized is None:
+        return None
+    return Candidate(sized, proposal.conviction, "trend-single")
 
 
 def _breakout(ctx: EngineContext, cfg) -> bool:

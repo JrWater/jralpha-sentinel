@@ -561,7 +561,14 @@ def main() -> int:
         c = candidates[idx]
         p = c.proposal
 
-        if p.engine in ("catalyst", "event_macro", "vol_income"):
+        fire_once = p.engine in ("catalyst", "event_macro", "vol_income")
+        if p.engine == "event_macro" and p.structure == "single_long":
+            # v3.0 ALL-IN: the NFP gap continuation may fire twice in the
+            # 09:30-09:50 window (two cycles) - the second entry is the
+            # re-confirmation bet. Bounded by the per-underlying and daily
+            # exposure caps, not by the fire-once guard.
+            fire_once = False
+        if fire_once:
             key = fire_key(p.engine, p.underlying, today)
             if fired(day, key):
                 print(f"  {YELLOW}SKIP (already fired today){RESET} "
@@ -615,7 +622,7 @@ def main() -> int:
                 float(cfg.get("stop_loss_fraction", 0.5))
         patch_group_tp_sl(gid, tp, sl)
 
-        if p.engine in ("catalyst", "event_macro", "vol_income"):
+        if fire_once:
             mark_fired(day, fire_key(p.engine, p.underlying, today))
         submitted += 1
 

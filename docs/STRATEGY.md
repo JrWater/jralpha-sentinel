@@ -96,15 +96,15 @@ first and last 30 minutes (the only time when a delayed chain is also
 
 ## Risk gates (the ones the write-up will brag about)
 
-- Per-trade hard cap: **$3,000** (any engine; `risk_caps.max_loss_per_position_fraction`, v2.4)
-- Engine caps (v2.4): trend $1,500, catalyst $3,000 (straddle) / $2,000 (PEAD), event $2,500 / $1,500, vol $800
-- Portfolio at-risk cap: **$15,000** = 15% of starting equity, all open structures combined (v2.4)
+- Per-trade hard cap: **$10,000** (v3.0 tournament calibration; `risk_caps.max_loss_per_position_fraction`)
+- Engine caps (v3.0): catalyst $10,000 (straddle) / $4,000 (PEAD), event $8,000 / $6,000, trend $2,000 + conviction single-leg $3,000, vol $800
+- Portfolio at-risk cap: **$35,000** = 35% of starting equity (v3.0)
 - Concurrent positions ≤ 10; ≤ 3 structures (≤ 6 contracts) per underlying; ≤ 3 satellites per vector
-- **Daily kill switch (enforced):** day P&L ≤ −$3,000 → no new entries for the rest of the day; next day's sizes ×0.5 (`strategy/daystate.py`)
+- **Daily kill switch (enforced):** day P&L ≤ −$10,000 (v3.0) → no new entries for the rest of the day; next day's sizes ×0.5 (`strategy/daystate.py`)
 - **Daily exposure cap (enforced):** max $6,000 of new max-loss submitted per day
 - **Fire-once guards (enforced):** catalyst/event entries submit once per day per name — later cycles cannot double-buy
 - **Structure-level exits (v2.1):** a multi-leg structure is marked and closed as ONE unit; an exit can never manufacture a naked short leg
-- **Entry Maintenance:** equity < $92,000 → no new exposure at all; exits and reconciliation keep running
+- **Entry Maintenance:** equity < $80,000 (v3.0) → no new exposure at all; exits and reconciliation keep running
 - **No market orders, ever** — declared order shapes are limit-only; `order_shape_declared` makes it structural
 - **Account lock:** the competition account is mechanically untradeable before 2026-08-28 15:00 UTC (`competition_window` gate)
 - Final day (09-04): no new exposure **except** the pre-declared 0-DTE NFP gap continuation (09:30–09:50 ET); everything flattened by **limit at the touch** before **10:45 ET** (deadline 11:00 ET)
@@ -127,6 +127,37 @@ execution through the Trading API.
 3. `python scripts/run_cycle.py` every 30 min 10:05–15:25 ET via cron/launchd
 4. Sep 3: LULU straddle 15:00–15:15 + NFP strangle, both 1 DTE
 5. Sep 4: 09:30–09:45 NFP gap vertical; 10:45 aggressive flatten; 15:00 UTC submit
+
+## v3.0 ALL-IN (owner directive, 2026-08-26)
+
+v2.4 optimized *expected value within conservative caps*. The owner's
+directive for v3.0 is different and simpler: **maximize the probability of a
+leaderboard-level P&L**, accepting the blowup risk that comes with it. All
+limits were recalibrated toward the tournament profile:
+
+| knob | v2.4 | v3.0 |
+|---|---|---|
+| hard per-trade cap | $3,000 | **$10,000** |
+| LULU pre-event straddle | $3,000 | **$10,000** (the window's biggest scheduled bet) |
+| NFP strangle | $2,500 | **$8,000** |
+| NFP gap single-leg (0-DTE, uncapped) | $1,500 | **$6,000**, fires up to 2x |
+| PEAD drift legs | $2,000 | **$4,000** each |
+| trend credit/debit | $1,500 | **$2,000** each |
+| **NEW** trend conviction single-leg | — | **$3,000**, top name at conviction ≥ 0.85, max 1 |
+| portfolio at-risk cap | $15,000 | **$35,000** |
+| daily exposure | $8,000 | **$25,000** |
+| daily kill switch | −$3,000 | **−$10,000** |
+| Entry Maintenance floor | $92,000 | **$80,000** |
+
+The gates are not removed — they are recalibrated, and every one still
+blocks in code. The risk profile is now: fat right tail (two 0-DTE uncapped
+bets on NFP morning, a $10k straddle on the window's only confirmed
+earnings, convex single-legs on trend conviction), real left tail (a fully
+losing week can take the account near $65-70k, at which point Entry
+Maintenance has long stopped new entries). That is the accepted cost of the
+profile, per the owner's explicit instruction. Defined-risk structures only
+remain in force: no naked shorts, no market orders — the one-page write-up
+remains true, because the gates still exist and still decide.
 
 ## Backtest (model-based simulation, 2026-08-26, v2.4 correction)
 

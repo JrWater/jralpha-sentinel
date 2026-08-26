@@ -11,7 +11,7 @@
     "starting_equity": 100000.0
   },
   "code": {
-    "git_head": "003d8212bf3c2c547b3e479f002b9f46484660fa",
+    "git_head": "128b107c4c1108a1d77fb475adee198fa31a5849",
     "worktree_dirty": true
   },
   "day": {
@@ -102,6 +102,36 @@
       "reason": "permit refused: market_session",
       "structure": "debit_vertical",
       "underlying": "NFLX"
+    },
+    {
+      "accepted": false,
+      "at": "2026-08-26T23:35:17.353674+00:00",
+      "conviction": 0.869,
+      "engine": "trend_income",
+      "max_loss_dollars": 1728.0,
+      "reason": "permit refused: market_session",
+      "structure": "credit_vertical",
+      "underlying": "CRM"
+    },
+    {
+      "accepted": false,
+      "at": "2026-08-26T23:35:17.353674+00:00",
+      "conviction": 0.7,
+      "engine": "catalyst",
+      "max_loss_dollars": 3632.0,
+      "reason": "permit refused: market_session",
+      "structure": "debit_vertical",
+      "underlying": "CRWD"
+    },
+    {
+      "accepted": false,
+      "at": "2026-08-26T23:35:17.353674+00:00",
+      "conviction": 0.832,
+      "engine": "trend_directional",
+      "max_loss_dollars": 1991.0,
+      "reason": "permit refused: market_session",
+      "structure": "debit_vertical",
+      "underlying": "NFLX"
     }
   ],
   "equity_history": [
@@ -116,6 +146,10 @@
     {
       "equity": 100000.0,
       "t": "2026-08-26T23:20:06.737627+00:00"
+    },
+    {
+      "equity": 100000.0,
+      "t": "2026-08-26T23:35:17.353674+00:00"
     }
   ],
   "gates": [
@@ -165,7 +199,7 @@
       "severity": "BLOCKING"
     },
     {
-      "detail": "equity 100,000.00 >= floor 92,000.00",
+      "detail": "equity 100,000.00 >= floor 80,000.00",
       "dimension": "Entry Authority",
       "name": "equity_floor",
       "ok": true,
@@ -201,7 +235,7 @@
       "severity": "BLOCKING"
     },
     {
-      "detail": "SENTINEL-OPTIONS-V2@2.4.0+a88a64153502",
+      "detail": "SENTINEL-OPTIONS-V2@3.0.0+788715f1e43b",
       "dimension": "Release Integrity",
       "name": "manifest_identity",
       "ok": true,
@@ -210,7 +244,7 @@
       "severity": "BLOCKING"
     },
     {
-      "detail": "worktree dirty at 003d8212bf3c",
+      "detail": "worktree dirty at 128b107c4c11",
       "dimension": "Release Integrity",
       "name": "release_integrity",
       "ok": false,
@@ -219,7 +253,7 @@
       "severity": "ATTENTION"
     }
   ],
-  "generated_at_utc": "2026-08-26T23:20:06.737627+00:00",
+  "generated_at_utc": "2026-08-26T23:35:17.353674+00:00",
   "market": {
     "is_open": false
   },
@@ -231,10 +265,10 @@
     "status": "BLOCKED"
   },
   "policy": {
-    "identity": "SENTINEL-OPTIONS-V2@2.4.0+a88a64153502",
+    "identity": "SENTINEL-OPTIONS-V2@3.0.0+788715f1e43b",
     "policy_id": "SENTINEL-OPTIONS-V2",
-    "sha": "a88a64153502e9435fdd0bb81d4c6af2db1cb23caada36c5240cada0d8311078",
-    "version": "2.4.0"
+    "sha": "788715f1e43b3802c37f6869567cb8195f214e3f53f7029e46ee22e091b75d20",
+    "version": "3.0.0"
   },
   "positions": [],
   "regime": {
