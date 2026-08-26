@@ -1,4 +1,4 @@
-> **归档说明（非原文）**：本文为 **Claude Code 拟定的参赛计划原文**，由 DeepSeek 代理于 2026-08-25 归档至本仓库 `docs/`，用途是日后复查 Claude Code 的工作（计划 → 实际 对照见 `docs/PLAN_VS_ACTUAL.md`）。自「# JrAlpha 参赛计划」起为逐字原文，未改动措辞；仅将 IBKR paper 账号号段脱敏（`DUQ887077` → `[已脱敏]`），避免公开仓库泄露券商账号标识。计划中标注的复选框状态是计划撰写时的状态，不代表执行状态。
+> **归档说明（非原文）**：本文为 **Claude Code 拟定的参赛计划原文**，由 DeepSeek 代理于 2026-08-25 归档至本仓库 `docs/`，用途是日后复查 Claude Code 的工作（计划 → 实际 对照见 `docs/PLAN_VS_ACTUAL.md`）。自「# JrAlpha 参赛计划」起为逐字原文，未改动措辞；仅将 IBKR paper 账号号段脱敏为 `[已脱敏]`，避免公开仓库泄露券商账号标识。计划中标注的复选框状态是计划撰写时的状态，不代表执行状态。
 
 # JrAlpha 参赛计划 — Alpaca AI Trading Agents Hackathon
 

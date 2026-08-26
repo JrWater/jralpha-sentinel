@@ -68,7 +68,7 @@
       "max_rsi_entry": 65.0,
       "max_momentum_5d_entry": 6.0,
       "max_momentum_20d_entry": 25.0,
-      "_comment": "Directional momentum engine: debit call verticals in a risk-on tape, debit put verticals in a risk-off tape, 0-2 DTE, defined risk = debit paid. The three max_*_entry keys are the pullback-entry filter: buy strength on a pullback, never after a blow-off. Validated 2026-08-25 on ~170 daily bars: the unfiltered score chased extended names (PLTR/COIN/NVDA/MSFT negative forward edge); the filtered signal measured +1.17% day-2 and +1.25% day-3 edge vs SPY across 222 signals. breakout_allow_long: a 20-day-high SPY breakout overrides a chop regime for one long position at reduced conviction - the record-high tape's main continuation scenario.",
+      "_comment": "Directional momentum engine: debit call verticals in a risk-on tape, debit put verticals in a risk-off tape, 0-2 DTE, defined risk = debit paid. The three max_*_entry keys are the pullback-entry filter: buy strength on a pullback, never after a blow-off. Re-measured 2026-08-25 AFTER fixing an RSI defect that read the first fourteen bars of the series instead of the last (so this filter's RSI<=65 term was gating on a random historical fortnight): 498 signals at this threshold, +0.22% d1 / +0.51% d2 / +0.75% d3 edge vs SPY, monotonic in the threshold. The unfiltered score chasing extended names is confirmed (PLTR -3.11% / MSFT -2.65% / COIN -2.37% at d3). Caveat stated because a judge can re-run scripts/backtest_signals.py: 95% of the positive edge is DELL, AMD and MU, and only 6 of 15 names show a positive d3 edge. breakout_allow_long: a 20-day-high SPY breakout overrides a chop regime for one long position at reduced conviction - the record-high tape's main continuation scenario.",
       "breakout_allow_long": true,
       "breakout_max_positions": 1
     },
@@ -209,7 +209,7 @@
     "no_new_exposure_on_final_date": true,
     "_comment_session": "No entries in the first 30 minutes (opening auction noise makes a delayed chain especially misleading) or the last 30 minutes. On the declared final trading day (09-04, the submission day) NO new exposure at all: engine candidates are suppressed and the executor flattens from 10:00 ET, with everything closed by 10:45 ET — submissions close 11:00 ET and nothing may still be marked-to-market or expire unsettled.",
     "competition_starts_utc": "2026-08-28T15:00:00+00:00",
-    "_comment_starts": "The competition account must still read exactly $100,000 when judging begins, so it may not be traded before this instant. Development happens on the separate legacy paper account (PA31GLG5O9HU). Enforced by the competition_window gate.",
+    "_comment_starts": "The competition account must still read exactly $100,000 when judging begins, so it may not be traded before this instant. Development happens on a separate legacy paper account, whose identifier is deliberately not published here. Enforced by the competition_window gate.",
     "final_trading_date": "2026-09-04",
     "_comment_final": "Submissions close 2026-09-04 15:00 UTC (11:00 ET). Alpaca paper syncs non-trading activity (expiration, assignment) only on the following day, so 09-04 positions are closed by live orders, never left to expire."
   },

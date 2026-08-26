@@ -50,7 +50,7 @@
 
 ## 3. 账户边界（计划 §二）
 
-- 用户手动步骤全部完成；`verify_account.py --compare-legacy` 实测：ACTIVE / $100,000.00 / cash 未动 / Level 3 / 与 legacy 账户 `PA31GLG5O9HU` 不同 → **READY**。
+- 用户手动步骤全部完成；`verify_account.py --compare-legacy` 实测：ACTIVE / $100,000.00 / cash 未动 / Level 3 / 与 legacy 开发账户（号码不公开）不同 → **READY**。
 - `.env` 独立于 `.openclaw/.env` ✅；变量名 `ALPACA_SECRET_KEY` 兼容处理（verify_account 同时读 `ALPACA_API_SECRET`）✅。
 
 ## 4. 赛中策略 — 计划 vs 实际（最大的偏差区）

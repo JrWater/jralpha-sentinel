@@ -1,6 +1,6 @@
 # Build-in-public posts (up to 5 links accepted with the submission)
 
-Post on **X and LinkedIn**, tag **@lablab.ai / lablab.ai** and **@Alpaca (Alpaca Markets)**, link the repo `github.com/jrwater/sentinel-options`. Drafts below are written to be posted over Aug 28 – Sep 4.
+Post on **X and LinkedIn**, tag **@lablab.ai / lablab.ai** and **@Alpaca (Alpaca Markets)**, link the repo `github.com/JrWater/jralpha-sentinel`. Drafts below are written to be posted over Aug 28 – Sep 4.
 
 ---
 
@@ -17,4 +17,4 @@ You can't beat a five-day paper window with theta alone — 0.13-delta spreads r
 Day-by-day: the daily kill switch exists because it did its job. A −$3k day halts new entries and halves next-day sizing — every trade survives a wrong call because max loss is known before the first fill. This is what "risk gates" means in practice: they aren't in the write-up, they're in the order path. (Real numbers, real account, all paper.)
 
 **Post 5 — Results + submission (Sep 4).**
-Five days, one window, all paper. Final equity vs $100k start, realized-P&L split by engine (Trend/Catalyst/Event/Vol), and the one-page write-up: AI logic, 16 risk gates, Alpaca infrastructure (Trading API + MCP server + CLI). Thank you @alpaca and @lablab.ai — building for a competition like this is the best trading education available. Repo: github.com/jrwater/sentinel-options (MIT).
+Five days, one window, all paper. Final equity vs $100k start, realized-P&L split by engine (Trend/Catalyst/Event/Vol), and the one-page write-up: AI logic, 16 risk gates, Alpaca infrastructure (Trading API + MCP server + CLI). Thank you @alpaca and @lablab.ai — building for a competition like this is the best trading education available. Repo: github.com/JrWater/jralpha-sentinel (MIT).
