@@ -11,7 +11,7 @@
     "starting_equity": 100000.0
   },
   "code": {
-    "git_head": "e8f325cdcdbb976378555977fc5a55b03b6994ca",
+    "git_head": "1584d1f795d26b5a3e79047fbe09e21486520cdb",
     "worktree_dirty": true
   },
   "day": {
@@ -42,12 +42,46 @@
       "reason": "permit refused: market_session",
       "structure": "debit_vertical",
       "underlying": "CRWD"
+    },
+    {
+      "accepted": false,
+      "at": "2026-08-26T22:50:01.138460+00:00",
+      "conviction": 0.869,
+      "engine": "trend_directional",
+      "max_loss_dollars": 959.0,
+      "reason": "permit refused: market_session",
+      "structure": "debit_vertical",
+      "underlying": "CRM"
+    },
+    {
+      "accepted": false,
+      "at": "2026-08-26T22:50:01.138460+00:00",
+      "conviction": 0.7,
+      "engine": "catalyst",
+      "max_loss_dollars": 1263.0,
+      "reason": "permit refused: market_session",
+      "structure": "debit_vertical",
+      "underlying": "CRWD"
+    },
+    {
+      "accepted": false,
+      "at": "2026-08-26T22:50:01.138460+00:00",
+      "conviction": 0.832,
+      "engine": "trend_directional",
+      "max_loss_dollars": 989.0,
+      "reason": "permit refused: market_session",
+      "structure": "debit_vertical",
+      "underlying": "NFLX"
     }
   ],
   "equity_history": [
     {
       "equity": 100000.0,
       "t": "2026-08-26T02:08:14.020672+00:00"
+    },
+    {
+      "equity": 100000.0,
+      "t": "2026-08-26T22:50:01.138460+00:00"
     }
   ],
   "gates": [
@@ -142,7 +176,7 @@
       "severity": "BLOCKING"
     },
     {
-      "detail": "worktree dirty at e8f325cdcdbb",
+      "detail": "worktree dirty at 1584d1f795d2",
       "dimension": "Release Integrity",
       "name": "release_integrity",
       "ok": false,
@@ -151,7 +185,7 @@
       "severity": "ATTENTION"
     }
   ],
-  "generated_at_utc": "2026-08-26T02:08:14.020672+00:00",
+  "generated_at_utc": "2026-08-26T22:50:01.138460+00:00",
   "market": {
     "is_open": false
   },
@@ -170,9 +204,9 @@
   },
   "positions": [],
   "regime": {
-    "confidence": 0.69,
+    "confidence": 0.67,
     "mode": "risk_on",
-    "reason": "SPY above EMA50 (+1.59%), RSI 54, breadth +1"
+    "reason": "SPY above EMA50 (+1.56%), RSI 54, breadth +0"
   },
   "schema_version": 1
 }

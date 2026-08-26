@@ -15,8 +15,13 @@
 | 8/25 18:48 | `3eec988` 删除 legacy `smoke_spread.py`（评审发现跨到期日对角线缺陷、--submit 可达竞赛账户、--close-all 市价平仓） | Claude Code |
 | 8/25 19:01 | `e8f325c` **修复三个静默缺陷**：daily_bars 取旧不取新（正是多次 dry-run "insufficient history" 的根因）；`rsi()` 取前 14 根而非后 14 根（v1 引入的缺陷）；全涨序列 RSI 返回 50；窗口 60→120 日 | Claude Code |
 | 8/25 19:0x | 未提交：`dashboard/app.py`（Streamlit 闸门矩阵面板，读取 `docs/snapshot.json`，无凭据）+ `agent/snapshot.py` | Claude Code |
+| 8/26 白天 | `3157994` 面板入库（Application URL，无凭据）→ `edf949c` 脱敏泄露的账号标识、修 404 仓库链接 → `228df1d` 接通已部署面板 URL（jralpha-sentinel.streamlit.app）→ `cdd380a` 封面/slides/旁白视频草稿 | Claude Code |
+| 8/26 15:18 | `82baf6b` Matt Pocock 式 Standards+Spec 复查修复：退出路径此前可绕过全部闸门（executor 现在**每条单、开或平**都必须过 `_refuse_unless_authorized`：纸面会话+申报账户+开赛时间）；顺带修出**单腿单因缺顶层 symbol/side 永远发不出去**（NFP 缺口单的真实结构）、manifest 权威漂移两处（NFP 勒式 delta、日闸减半系数改为读 manifest）；+8 测试 → 90/90 | Claude Code |
+| 8/26 15:25 | `5f45fd0` crontab 时区修复：macOS cron 按系统本地时区（PDT）解释调度数字，`TZ=` 行不改调度器——真实触发实测证明后改 PDT 字面量重装 | Claude Code |
+| 8/26 15:41 | `1584d1f` `docs/SUBMISSION_COPY.md`（标题/短描述/长描述，长度逐一核对）+ 刷新 PLAN_VS_ACTUAL §6 | Claude Code |
+| 8/26 15:5x | `ec6454b` 验收归档（DeepSeek 代理）：提交 Claude Code 留存的未暂存成品（`scripts/validate_delay_chain.py` 延迟链验证 PASS、`sentinel-video/` HyperFrames 视频源码、media/build webp 帧；渲染中间产物保持 gitignore） | DeepSeek 代理 |
 
-当前基线：**82/82 测试通过**；账户 `PA3K3A9ZBCBI` 验证 READY（$100,000.00、Level 3、未交易）；manifest `SENTINEL-OPTIONS-V2@2.2.0`。
+当前基线（8/26 15:5x）：**90/90 测试通过**；账户 `PA3K3A9ZBCBI` READY（$100,000.00、Level 3、零交易）；manifest `SENTINEL-OPTIONS-V2@2.2.0`；crontab 已装（PDT 校正 + 面板保活）；面板已部署（303 重定向正常，冷启动约 4 分钟）；dry-run 实测跑出 3 个真实候选（CRM 趋势、CRWD 漂移、NFLX 趋势）；视频 `media/sentinel_demo.mp4`（HyperFrames 重制版）、封面、slides、提交文案齐备；全部提交已推送。
 
 ## 1. 赛事事实核对（计划 vs 本仓库复核）
 
