@@ -41,7 +41,7 @@
 | 8/26 manifest 落地 | ✅ | `policy/manifest.json` v2.2.0，order shape 白名单 + 拒绝未声明形状（`check_order_shape_declared`） |
 | 8/26 骨架跑通 cron→决策→闸门→执行→落账 | ✅ | `scripts/run_cycle.py`（--dry-run 实测通过：闸门矩阵正确、拒绝逻辑正确）；README 有 crontab |
 | 8/27 五维闸门 + Entry Maintenance | ✅ | `gates/`：16 闸门、5 维度、3 档位、六字段必填（registry `validate()` 保证）；Entry Maintenance = `equity_floor` 闸门（<92% 禁止新敞口、离场照常） |
-| 8/27 Streamlit 面板 + 部署 URL | 🔶 **面板已建未部署** | `dashboard/app.py` + `agent/snapshot.py` 已写（无凭据、读 `docs/snapshot.json`）但**未提交、未部署**到 Streamlit Community Cloud。Application URL 仍是硬缺口 |
+| 8/27 Streamlit 面板 + 部署 URL | ✅ **已部署** | 公开 URL：https://jralpha-sentinel.streamlit.app 。GitHub OAuth 登录 + 部署表单本人操作/确认；构建通过，渲染结果与本地实测一致（Entry permit BLOCKED / market_session，账户 PA3K3A9ZBCBI $100,000.00）。托管端无 Alpaca 凭据 |
 | 8/28 开赛日三问（Discord Q&A） | ⏳ **待办（用户）** | 9/4 平仓口径、起算点、one-per-email 三问需用户在开赛日 Q&A 确认 |
 | 8/29–9/2 一页写作/测试/社媒 | ✅ 大部分 | `docs/ONE_PAGE_WRITEUP.md`（v2.2 版）、`docs/SOCIAL_POSTS.md`（5 帖草稿）、测试 82 项（含 fail-closed 覆盖） |
 | 9/2–9/3 视频、slides、长短描述、封面 | ⏳ **待办** | 计划要求 9/2 起录素材、9/3 晚定稿并**当晚提交**（防 9/4 早上翻车） |
