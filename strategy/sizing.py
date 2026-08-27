@@ -33,6 +33,34 @@ class PortfolioState:
         return self.count_by_engine.get(engine, 0)
 
 
+def record_open_risk(state: PortfolioState, dollars: float,
+                     cap: float) -> bool:
+    """True when this trade's max loss still fits under the at-risk cap.
+
+    The counterpart to daystate.record_risk, which does exactly this job for
+    the daily new-exposure cap, and called from the same place for the same
+    reason: risk is taken on when an order is SENT, not when a candidate is
+    built. The engine builds more candidates than the proposer selects, so
+    reserving budget at build time would hold capital against trades that
+    never open.
+
+    Before this existed the at-risk cap was measured only against positions
+    that were already open when the cycle began — fixed_quantity() read
+    PortfolioState.max_loss_total and nothing ever moved it — so siblings in
+    one cycle each spent the same headroom and the book could finish well
+    past a cap the write-up calls hard.
+
+    Refusal is whole-trade, not a trim, matching record_risk. A candidate
+    that does not fit is skipped rather than shrunk: the two caps then behave
+    identically at the submission layer, which is worth more than squeezing
+    the last few hundred dollars of headroom out of the ranked tail.
+    """
+    if state.max_loss_total + dollars > cap:
+        return False
+    state.max_loss_total += dollars
+    return True
+
+
 def engine_cap(manifest, engine: str, cap_key: str | None = None,
                scale: float = 1.0) -> float:
     """The engine's per-trade max-loss cap, in dollars.

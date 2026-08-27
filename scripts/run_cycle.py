@@ -45,7 +45,7 @@ from strategy.exits import (GroupView, build_close_proposal, decide_exit,
 from strategy.proposal import OptionLeg, Proposal
 from strategy.regime import classify, universe_breadth
 from strategy.signals import score_symbol
-from strategy.sizing import PortfolioState
+from strategy.sizing import PortfolioState, record_open_risk
 
 GREEN, RED, YELLOW, DIM, RESET = (
     "\033[32m", "\033[31m", "\033[33m", "\033[2m", "\033[0m")
@@ -423,6 +423,9 @@ def main() -> int:
                                        "daily_new_exposure_cap_fraction"))
                     * float(manifest.get("environment",
                                          "required_starting_equity")))
+    at_risk_cap = (float(manifest.get("risk_caps", "at_risk_cap_fraction"))
+                   * float(manifest.get("environment",
+                                        "required_starting_equity")))
 
     # ── 1. preflight gates ──────────────────────────────────────────────────
     mirror_from_broker(data.positions())
@@ -579,6 +582,19 @@ def main() -> int:
             # 0-DTE is legitimate during session hours; only the PAST is refused
             print(f"  {YELLOW}SKIP{RESET} {p.underlying}: expired-by-design "
                   f"entry ({p.expiry})")
+            continue
+
+        # Portfolio at-risk cap, checked BEFORE the daily one on purpose.
+        # Both reserve on success, so whichever runs first leaks its
+        # reservation if the second refuses. That leak is not symmetric:
+        # `portfolio` is rebuilt from the broker's open positions at the top
+        # of every cycle, so a lost reservation here heals in <=30 minutes,
+        # while `day` is written to disk and would suppress entries for the
+        # rest of the session. The self-healing one goes first.
+        if not record_open_risk(portfolio, p.max_loss_dollars, at_risk_cap):
+            print(f"  {YELLOW}SKIP{RESET} {p.underlying} {p.structure}: "
+                  f"portfolio at-risk cap reached "
+                  f"(${portfolio.max_loss_total:,.0f}/${at_risk_cap:,.0f})")
             continue
 
         if not record_risk(day, p.max_loss_dollars, exposure_cap):

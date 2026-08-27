@@ -222,6 +222,33 @@ def test_sizing_respects_at_risk_cap(manifest):
     assert sized is None
 
 
+def test_open_risk_accumulates_across_siblings_in_one_cycle(manifest):
+    """The at-risk cap is a cap on the BOOK, so two candidates opened in the
+    same cycle cannot each spend the same headroom.
+
+    The defect this pins: PortfolioState.max_loss_total was snapshotted from
+    already-open positions at the top of the cycle and never moved again, so
+    every sibling was measured against the same stale figure. With $35,000
+    open under a $40,000 cap, six $5,000 candidates each saw $5,000 of room
+    and all six could open — $65,000 against a cap the write-up, the slides
+    and the narration all call hard.
+    """
+    from strategy.sizing import record_open_risk
+    cap = (float(manifest.get("risk_caps", "at_risk_cap_fraction"))
+           * float(manifest.get("environment", "required_starting_equity")))
+    state = PortfolioState(max_loss_by_underlying={}, max_loss_total=35000.0,
+                           count_by_engine={}, current_equity=100000,
+                           starting_equity=100000)
+
+    assert record_open_risk(state, 5000.0, cap) is True
+    assert state.max_loss_total == 40000.0
+
+    # headroom is spent; the sibling must be refused, not waved through
+    assert record_open_risk(state, 5000.0, cap) is False
+    # and a refusal must not consume budget it did not get
+    assert state.max_loss_total == 40000.0
+
+
 # ── engine ───────────────────────────────────────────────────────────────────
 
 def test_engine_suppressed_on_final_date(manifest):
