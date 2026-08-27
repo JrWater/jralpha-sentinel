@@ -17,7 +17,7 @@ Sentinel: The Gates Decide
 An autonomous options trading agent where the LLM only proposes trades — 16 deterministic gates decide. Built on Alpaca's Trading API, MCP server, and CLI, with a credential-free public dashboard showing every gate result and every refused proposal.
 ```
 
-## Long Description (min 100 words — this is 261, word-count verified)
+## Long Description (min 100 words — this is 331, word-count verified)
 
 ```
 Most agents built for this hackathon will hand a language model a broker
@@ -34,11 +34,17 @@ accepts a proposal only if its order shape — always limit, never
 market — is explicitly declared in the policy manifest; nothing else is
 structurally submittable.
 
-Every position is defined-risk: no naked shorts, a $2,000 hard cap per
-trade (a fraction of starting equity, so a drawdown shrinks absolute risk
-rather than staying just as aggressive), a $13,000 book-wide cap, a daily
-kill switch, and an Entry Maintenance mode below the equity floor that
-keeps exits running while forbidding new exposure.
+Every position is defined-risk — verticals, straddles, iron condors, never
+a naked short — and every order is a limit order, because no market order
+shape is declared anywhere in the manifest. Sizing is tournament-calibrated
+rather than timid: a $12,000 hard cap per trade and $40,000 at risk across
+the book, against a $12,000 daily kill switch and an Entry Maintenance
+floor at $70,000 below which no new exposure opens while exits keep
+running. Caps are fractions of *starting* equity, not current, so a
+drawdown shrinks absolute risk instead of quietly staying as aggressive.
+The discipline is structural, not small: the gates constrain what shape a
+trade may take and whether it may open at all, and the model never gets a
+vote on either.
 
 On Alpaca's infrastructure: the Trading API for limit-only multi-leg
 execution, real-time IEX prices blended with the free 15-minute-delayed
