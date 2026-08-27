@@ -52,7 +52,22 @@ DELIVERABLES = [
     "docs/STRATEGY.md",
     "media/build/slides.html",     # source of slides.pdf
     "media/build/script.json",     # source of the narration AUDIO — expensive to redo
+    "sentinel-video/index.html",   # on-screen values burned into the video
 ]
+
+# Lines dropped before scanning a file, by path. The video composition holds
+# two kinds of text: the ON-SCREEN values (scannable, and the ones a judge
+# reads off the frame) and the captions, which are chunked mid-sentence
+# ("Twelve thousand dollars is the hard cap on any" / "single trade") so a
+# number lands on a different line from the phrase that gives it meaning.
+# Scanning the captions produces false OKs; skipping the whole FILE — which
+# is what this checker did until 2026-08-26 — let scene 05 ship $2,000 /
+# $13,000 / -$3,000 / $92,000 on screen under narration that said $12,000 /
+# $40,000 / -$12,000 / $70,000. Caught by looking at a render, not by this
+# tool. Drop the captions, keep the frame.
+LINE_FILTERS = {
+    "sentinel-video/index.html": re.compile(r'class="cap[^"]*"'),
+}
 
 # Rendered from a source above. They are not scanned directly: the video's
 # captions are chunked mid-sentence ("Two thousand dollars is the max on" /
@@ -62,10 +77,12 @@ DELIVERABLES = [
 DERIVED = {
     "media/build/script.json": [
         "media/audio_el/*.mp3 + sentinel-video/assets/audio/*.mp3 (ElevenLabs)",
-        "sentinel-video/index.html (captions)",
+        "sentinel-video/index.html (captions only — its on-screen values are "
+        "scanned directly, see LINE_FILTERS)",
         "media/sentinel_demo.mp4",
     ],
     "media/build/slides.html": ["media/slides.pdf", "media/build/slide_*.png"],
+    "sentinel-video/index.html": ["media/sentinel_demo.mp4"],
 }
 
 # Deliberately NOT checked: docs/CLAUDE_CODE_PLAN.md and docs/PLAN_VS_ACTUAL.md
@@ -186,6 +203,39 @@ def _is_history(line: str, manifest_mm: tuple, current: bool) -> tuple:
     return current, current
 
 
+
+def _units(raw: str, path: Path, drop) -> list:
+    """The chunks of text a value and its label can be expected to share.
+
+    For prose and JSON that is the line. For HTML it is NOT: markup puts the
+    number and the words that give it meaning in sibling elements on separate
+    lines —
+
+        <div class="mono" ...>$2,000</div>
+        <div ...>max on any single trade — a fraction of starting equity</div>
+
+    — so a line scanner sees a bare number with no risk vocabulary anywhere
+    near it, skips it, and reports OK. That is exactly how scene 05 shipped
+    the v2.0 figures under v3.1.1 narration. For HTML the tags are stripped
+    and each dollar figure is handed back inside a window of its neighbouring
+    text, so value and label are judged together the way a viewer sees them.
+    """
+    if path.suffix.lower() not in (".html", ".htm"):
+        lines = raw.splitlines()
+        return [l for l in lines if not (drop and drop.search(l))]
+
+    kept = [l for l in raw.splitlines() if not (drop and drop.search(l))]
+    text = re.sub(r"<[^>]+>", " ", "\n".join(kept))
+    text = (text.replace("&lt;", "<").replace("&gt;", ">")
+                .replace("&amp;", "&").replace("&nbsp;", " ")
+                .replace("\u2014", "—"))
+    text = re.sub(r"\s+", " ", text)
+
+    units, span = [], 130
+    for m in DOLLARS.finditer(text):
+        units.append(text[max(0, m.start() - span): m.end() + span])
+    return units
+
 def check(path: Path, slots: dict, legal: set,
           manifest_mm: tuple = (0, 0)) -> list[str]:
     problems: list[str] = []
@@ -200,8 +250,9 @@ def check(path: Path, slots: dict, legal: set,
         except (json.JSONDecodeError, AttributeError, TypeError):
             pass
 
+    drop = LINE_FILTERS.get(str(path.relative_to(ROOT)))
     in_history = False
-    for lineno, line in enumerate(raw.splitlines(), 1):
+    for lineno, line in enumerate(_units(raw, path, drop), 1):
         skip, in_history = _is_history(line, manifest_mm, in_history)
         if skip:
             continue
