@@ -39,7 +39,7 @@ premium. No naked shorts. No market orders. No 3am improvisation.
 3. **Every structure is defined-risk**, which is what the one-page write-up's
    "risk gates" section is judged on — and it is the honest answer, not a
    hedge. Max loss per structure is known at entry; the portfolio at-risk cap
-   is $13,000; the Entry Maintenance trip is $92,000.
+   is $40,000; the Entry Maintenance trip is $70,000.
 4. **The variance is intentional.** To *win* one of these you need the top of
    the P&L distribution, and top-of-distribution comes from the catalyst
    legs — but you never need a single leg to be right: four uncorrelated
@@ -101,7 +101,8 @@ first and last 30 minutes (the only time when a delayed chain is also
 - Portfolio at-risk cap: **$40,000** = 40% of starting equity (v3.1)
 - Concurrent positions ≤ 10; ≤ 3 structures (≤ 6 contracts) per underlying; ≤ 3 satellites per vector
 - **Daily kill switch (enforced):** day P&L ≤ −$12,000 (v3.1) → no new entries for the rest of the day; next day's sizes ×0.5 (`strategy/daystate.py`)
-- **Daily exposure cap (enforced):** max $6,000 of new max-loss submitted per day
+- **Daily exposure cap (enforced):** max $30,000 of new max-loss submitted per day
+- **Portfolio at-risk cap (enforced, v3.1.1):** $40,000 of summed max-loss across the open book; counted at submission by `sizing.record_open_risk`, so candidates in the same cycle cannot each spend the same headroom
 - **Fire-once guards (enforced):** catalyst/event entries submit once per day per name — later cycles cannot double-buy
 - **Structure-level exits (v2.1):** a multi-leg structure is marked and closed as ONE unit; an exit can never manufacture a naked short leg
 - **Entry Maintenance:** equity < $70,000 (v3.1) → no new exposure at all; exits and reconciliation keep running

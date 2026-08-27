@@ -206,6 +206,12 @@ def record_group(proposal: Proposal, entered_at: str) -> None:
     meta["groups"][gid] = {
         "engine": proposal.engine,
         "underlying": proposal.underlying,
+        # v3.1.1: the window cap on the gap continuation counts prior entries
+        # out of this file, matching on engine AND structure — the NFP
+        # strangle is also engine event_macro and must not spend the gap's
+        # budget. Without this key that match is None == "single_long" for
+        # every record, so the tally is always 0 and the cap never trips.
+        "structure": proposal.structure,
         "expiry": proposal.expiry.isoformat() if proposal.expiry else "",
         "kind": kind,
         "entry_net": round(entry_net, 4),
@@ -583,6 +589,28 @@ def main() -> int:
             print(f"  {YELLOW}SKIP{RESET} {p.underlying}: expired-by-design "
                   f"entry ({p.expiry})")
             continue
+
+        # v3.1.1: the gap continuation is capped at N entries per WINDOW
+        # (not per day). The 90%-win evidence is NFP-specific, so the rule
+        # is: kickoff day may fire one, NFP morning fires the rest. Counted
+        # from the persistent group meta, open or closed.
+        if p.engine == "event_macro" and p.structure == "single_long":
+            # load_meta() rather than the cycle-level `meta`: record_group()
+            # reloads and saves the file itself, so the copy taken at the top
+            # of the cycle does not see entries this same cycle just made.
+            # Only one gap candidate is produced per cycle today, so the
+            # stale read is not reachable — but that is a property of the
+            # engine, not of this guard, and the guard should not depend on it.
+            gap_total = sum(
+                1 for g in load_meta().get("groups", {}).values()
+                if g.get("engine") == "event_macro"
+                and g.get("structure") == "single_long")
+            gap_max = int(manifest.get("strategies", "event_macro",
+                                       "gap_max_entries_total", default=2))
+            if gap_total >= gap_max:
+                print(f"  {YELLOW}SKIP{RESET} {p.underlying} {p.structure}: "
+                      f"window gap entries {gap_total}/{gap_max} used")
+                continue
 
         # Portfolio at-risk cap, checked BEFORE the daily one on purpose.
         # Both reserve on success, so whichever runs first leaks its

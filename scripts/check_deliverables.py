@@ -161,7 +161,33 @@ def money(v: float) -> str:
     return f"${v:,.0f}"
 
 
-def check(path: Path, slots: dict, legal: set) -> list[str]:
+SUPERSEDED_HEADING = re.compile(r"^#{1,6}\s+v(\d+)\.(\d+)")
+
+
+def _is_history(line: str, manifest_mm: tuple, current: bool) -> tuple:
+    """Track whether we are inside a section that documents a PAST version.
+
+    STRATEGY.md keeps recalibration tables headed `## v3.0 ALL-IN` with
+    columns `| knob | v2.4 | v3.0 |`. Those numbers are correct *as history*
+    and rewriting them to today's values would destroy the only record of
+    why the policy moved — the same reason PLAN_VS_ACTUAL.md is not scanned
+    at all. A section whose heading names a version older than the manifest's
+    is skipped; one naming the current version is still checked, because that
+    is where the live numbers live.
+
+    Returns (skip_this_line, still_in_history).
+    """
+    m = SUPERSEDED_HEADING.match(line)
+    if m:
+        section = (int(m.group(1)), int(m.group(2)))
+        return True, section < manifest_mm
+    if line.startswith("#"):        # any other heading ends the history block
+        return False, False
+    return current, current
+
+
+def check(path: Path, slots: dict, legal: set,
+          manifest_mm: tuple = (0, 0)) -> list[str]:
     problems: list[str] = []
     try:
         raw = path.read_text()
@@ -174,7 +200,11 @@ def check(path: Path, slots: dict, legal: set) -> list[str]:
         except (json.JSONDecodeError, AttributeError, TypeError):
             pass
 
+    in_history = False
     for lineno, line in enumerate(raw.splitlines(), 1):
+        skip, in_history = _is_history(line, manifest_mm, in_history)
+        if skip:
+            continue
         found = DOLLARS.findall(line)
         values = [int(f.replace(",", "")) for f in found]
         values += _spoken_amounts(line)
@@ -214,6 +244,8 @@ def main() -> int:
     from policy.loader import load as load_manifest
     manifest = load_manifest()
     slots, legal = canonical(manifest)
+    _mv = str(manifest.get("version", default="0.0")).split(".")
+    manifest_mm = (int(_mv[0]), int(_mv[1]) if len(_mv) > 1 else 0)
 
     print(f"\n{DIM}manifest {manifest.identity}{RESET}")
     if args.list:
@@ -236,7 +268,7 @@ def main() -> int:
         if not path.exists():
             print(f"  [{YELLOW}SKIP{RESET}] {rel} (not present)")
             continue
-        problems = check(path, slots, legal)
+        problems = check(path, slots, legal, manifest_mm)
         total += len(problems)
         mark = f"{GREEN}OK{RESET}" if not problems else f"{RED}STALE{RESET}"
         print(f"  [{mark}] {rel}")
