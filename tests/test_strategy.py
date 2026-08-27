@@ -729,3 +729,69 @@ def test_single_leg_layer_still_fires_in_risk_on(manifest):
     assert p.structure == "single_long" and len(p.legs) == 1
     assert p.legs[0].side == "buy" and p.legs[0].contract_type == "call"
     assert 0 < p.max_loss_dollars <= 3000.0
+
+
+def test_daystate_release_hands_back_an_unsent_reservation():
+    """record_risk reserves on the assumption the submit that follows works.
+
+    When submit raises, nothing was sent and nothing is at risk; holding the
+    budget would suppress later entries all session over a trade that never
+    opened. Observed 2026-08-27 in the gate-refusal form: two refused NVDA
+    candidates left new_risk_dollars at 4715 against zero positions.
+    """
+    from strategy.daystate import DayState, record_risk, release_risk
+    ds = DayState(date="2026-09-01", start_equity=100000.0)
+    assert record_risk(ds, 4000.0, cap=6000.0)
+    release_risk(ds, 4000.0)
+    assert ds.new_risk_dollars == 0.0
+    assert record_risk(ds, 5000.0, cap=6000.0)   # budget is usable again
+
+
+def test_daystate_release_never_goes_negative():
+    from strategy.daystate import DayState, release_risk
+    ds = DayState(date="2026-09-01", start_equity=100000.0)
+    release_risk(ds, 1000.0)
+    assert ds.new_risk_dollars == 0.0
+
+
+def test_entry_budget_is_not_half_reserved_when_daily_cap_refuses():
+    """A second-budget refusal must undo the first reservation immediately."""
+    from scripts.run_cycle import reserve_entry_risk
+    from strategy.daystate import DayState
+    from strategy.sizing import PortfolioState
+
+    portfolio = PortfolioState(
+        max_loss_by_underlying={}, max_loss_total=35000.0,
+        count_by_engine={}, current_equity=100000.0,
+        starting_equity=100000.0)
+    day = DayState(date="2026-09-01", start_equity=100000.0,
+                   new_risk_dollars=29000.0)
+
+    refused = reserve_entry_risk(
+        portfolio, day, 2000.0,
+        at_risk_cap=40000.0, exposure_cap=30000.0)
+
+    assert refused == "daily"
+    assert portfolio.max_loss_total == 35000.0
+    assert day.new_risk_dollars == 29000.0
+
+
+def test_entry_budget_portfolio_refusal_never_touches_day_budget():
+    from scripts.run_cycle import reserve_entry_risk
+    from strategy.daystate import DayState
+    from strategy.sizing import PortfolioState
+
+    portfolio = PortfolioState(
+        max_loss_by_underlying={}, max_loss_total=39500.0,
+        count_by_engine={}, current_equity=100000.0,
+        starting_equity=100000.0)
+    day = DayState(date="2026-09-01", start_equity=100000.0,
+                   new_risk_dollars=5000.0)
+
+    refused = reserve_entry_risk(
+        portfolio, day, 1000.0,
+        at_risk_cap=40000.0, exposure_cap=30000.0)
+
+    assert refused == "portfolio"
+    assert portfolio.max_loss_total == 39500.0
+    assert day.new_risk_dollars == 5000.0

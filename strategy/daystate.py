@@ -76,6 +76,16 @@ def record_risk(ds: DayState, dollars: float, cap: float) -> bool:
     return True
 
 
+def release_risk(ds: DayState, dollars: float) -> None:
+    """Give back a reservation whose order was never sent.
+
+    record_risk reserves on the assumption the submit that follows succeeds.
+    When it raises, nothing is at risk, so holding the budget would suppress
+    later entries for the rest of the session over a trade that never opened.
+    """
+    ds.new_risk_dollars = max(0.0, ds.new_risk_dollars - dollars)
+
+
 def check_kill(ds: DayState, equity_now: float, kill_fraction: float) -> bool:
     """Trip the kill switch. Once tripped it stays tripped for the day."""
     if ds.killed:

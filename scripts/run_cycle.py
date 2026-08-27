@@ -38,14 +38,14 @@ from policy.loader import load as load_manifest
 from scripts.verify_account import creds, load_env
 from strategy.data import AlpacaData, MarketState, parse_contract
 from strategy.daystate import (check_kill, fire_key, fired, load_or_reset,
-                               mark_fired, record_risk)
+                               mark_fired, record_risk, release_risk)
 from strategy.engine import EngineContext, run as run_engines
 from strategy.exits import (GroupView, build_close_proposal, decide_exit,
                             group_key, pnl_of)
 from strategy.proposal import OptionLeg, Proposal
 from strategy.regime import classify, universe_breadth
 from strategy.signals import score_symbol
-from strategy.sizing import PortfolioState, record_open_risk
+from strategy.sizing import PortfolioState, record_open_risk, release_open_risk
 
 GREEN, RED, YELLOW, DIM, RESET = (
     "\033[32m", "\033[31m", "\033[33m", "\033[2m", "\033[0m")
@@ -180,6 +180,26 @@ def print_gates(results: dict) -> None:
         print(f"  [{mark}] {name:<22} {r.detail}")
 
 
+def reserve_entry_risk(portfolio: PortfolioState, day, dollars: float,
+                       *, at_risk_cap: float,
+                       exposure_cap: float) -> str | None:
+    """Reserve both entry budgets atomically from the caller's perspective.
+
+    The portfolio budget is checked first because it is reconstructed each
+    cycle, while the day budget is durable.  If the durable budget refuses,
+    give the first reservation back before returning.  A caller must never
+    observe a half-reserved Proposal.
+
+    Returns the budget which refused, or None when both reservations hold.
+    """
+    if not record_open_risk(portfolio, dollars, at_risk_cap):
+        return "portfolio"
+    if not record_risk(day, dollars, exposure_cap):
+        release_open_risk(portfolio, dollars)
+        return "daily"
+    return None
+
+
 # ── meta (structure records) ─────────────────────────────────────────────────
 
 def load_meta() -> dict:
@@ -256,7 +276,19 @@ def manage_exits(state: MarketState, manifest, executor: Executor) -> int:
     meta = load_meta()
     groups = meta.get("groups", {})
     broker = {p.symbol: p for p in state.positions}
-    closed_any = 0
+    exit_orders_submitted = 0
+    meta_changed = False
+    # Freeze ownership against this broker snapshot.  A close submission
+    # below moves its group to close_pending, while the positions in `state`
+    # remain the pre-submission snapshot.  Ownership must remain stable for
+    # this invocation so those legs cannot also enter the orphan pass.  A
+    # later cycle rebuilds the set from broker-confirmed state.
+    managed_symbols = {
+        sym
+        for group in groups.values()
+        if not group.get("closed")
+        for sym in (group.get("legs") or {})
+    }
 
     for gid, g in groups.items():
         if g.get("closed"):
@@ -265,6 +297,13 @@ def manage_exits(state: MarketState, manifest, executor: Executor) -> int:
         open_legs = {sym: info for sym, info in legs.items()
                      if sym in broker and int(float(broker[sym].qty)) != 0}
         if not open_legs:
+            if g.get("close_pending"):
+                g["close_pending"] = False
+                g["closed"] = True
+                append_decision({"kind": "structure_close_confirmed",
+                                 "group": gid,
+                                 "order_id": g.get("close_order_id", "")})
+                meta_changed = True
             continue
 
         prices = {}
@@ -321,11 +360,15 @@ def manage_exits(state: MarketState, manifest, executor: Executor) -> int:
             continue
         try:
             order = executor.submit(close, closing=True)
-            append_decision({"kind": "structure_closed", "group": gid,
-                             "reason": reason, "pnl": round(pnl, 2),
+            append_decision({"kind": "structure_close_submitted",
+                             "group": gid, "reason": reason,
+                             "pnl": round(pnl, 2),
                              "order_id": str(order.id)})
-            g["closed"] = True
-            closed_any += 1
+            g["close_pending"] = True
+            g["close_order_id"] = str(order.id)
+            g["close_reason"] = reason
+            meta_changed = True
+            exit_orders_submitted += 1
             print(f"  {GREEN}EXIT{RESET} {gid} {reason} (pnl ${pnl:,.0f}) "
                   f"net {close.limit_price:.2f}")
         except Exception as exc:                            # noqa: BLE001
@@ -335,8 +378,7 @@ def manage_exits(state: MarketState, manifest, executor: Executor) -> int:
     # only; the agent never creates structures outside the meta.
     for pos in state.positions:
         sym = pos.symbol
-        if any(sym in (g.get("legs") or {}) for g in groups.values()
-               if not g.get("closed")):
+        if sym in managed_symbols:
             continue
         contract = _contract(state, sym)
         if contract is None:
@@ -363,14 +405,14 @@ def manage_exits(state: MarketState, manifest, executor: Executor) -> int:
             order = executor.submit(close, closing=True)
             append_decision({"kind": "orphan_closed", "symbol": sym,
                              "order_id": str(order.id)})
-            closed_any += 1
+            exit_orders_submitted += 1
             print(f"  {GREEN}EXIT{RESET} orphan {sym} @ {price:.2f}")
         except Exception as exc:                            # noqa: BLE001
             print(f"  {RED}EXIT FAILED{RESET} orphan {sym}: {exc}")
 
-    if closed_any:
+    if meta_changed:
         save_meta(meta)
-    return closed_any
+    return exit_orders_submitted
 
 
 def _contract(state: MarketState, sym: str):
@@ -395,6 +437,9 @@ def main() -> int:
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--no-llm", action="store_true")
     ap.add_argument("--env", default=".env")
+    ap.add_argument("--exits-only", action="store_true",
+                    help="manage the existing book but size nothing new "
+                         "(used past the final trading date)")
     args = ap.parse_args()
 
     manifest = load_manifest()
@@ -458,6 +503,16 @@ def main() -> int:
                                if p.asset_class == "us_option"]
             mirror_from_broker(data.positions())
             ledger = ledger_positions()
+
+    # Past the final trading date the account must stop growing, but it must
+    # not stop being managed: exits are the only way a residual position from
+    # an unfilled 09-04 flatten limit ever gets closed, and manage_exits is
+    # the sole exit path in this repo. Suppressing NEW exposure is the whole
+    # requirement; suppressing the cycle would strand the book.
+    if args.exits_only:
+        print(f"\n{YELLOW}EXITS ONLY{RESET}: past the final trading date — "
+              f"book still managed, nothing new will be sized.")
+        return 0
 
     if blockers and not args.dry_run:
         print(f"\n{RED}PERMIT REFUSED{RESET}: {', '.join(blockers)} — no new "
@@ -612,24 +667,16 @@ def main() -> int:
                       f"window gap entries {gap_total}/{gap_max} used")
                 continue
 
-        # Portfolio at-risk cap, checked BEFORE the daily one on purpose.
-        # Both reserve on success, so whichever runs first leaks its
-        # reservation if the second refuses. That leak is not symmetric:
-        # `portfolio` is rebuilt from the broker's open positions at the top
-        # of every cycle, so a lost reservation here heals in <=30 minutes,
-        # while `day` is written to disk and would suppress entries for the
-        # rest of the session. The self-healing one goes first.
-        if not record_open_risk(portfolio, p.max_loss_dollars, at_risk_cap):
-            print(f"  {YELLOW}SKIP{RESET} {p.underlying} {p.structure}: "
-                  f"portfolio at-risk cap reached "
-                  f"(${portfolio.max_loss_total:,.0f}/${at_risk_cap:,.0f})")
-            continue
-
-        if not record_risk(day, p.max_loss_dollars, exposure_cap):
-            print(f"  {YELLOW}SKIP{RESET} {p.underlying} {p.structure}: daily "
-                  f"exposure cap reached")
-            continue
-
+        # Pretrade gates run BEFORE either cap reserves, because both reserve
+        # on success and neither refunds. A gate refusal after a reservation
+        # leaks it: `day` is written to disk, so a refused proposal used to
+        # burn its max loss out of the daily cap for the rest of the session
+        # without ever taking a cent of real risk. Observed 2026-08-27, when
+        # competition_window refused two NVDA candidates and day_state still
+        # recorded new_risk_dollars=4715 against 0 submissions. Reserving only
+        # once the proposal is cleared to submit, and handing both back if
+        # the submit itself raises, keeps "reserved" and "actually at risk"
+        # the same set.
         pre = {}
         for g in checks.GATES:
             if g.phase != "pretrade":
@@ -647,9 +694,28 @@ def main() -> int:
             print(f"  {YELLOW}REFUSED{RESET} {p.underlying} {p.structure}: "
                   f"{', '.join(refused)}")
             continue
+
+        refused_budget = reserve_entry_risk(
+            portfolio, day, p.max_loss_dollars,
+            at_risk_cap=at_risk_cap, exposure_cap=exposure_cap)
+        if refused_budget == "portfolio":
+            print(f"  {YELLOW}SKIP{RESET} {p.underlying} {p.structure}: "
+                  f"portfolio at-risk cap reached "
+                  f"(${portfolio.max_loss_total:,.0f}/${at_risk_cap:,.0f})")
+            continue
+        if refused_budget == "daily":
+            print(f"  {YELLOW}SKIP{RESET} {p.underlying} {p.structure}: daily "
+                  f"exposure cap reached")
+            continue
+
         try:
             order = executor.submit(p)
         except Exception as exc:                            # noqa: BLE001
+            # Nothing was sent, so nothing is at risk: hand both reservations
+            # back. Holding them would suppress later entries for the rest of
+            # the session over a trade that never opened.
+            release_open_risk(portfolio, p.max_loss_dollars)
+            release_risk(day, p.max_loss_dollars)
             print(f"  {RED}SUBMIT FAILED{RESET}: {exc}")
             continue
         print(f"  {GREEN}OK{RESET} {order.id}")

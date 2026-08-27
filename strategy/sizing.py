@@ -61,6 +61,11 @@ def record_open_risk(state: PortfolioState, dollars: float,
     return True
 
 
+def release_open_risk(state: PortfolioState, dollars: float) -> None:
+    """Counterpart to record_open_risk, for a submit that never happened."""
+    state.max_loss_total = max(0.0, state.max_loss_total - dollars)
+
+
 def engine_cap(manifest, engine: str, cap_key: str | None = None,
                scale: float = 1.0) -> float:
     """The engine's per-trade max-loss cap, in dollars.
