@@ -602,3 +602,103 @@ def test_trend_single_fires_on_high_conviction(manifest):
     assert p.structure == "single_long" and len(p.legs) == 1
     assert p.engine == "trend_single"
     assert p.max_loss_dollars <= 3000.0
+
+
+# ── v3.1.1: the conviction single-leg layer must follow the regime ──────────
+
+def _single_layer_scenario(manifest, *, spy_closes, breadth):
+    """_trend() in a given regime, with one strong positive-score name.
+
+    Deliberately drives _trend() end-to-end rather than calling _one_single
+    directly: the v3.0 layer's bug was in the *selection* around the builder,
+    not the builder, so a test that calls the builder cannot see it.
+    """
+    import math
+    from datetime import date as d, datetime as dt, timedelta, timezone
+    from types import SimpleNamespace
+    from zoneinfo import ZoneInfo
+    from strategy.data import ChainContract, MarketState, contract_symbol
+    from strategy.engine import EngineContext, _trend
+    from strategy.regime import classify
+    from strategy.signals import Signal
+
+    def fake_quote(bid, ask):
+        return SimpleNamespace(bid_price=bid, ask_price=ask,
+                               timestamp=dt.now(timezone.utc))
+
+    def fake_bar(off, close):
+        ts = dt(2026, 8, 25, 12, 0, tzinfo=timezone.utc) + timedelta(days=off)
+        return SimpleNamespace(timestamp=ts, close=close,
+                               high=close * 1.005, low=close * 0.995)
+
+    nv = [130.0 + i * 0.15 + 2.0 * math.sin(i / 2.5) for i in range(80)]
+    state = MarketState(equity=100000.0,
+                        now_utc=dt(2026, 8, 31, 15, 30, tzinfo=timezone.utc))
+    state.bars = {
+        "SPY": [fake_bar(i - 80, c) for i, c in enumerate(spy_closes)],
+        "QQQ": [fake_bar(i - 80, c * 1.1) for i, c in enumerate(spy_closes)],
+        "NVDA": [fake_bar(i - 80, c) for i, c in enumerate(nv)],
+    }
+    last = nv[-1]
+    state.latest = {
+        "SPY": fake_quote(spy_closes[-1] - 0.05, spy_closes[-1] + 0.05),
+        "QQQ": fake_quote(spy_closes[-1] * 1.1, spy_closes[-1] * 1.1 + 0.1),
+        "NVDA": fake_quote(last - 0.05, last + 0.05),
+    }
+    atm = round(last, 1)
+    cs = []
+    for exp in [d(2026, 9, 1), d(2026, 9, 2)]:
+        for ctype, sd in [("call", 1.0), ("put", -1.0)]:
+            for step in range(-6, 7):
+                k = atm + step
+                cs.append(ChainContract(
+                    symbol=contract_symbol("NVDA", exp, ctype, k),
+                    expiration=exp, contract_type=ctype, strike=k,
+                    bid=0.5, ask=0.7,
+                    delta=max(-0.9, min(0.9, 0.5 * sd - 0.04 * step * sd)),
+                    iv=0.25, quote_ts=None))
+    state.chains["NVDA"] = cs
+
+    regime = classify(spy_closes, [c * 1.1 for c in spy_closes], breadth)
+    sig = Signal(symbol="NVDA", score=1.0, trend_pct=2.0, momentum_5d=1.0,
+                 momentum_20d=5.0, rel_5d=2.0, rsi14=55.0, atr_pct=2.0,
+                 gap_pct=0.0, gap_dir=0, reason="synthetic")
+    ctx = EngineContext(state=state, manifest=manifest, regime=regime,
+                        now_et=dt(2026, 8, 31, 11, 30,
+                                  tzinfo=ZoneInfo("America/New_York")),
+                        signals={"NVDA": sig})
+    return regime, _trend(ctx)
+
+
+def test_single_leg_layer_does_not_buy_calls_in_risk_off(manifest):
+    """v3.0 shipped this layer outside the regime dispatch with direction
+    hardcoded long, so a falling tape produced a bullish single-leg — and
+    since conviction() scales by abs(regime_score), the harder the selloff
+    the more likely it was to fire. Reproduced at regime score -5.15 as a
+    $2,988 long call that was the cycle's ONLY trend candidate."""
+    regime, cands = _single_layer_scenario(
+        manifest,
+        spy_closes=[140.0 - i * 0.55 for i in range(80)],
+        breadth=[-0.5])
+    assert regime.mode == "risk_off" and not regime.long_allowed
+    singles = [c for c in cands if c.proposal.engine == "trend_single"]
+    assert singles == [], (
+        f"a long single-leg fired in {regime.mode} "
+        f"(score {regime.score}): {[c.proposal.thesis for c in singles]}")
+
+
+def test_single_leg_layer_still_fires_in_risk_on(manifest):
+    """The guard above must not have simply switched the feature off — the
+    convexity layer is the point of the v3.0 profile. Same signal, same
+    conviction, bullish regime: it must still fire."""
+    regime, cands = _single_layer_scenario(
+        manifest,
+        spy_closes=[100.0 + i * 0.45 for i in range(80)],
+        breadth=[0.5])
+    assert regime.long_allowed
+    singles = [c for c in cands if c.proposal.engine == "trend_single"]
+    assert len(singles) == 1
+    p = singles[0].proposal
+    assert p.structure == "single_long" and len(p.legs) == 1
+    assert p.legs[0].side == "buy" and p.legs[0].contract_type == "call"
+    assert 0 < p.max_loss_dollars <= 3000.0

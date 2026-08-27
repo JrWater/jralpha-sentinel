@@ -142,9 +142,26 @@ def _trend(ctx: EngineContext) -> list[Candidate]:
     # long (risk = debit, upside uncapped). The 250-session sim measured
     # single-legs at +$192/trade (35% wins) - the fat tail on top of the
     # 87%-win credit base. Max one concurrent.
+    #
+    # v3.1.1 fix: this block sits OUTSIDE the regime dispatch above and its
+    # direction is hardcoded long, so until now it also fired a long CALL in
+    # risk_off - while the short branch above was selling the same tape. Worse,
+    # conviction() scales the name's score by abs(regime_score), so a HARDER
+    # selloff made the bullish leg MORE likely to clear 0.85, not less.
+    # Reproduced at regime score -5.15: a $2,988 long call, and the only trend
+    # candidate produced that cycle.
+    #
+    # The layer is long-only by construction - conviction() is signed, so a
+    # short candidate scores ~0.05 and can never clear the gate. Redefining
+    # conviction days before kickoff is not a change that can be validated in
+    # time, so the layer is instead gated to the regimes where a long is
+    # authorized at all. A bearish long-put twin is a deliberate open option,
+    # not an oversight.
     single_cfg = ctx.manifest.get("strategies", "trend_single",
                                   default=None)
+    long_authorized = ctx.regime.long_allowed or _breakout(ctx, cfg)
     if (single_cfg and single_cfg.get("enabled", True)
+            and long_authorized
             and ctx.portfolio.count("trend_single") < 1):
         min_conv = float(single_cfg.get("conviction_min", 0.85))
         top = sorted(
