@@ -125,7 +125,8 @@ execution through the Trading API.
 
 1. `python scripts/verify_account.py --compare-legacy` → all PASS (it did on 08-25)
 2. `python scripts/run_cycle.py --dry-run` → competition_window gate shows BLOCK -> then READY at kickoff
-3. `python scripts/run_cycle.py` every 30 min 10:05–15:25 ET via cron/launchd
+3. `python scripts/cycle_window.py` every 30 min 10:05–15:25 ET via cron/launchd
+   (the guard that bounds the far end of the window, then hands off to `run_cycle.py`)
 4. Sep 3: LULU straddle 15:00–15:15 + NFP strangle, both 1 DTE
 5. Sep 4: 09:30–09:45 NFP gap vertical; 10:45 aggressive flatten; 15:00 UTC submit
 

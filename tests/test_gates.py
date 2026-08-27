@@ -405,3 +405,49 @@ def test_competition_account_opens_at_kickoff(manifest):
 
 def test_pristine_guard_is_blocking_not_advisory(manifest):
     assert severity_of(checks.GATES, "competition_window") == "BLOCKING"
+
+
+# ── scheduling guard: the competition window has a far end too ───────────────
+
+def test_cycle_window_stops_after_the_final_date():
+    """competition_window closes the front door; nothing closed the back one.
+
+    The gate set has no upper bound and the crontab has no end date, so after
+    the final trading date the agent would have kept opening positions on the
+    account the judges are reading.
+    """
+    from datetime import date
+    from scripts.cycle_window import past_final_date
+    final = date(2026, 9, 4)
+    assert not past_final_date(date(2026, 8, 28), final)   # kickoff
+    assert not past_final_date(final, final)               # final day itself
+    assert past_final_date(date(2026, 9, 7), final)        # first weekday after
+
+
+def test_cycle_window_reads_the_manifest_not_a_hardcoded_date():
+    """One copy of the date, so the guard cannot drift from the policy."""
+    import json
+    from pathlib import Path
+    from scripts import cycle_window
+    declared = json.loads(
+        (Path(cycle_window.ROOT) / "policy" / "manifest.json").read_text()
+    )["session"]["final_trading_date"]
+    # Assert the guard carries no copy of whatever the manifest declares —
+    # not that the manifest declares one particular date. Pinning the date
+    # here would be the second copy this test exists to forbid, and would
+    # fail the moment policy legitimately moves the final date.
+    assert declared not in Path(cycle_window.__file__).read_text()
+
+
+def test_cycle_window_manages_the_book_after_the_final_date():
+    """Past the final date the guard suppresses NEW exposure, not the cycle.
+
+    manage_exits is the only exit path in this repo, so refusing to run would
+    strand a residual position from an unfilled 09-04 flatten limit — and cron
+    would log success while it sat there.
+    """
+    from pathlib import Path
+    from scripts import cycle_window
+    src = Path(cycle_window.__file__).read_text()
+    assert "--exits-only" in src
+    assert "run_cycle" in src

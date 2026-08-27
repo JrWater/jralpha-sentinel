@@ -126,10 +126,10 @@ entirely.
 The ET-intent schedule, for reference:
 
 ```cron
-*/30 10-14 * * 1-5  cd ~/jralpha-sentinel && .venv/bin/python scripts/run_cycle.py >> logs/cycle.log 2>&1
-5,35 15 * * 1-5     cd ~/jralpha-sentinel && .venv/bin/python scripts/run_cycle.py >> logs/cycle.log 2>&1
-35 9 * * 1-5        cd ~/jralpha-sentinel && .venv/bin/python scripts/run_cycle.py >> logs/cycle.log 2>&1
-45 10 * * 1-5       cd ~/jralpha-sentinel && .venv/bin/python scripts/run_cycle.py >> logs/cycle.log 2>&1
+*/30 10-14 * * 1-5  cd ~/jralpha-sentinel && .venv/bin/python scripts/cycle_window.py >> logs/cycle.log 2>&1
+5,35 15 * * 1-5     cd ~/jralpha-sentinel && .venv/bin/python scripts/cycle_window.py >> logs/cycle.log 2>&1
+35 9 * * 1-5        cd ~/jralpha-sentinel && .venv/bin/python scripts/cycle_window.py >> logs/cycle.log 2>&1
+45 10 * * 1-5       cd ~/jralpha-sentinel && .venv/bin/python scripts/cycle_window.py >> logs/cycle.log 2>&1
 ```
 
 **Install the version matching your system's actual timezone**, not this one
@@ -137,14 +137,31 @@ verbatim. On a Pacific-timezone Mac (PDT, this project's build machine),
 subtract 3 hours from every hour field instead:
 
 ```cron
-*/30 7-11 * * 1-5   cd ~/jralpha-sentinel && .venv/bin/python scripts/run_cycle.py >> logs/cycle.log 2>&1
-5,35 12 * * 1-5     cd ~/jralpha-sentinel && .venv/bin/python scripts/run_cycle.py >> logs/cycle.log 2>&1
-35 6 * * 1-5        cd ~/jralpha-sentinel && .venv/bin/python scripts/run_cycle.py >> logs/cycle.log 2>&1
-45 7 * * 1-5        cd ~/jralpha-sentinel && .venv/bin/python scripts/run_cycle.py >> logs/cycle.log 2>&1
+*/30 7-11 * * 1-5   cd ~/jralpha-sentinel && .venv/bin/python scripts/cycle_window.py >> logs/cycle.log 2>&1
+5,35 12 * * 1-5     cd ~/jralpha-sentinel && .venv/bin/python scripts/cycle_window.py >> logs/cycle.log 2>&1
+35 6 * * 1-5        cd ~/jralpha-sentinel && .venv/bin/python scripts/cycle_window.py >> logs/cycle.log 2>&1
+45 7 * * 1-5        cd ~/jralpha-sentinel && .venv/bin/python scripts/cycle_window.py >> logs/cycle.log 2>&1
 ```
 
 Verify with `crontab -l` after installing, and sanity-check the very first
 fire against `date` before trusting the rest of the schedule.
+
+**The entries above call `scripts/cycle_window.py`, not `run_cycle.py` directly.**
+`competition_window` closes the front door — the competition account is
+mechanically untradeable before kickoff — but nothing closed the back one.
+The gate set has no upper bound, `is_final_date` is an exact equality test on
+`final_trading_date`, and these entries are `* * 1-5` with no end date, so
+from the next weekday after the final date the agent would resume opening
+positions on the very account the judges are reading. `cycle_window.py`
+refuses to run past `session.final_trading_date`, reading that date from the
+manifest so there is no second copy to drift, and otherwise hands off to
+`run_cycle.py`, adding `--exits-only` past that date rather than refusing to
+run: suppressing NEW exposure is the whole requirement, while `manage_exits`
+must keep working — it is the only exit path here, and a residual position
+from an unfilled 09-04 flatten limit would otherwise be stranded. It is
+deliberately not a seventeenth blocking gate: a scheduling bound is not an
+operational dimension of a trade. Still remove the cron entries once the
+account is flat and judging is done — the guard is the backstop, not the plan.
 
 Research reads go through Alpaca's MCP server (`.mcp.json`), status through
 the Alpaca CLI (`brew install alpacahq/tap/cli` then `alpaca account get`).
