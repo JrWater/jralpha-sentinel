@@ -92,6 +92,19 @@ DERIVED = {
 
 DOLLARS = re.compile(r"\$\s?(\d{1,3}(?:,\d{3})+|\d{4,6})")
 
+# Percentages need a NARROWER rule than dollars, not the same one. A blanket
+# percent-to-dollar conversion flags "87% wins over 250 sessions" and the
+# vector split as if they were risk caps — a checker that cries wolf on win
+# rates stops being read. Only one percentage claim is actually a restatement
+# of a cap: the share of the account risked on a single idea. The closing card
+# said "<=2% risk per idea" while the narration said twelve percent, so that
+# one phrase is matched explicitly and everything else is left alone.
+PCT_PER_IDEA = re.compile(
+    r"(\d{1,3}(?:\.\d+)?)\s?%[^.]{0,30}?(?:risk per idea|risk per trade|"
+    r"per single trade)|"
+    r"(?:risks? (?:no more|not more) than|never risks more than)\s+"
+    r"(\d{1,3}(?:\.\d+)?)\s?%", re.I)
+
 # The narration is SPOKEN, so its numbers are words: "Two thousand dollars",
 # "ninety-two thousand". The digit regex above sails straight past them — and
 # that file is the source of the ElevenLabs audio, i.e. the single most
@@ -227,17 +240,23 @@ def _units(raw: str, path: Path, drop) -> list:
     kept = [l for l in raw.splitlines() if not (drop and drop.search(l))]
     text = re.sub(r"<[^>]+>", " ", "\n".join(kept))
     text = (text.replace("&lt;", "<").replace("&gt;", ">")
-                .replace("&amp;", "&").replace("&nbsp;", " ")
+                .replace("&amp;", "&").replace("&nbsp;", " ").replace("&le;", "<=").replace("&ge;", ">=")
                 .replace("\u2014", "—"))
     text = re.sub(r"\s+", " ", text)
 
+    # Windows are built around BOTH kinds of claim. Keying only on the dollar
+    # sign meant a line carrying just a percentage ("<=2% risk per idea")
+    # produced no unit at all and was silently unexaminable.
     units, span = [], 130
-    for m in DOLLARS.finditer(text):
-        units.append(text[max(0, m.start() - span): m.end() + span])
+    hits = sorted([m.span() for m in DOLLARS.finditer(text)]
+                  + [m.span() for m in PCT_PER_IDEA.finditer(text)])
+    for a, b in hits:
+        units.append(text[max(0, a - span): b + span])
     return units
 
 def check(path: Path, slots: dict, legal: set,
-          manifest_mm: tuple = (0, 0)) -> list[str]:
+          manifest_mm: tuple = (0, 0),
+          equity: float = 100000.0) -> list[str]:
     problems: list[str] = []
     try:
         raw = path.read_text()
@@ -256,6 +275,21 @@ def check(path: Path, slots: dict, legal: set,
         skip, in_history = _is_history(line, manifest_mm, in_history)
         if skip:
             continue
+        # Checked BEFORE the dollar early-exit below: a per-idea percentage is
+        # a complete claim on its own, and gating it on a dollar figure being
+        # present in the same unit is why the stale "<=2% risk per idea" card
+        # survived the first two attempts at this rule.
+        m = PCT_PER_IDEA.search(line)
+        if m:
+            got = float(next(g for g in m.groups() if g))
+            want = slots["per_trade_hard_cap"] / equity * 100.0
+            if abs(got - want) > 0.01:
+                problems.append(
+                    f"  {RED}wrong per-idea %{RESET} line {lineno}: the cap is "
+                    f"{want:g}% of the account "
+                    f"({money(slots['per_trade_hard_cap'])}), but this says "
+                    f"{got:g}%\n      {DIM}{line.strip()[:110]}{RESET}")
+
         found = DOLLARS.findall(line)
         values = [int(f.replace(",", "")) for f in found]
         values += _spoken_amounts(line)
@@ -295,6 +329,7 @@ def main() -> int:
     from policy.loader import load as load_manifest
     manifest = load_manifest()
     slots, legal = canonical(manifest)
+    equity = float(manifest.get("environment", "required_starting_equity"))
     _mv = str(manifest.get("version", default="0.0")).split(".")
     manifest_mm = (int(_mv[0]), int(_mv[1]) if len(_mv) > 1 else 0)
 
@@ -319,7 +354,7 @@ def main() -> int:
         if not path.exists():
             print(f"  [{YELLOW}SKIP{RESET}] {rel} (not present)")
             continue
-        problems = check(path, slots, legal, manifest_mm)
+        problems = check(path, slots, legal, manifest_mm, equity)
         total += len(problems)
         mark = f"{GREEN}OK{RESET}" if not problems else f"{RED}STALE{RESET}"
         print(f"  [{mark}] {rel}")
