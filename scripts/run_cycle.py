@@ -200,6 +200,16 @@ def reserve_entry_risk(portfolio: PortfolioState, day, dollars: float,
     return None
 
 
+def release_entry_risk(portfolio: PortfolioState, day, dollars: float) -> None:
+    """Undo reserve_entry_risk. The counterpart exists so a caller never has
+    to know there are two budgets underneath: reserve_entry_risk already hides
+    that, and a caller reaching past it to release both by hand is the same
+    interface leaking in the other direction.
+    """
+    release_open_risk(portfolio, dollars)
+    release_risk(day, dollars)
+
+
 # ── meta (structure records) ─────────────────────────────────────────────────
 
 def load_meta() -> dict:
@@ -714,8 +724,7 @@ def main() -> int:
             # Nothing was sent, so nothing is at risk: hand both reservations
             # back. Holding them would suppress later entries for the rest of
             # the session over a trade that never opened.
-            release_open_risk(portfolio, p.max_loss_dollars)
-            release_risk(day, p.max_loss_dollars)
+            release_entry_risk(portfolio, day, p.max_loss_dollars)
             print(f"  {RED}SUBMIT FAILED{RESET}: {exc}")
             continue
         print(f"  {GREEN}OK{RESET} {order.id}")
