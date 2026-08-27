@@ -99,7 +99,10 @@ class AlpacaData:
         return self.trading.get_all_positions()
 
     def orders_open(self):
-        return self.trading.get_orders(status="open")
+        from alpaca.trading.enums import QueryOrderStatus
+        from alpaca.trading.requests import GetOrdersRequest
+        return self.trading.get_orders(
+            filter=GetOrdersRequest(status=QueryOrderStatus.OPEN))
 
     # ── stocks ───────────────────────────────────────────────────────────────
     def daily_bars(self, symbols: list[str], days: int = 90) -> dict:

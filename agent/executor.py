@@ -16,8 +16,9 @@ from datetime import datetime, timezone
 
 from alpaca.trading.client import TradingClient
 from alpaca.trading.enums import (OrderClass, OrderSide, PositionIntent,
-                                  TimeInForce)
-from alpaca.trading.requests import (LimitOrderRequest, OptionLegRequest)
+                                  QueryOrderStatus, TimeInForce)
+from alpaca.trading.requests import (GetOrdersRequest, LimitOrderRequest,
+                                     OptionLegRequest)
 
 from agent.ledger import append_decision
 from strategy.proposal import Proposal
@@ -177,7 +178,8 @@ class Executor:
     def retry_open_orders_cleanup(self) -> None:
         """Cancel stale open orders (they will not fill today)."""
         try:
-            open_orders = self.client.get_orders(status="open")
+            open_orders = self.client.get_orders(
+                filter=GetOrdersRequest(status=QueryOrderStatus.OPEN))
         except Exception:                                   # noqa: BLE001
             return
         for o in open_orders:
