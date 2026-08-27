@@ -67,24 +67,25 @@ Alpaca's free tier serves options quotes from an indicative feed delayed 15 minu
 
 **Quadrant** — four vectors, four risk budgets, one hard at-risk cap. Full
 spec in [`docs/STRATEGY.md`](docs/STRATEGY.md); every parameter is in
-`policy/manifest.json` (identity `SENTINEL-OPTIONS-V2@2.0.0+<sha>`).
+`policy/manifest.json` (identity `SENTINEL-OPTIONS-V2@3.1.1+<sha>`, frozen
+2026-08-26).
 
 | Vector | Budget | Structure | When it fires |
 |---|---|---|---|
-| Trend | 45% | 0–2 DTE debit verticals (credit verticals when IV is rich) | Regime risk_on/risk_off + name score ≥ 0.55 |
-| Catalyst | 25% | LULU ATM straddle (09-02) + PEAD verticals on NVDA/CRM/CRWD gaps | Confirmed in-window calendar entries only |
-| Event | 15% | 1-DTE SPY strangle for NFP (09-03); 0-DTE gap vertical (09-04) | August Employment Situation, 09-04 08:30 ET |
+| Trend | 45% | 0–2 DTE credit spreads in the regime's direction (debit verticals as fallback) + one conviction single-leg | Regime risk_on/risk_off + name score ≥ 0.55, RSI ≤ 65, not extended |
+| Catalyst | 25% | LULU ATM straddle, expiring after the Sep-3 report (PEAD legs removed: 3-year drift measured negative) | Confirmed in-window calendar entries only |
+| Event | 15% | 1-DTE SPY strangle for NFP (09-03); 0-DTE single-leg gap continuation (90% win in the 33-sample study), any-day ≥0.8% gaps, ≤2 per window | August Employment Situation + in-window gap days |
 | Vol | 15% | SPY iron condor | Regime chop + IVR ≥ 0.25 |
 
 Every structure is defined risk — no naked shorts, no market orders (declared
 order shapes are limit-only). Caps are fractions of *declared starting*
-equity, so a drawdown shrinks absolute risk: max loss per trade $800–$2,000
-by vector (hard cap $2,000), $13,000 portfolio at-risk, 10 concurrent,
-≤3 structures (≤6 contracts) per underlying, daily kill switch at −$3,000, Entry Maintenance at $92,000. The
+equity, tournament-calibrated (v3.1): max loss per trade $800–$12,000 by
+vector (hard cap $12,000), $40,000 portfolio at-risk **enforced at
+submission**, daily kill switch at −$12,000, Entry Maintenance at $70,000. The
 competition account is mechanically untradeable until kickoff
 (`competition_window` gate) and everything is flattened by limit at the
 touch before 10:45 ET on 09-04, the submission day — the one exception is
-the pre-declared 0-DTE NFP gap continuation (09:30–09:50 ET).
+the pre-declared 0-DTE gap continuation (09:30–09:50 ET, ≤2 entries).
 
 ## Running it
 

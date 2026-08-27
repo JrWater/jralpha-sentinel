@@ -140,9 +140,9 @@
   <div class="tagline" style="margin-top:14px">Regime (SPY/QQQ vs EMA20/50, breadth, RSI) → per-name score (trend, momentum, relative strength, RSI drift) → gap detector. Then:</div>
   <table class="v">
     <tr><th>Vector</th><th>Budget</th><th>What it trades</th><th>When it fires</th></tr>
-    <tr><td class="name"><span class="swatch" style="background:#7fa3ff"></span>Trend</td><td class="pct">45%</td><td class="desc">0–2 DTE debit verticals in the regime's direction, or credit verticals when IV is rich</td><td class="desc">score ≥ 0.55, RSI ≤ 65, not extended (measured, not assumed)</td></tr>
-    <tr><td class="name"><span class="swatch" style="background:#ef6b6b"></span>Catalyst</td><td class="pct">25%</td><td class="desc">ATM straddle on LULU (Sep 3 earnings) + post-earnings drift verticals on NVDA/CRM/CRWD (Aug 26)</td><td class="desc">confirmed, in-window calendar events only</td></tr>
-    <tr><td class="name"><span class="swatch" style="background:#ffcf70"></span>Event</td><td class="pct">15%</td><td class="desc">1-DTE SPY strangle for the Aug jobs report; 0-DTE single-leg gap continuation on Sep 4</td><td class="desc">August Employment Situation, Sep 4 08:30 ET</td></tr>
+    <tr><td class="name"><span class="swatch" style="background:#7fa3ff"></span>Trend</td><td class="pct">45%</td><td class="desc">0–2 DTE credit spreads in the regime's direction (87% wins in the 250-session sim) + one conviction single-leg; debit verticals as fallback</td><td class="desc">score ≥ 0.55, RSI ≤ 65, not extended (measured, not assumed)</td></tr>
+    <tr><td class="name"><span class="swatch" style="background:#ef6b6b"></span>Catalyst</td><td class="pct">25%</td><td class="desc">ATM straddle on LULU (Sep 3 earnings), sized from a 10-sample move study; the post-earnings drift leg measured negative over 3 years and was removed</td><td class="desc">confirmed, in-window calendar events only</td></tr>
+    <tr><td class="name"><span class="swatch" style="background:#ffcf70"></span>Event</td><td class="pct">15%</td><td class="desc">1-DTE SPY strangle for the Aug jobs report; 0-DTE single-leg gap continuation (90% win in the 33-sample study), any-day ≥0.8% gaps, ≤2 per window</td><td class="desc">August Employment Situation + in-window gap days</td></tr>
     <tr><td class="name"><span class="swatch" style="background:#4fd189"></span>Vol</td><td class="pct">15%</td><td class="desc">SPY iron condors, defined-risk, four legs</td><td class="desc">range-bound regime, elevated IV rank</td></tr>
   </table>
   <div class="pageno">4 / 9</div>
@@ -161,10 +161,10 @@
     <div class="dim"><div class="n">2</div><div class="l">Process Health</div><div class="q">Did the machinery obey its contract?</div></div>
   </div>
   <div class="caps">
-    <div class="cap"><div class="n">$2,000</div><div class="l">hard per-trade max loss (2% of $100k, fraction of starting equity — a drawdown shrinks absolute risk, never rescales it)</div></div>
-    <div class="cap"><div class="n">$13,000</div><div class="l">portfolio at-risk cap across every open structure at once</div></div>
-    <div class="cap"><div class="n">−$3,000</div><div class="l">daily kill switch: halts new entries, halves next day's sizing</div></div>
-    <div class="cap"><div class="n">$92,000</div><div class="l">Entry Maintenance trip — new exposure stops, exits keep running</div></div>
+    <div class="cap"><div class="n">$12,000</div><div class="l">hard per-trade max loss (12% of $100k, tournament-calibrated from event studies; fraction of starting equity — a drawdown shrinks absolute risk, never rescales it)</div></div>
+    <div class="cap"><div class="n">$40,000</div><div class="l">portfolio at-risk cap across every open structure at once — enforced at submission, not just declared</div></div>
+    <div class="cap"><div class="n">−$12,000</div><div class="l">daily kill switch: halts new entries, halves next day's sizing</div></div>
+    <div class="cap"><div class="n">$70,000</div><div class="l">Entry Maintenance trip — new exposure stops, exits keep running</div></div>
   </div>
   <div class="pageno">5 / 9</div>
 </section>
@@ -210,7 +210,7 @@
 <section class="slide">
   <div class="grid"></div>
   <div class="kicker">Why It Can Win</div>
-  <div class="closebig">Six scheduled catalysts sit inside this exact window. The agent is <b>never directionally agnostic</b> on a catalyst day, never risks more than 2% of the account on one idea, and never holds an undefined-risk structure.<br/><br/>A catalyst-adaptive, defined-risk hedgehog is the only strategy that can be in the top decile of P&amp;L <i>and</i> at the top of the risk-policy table at the same time.</div>
+  <div class="closebig">Six scheduled catalysts sit inside this exact window. The agent is <b>never directionally agnostic</b> on a catalyst day, never risks more than 12% of the account on one idea, and never holds an undefined-risk structure.<br/><br/>A catalyst-adaptive, tournament-calibrated hedgehog is the only strategy that can be in the top decile of P&amp;L <i>and</i> at the top of the risk-policy table at the same time.</div>
   <div class="links">
     <div><b>Repo</b><br/>github.com/JrWater/jralpha-sentinel · MIT</div>
     <div><b>Live dashboard</b><br/>jralpha-sentinel.streamlit.app</div>

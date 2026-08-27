@@ -11,11 +11,11 @@
     "starting_equity": 100000.0
   },
   "code": {
-    "git_head": "5be0cf1d9580f3ad4e3caa9174a422558fb4e150",
+    "git_head": "a456b7a04dc3e305a65ea9c40c34bf20b3c8712d",
     "worktree_dirty": true
   },
   "day": {
-    "date": "2026-08-26",
+    "date": "2026-08-27",
     "fired_once": [],
     "killed": false,
     "new_risk_dollars": 0.0,
@@ -152,6 +152,36 @@
       "reason": "permit refused: market_session",
       "structure": "debit_vertical",
       "underlying": "NFLX"
+    },
+    {
+      "accepted": false,
+      "at": "2026-08-27T02:03:45.668567+00:00",
+      "conviction": 0.869,
+      "engine": "trend_single",
+      "max_loss_dollars": 2961.0,
+      "reason": "permit refused: market_session",
+      "structure": "single_long",
+      "underlying": "CRM"
+    },
+    {
+      "accepted": false,
+      "at": "2026-08-27T02:03:45.668567+00:00",
+      "conviction": 0.869,
+      "engine": "trend_income",
+      "max_loss_dollars": 1816.0,
+      "reason": "permit refused: market_session",
+      "structure": "credit_vertical",
+      "underlying": "CRM"
+    },
+    {
+      "accepted": false,
+      "at": "2026-08-27T02:03:45.668567+00:00",
+      "conviction": 0.832,
+      "engine": "trend_directional",
+      "max_loss_dollars": 2000.0,
+      "reason": "permit refused: market_session",
+      "structure": "debit_vertical",
+      "underlying": "NFLX"
     }
   ],
   "equity_history": [
@@ -174,6 +204,10 @@
     {
       "equity": 100000.0,
       "t": "2026-08-26T23:44:05.842016+00:00"
+    },
+    {
+      "equity": 100000.0,
+      "t": "2026-08-27T02:03:45.668567+00:00"
     }
   ],
   "gates": [
@@ -268,7 +302,7 @@
       "severity": "BLOCKING"
     },
     {
-      "detail": "worktree dirty at 5be0cf1d9580",
+      "detail": "worktree dirty at a456b7a04dc3",
       "dimension": "Release Integrity",
       "name": "release_integrity",
       "ok": false,
@@ -277,7 +311,7 @@
       "severity": "ATTENTION"
     }
   ],
-  "generated_at_utc": "2026-08-26T23:44:05.842016+00:00",
+  "generated_at_utc": "2026-08-27T02:03:45.668567+00:00",
   "market": {
     "is_open": false
   },

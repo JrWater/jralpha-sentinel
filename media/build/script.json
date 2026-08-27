@@ -17,12 +17,12 @@
   {
     "id": "04_ai_logic",
     "visual": "slide:4",
-    "text": "The trading logic is a quant engine first: regime classification, a per-name score, and a gap detector. Four vectors consume that signal. Trend takes forty-five percent of the risk budget in short-dated verticals. Catalyst, twenty-five percent, trades confirmed earnings -- Lululemon, and post-earnings drift on Nvidia, Salesforce, and CrowdStrike. Event, fifteen percent, is built around the August jobs report. And Vol sells iron condors when the tape is range-bound. The language model ranks the candidates these engines produce and writes the reasoning -- it never invents a trade from nothing."
+    "text": "The trading logic is a quant engine first: regime classification, a per-name score, and a gap detector. Four vectors consume that signal. Trend trades short-dated credit spreads in the regime's direction -- measured at eighty-seven percent wins over two hundred and fifty simulated sessions -- plus one conviction single-leg when conviction is highest. Catalyst is the confirmed earnings event: the Lululemon straddle, sized from a move study. Its post-earnings drift leg was measured negative over three years of data, so it is off. Event is the August jobs report: a strangle the night before, plus a zero-DTE gap continuation measured at nine wins in ten. And Vol sells iron condors when the tape is range-bound. The language model ranks the candidates these engines produce and writes the reasoning -- it never invents a trade from nothing."
   },
   {
     "id": "05_risk_gates",
     "visual": "slide:5",
-    "text": "Every position is defined-risk. No naked shorts, no market orders. Two thousand dollars is the hard cap on any single trade -- and that's a fraction of the starting equity, not of current equity, so a drawdown shrinks the absolute risk instead of quietly staying just as aggressive on the way down. Thirteen thousand across the whole book at once. A daily kill switch at negative three thousand halts new entries for the rest of the day. And below ninety-two thousand, the agent enters what we call Entry Maintenance: no new exposure, but exits and reconciliation keep running normally."
+    "text": "Every position is defined-risk. No naked shorts, no market orders. Twelve thousand dollars is the hard cap on any single trade -- tournament-calibrated from the event studies, and always a fraction of starting equity, never of current. Forty thousand across the whole book at once, enforced at submission, not just declared. A daily kill switch at negative twelve thousand halts new entries for the rest of the day. And below seventy thousand, the agent enters what we call Entry Maintenance: no new exposure, but exits and reconciliation keep running normally."
   },
   {
     "id": "06_infra",
@@ -47,6 +47,6 @@
   {
     "id": "10_closing",
     "visual": "slide:9",
-    "text": "Six scheduled catalysts sit inside this exact five-day window, so the agent is never directionally agnostic on a catalyst day -- and it never risks more than two percent of the account on one idea. A defined-risk, catalyst-adaptive strategy is the only one that can be near the top of the P-and-L board and at the top of the risk-policy table at the same time. That's Sentinel. Repo and live dashboard are on screen now. Thanks for watching."
+    "text": "Six scheduled catalysts sit inside this exact five-day window, so the agent is never directionally agnostic on a catalyst day -- and it never risks more than twelve percent of the account on one idea, while every structure stays defined-risk. A catalyst-adaptive, tournament-calibrated strategy is the only one that can be near the top of the P-and-L board and at the top of the risk-policy table at the same time. That's Sentinel. Repo and live dashboard are on screen now. Thanks for watching."
   }
 ]
