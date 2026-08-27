@@ -11,208 +11,86 @@
     "starting_equity": 100000.0
   },
   "code": {
-    "git_head": "a456b7a04dc3e305a65ea9c40c34bf20b3c8712d",
+    "git_head": "d8043dee7f1d8740ff352d46296bed2cab697b2b",
     "worktree_dirty": true
   },
   "day": {
     "date": "2026-08-27",
     "fired_once": [],
     "killed": false,
-    "new_risk_dollars": 0.0,
+    "new_risk_dollars": 9193.0,
     "scale": 1.0,
     "start_equity": 100000.0
   },
   "decisions": [
     {
-      "accepted": false,
-      "at": "2026-08-26T02:08:14.020672+00:00",
-      "conviction": 0.942,
+      "accepted": true,
+      "at": "2026-08-27T15:59:12.903086+00:00",
+      "conviction": 0.96,
       "engine": "trend_income",
-      "max_loss_dollars": 433.0,
-      "reason": "permit refused: market_session",
+      "max_loss_dollars": 499.0,
+      "reason": "trend",
       "structure": "credit_vertical",
-      "underlying": "CRM"
+      "underlying": "NVDA"
     },
     {
-      "accepted": false,
-      "at": "2026-08-26T02:08:14.020672+00:00",
-      "conviction": 0.7,
-      "engine": "catalyst",
-      "max_loss_dollars": 1240.0,
-      "reason": "permit refused: market_session",
-      "structure": "debit_vertical",
-      "underlying": "CRWD"
-    },
-    {
-      "accepted": false,
-      "at": "2026-08-26T22:50:01.138460+00:00",
-      "conviction": 0.869,
+      "accepted": true,
+      "at": "2026-08-27T16:00:02.821607+00:00",
+      "conviction": 0.957,
       "engine": "trend_directional",
-      "max_loss_dollars": 959.0,
-      "reason": "permit refused: market_session",
+      "max_loss_dollars": 1980.0,
+      "reason": "trend",
       "structure": "debit_vertical",
-      "underlying": "CRM"
+      "underlying": "NVDA"
     },
     {
-      "accepted": false,
-      "at": "2026-08-26T22:50:01.138460+00:00",
-      "conviction": 0.7,
-      "engine": "catalyst",
-      "max_loss_dollars": 1263.0,
-      "reason": "permit refused: market_session",
-      "structure": "debit_vertical",
-      "underlying": "CRWD"
-    },
-    {
-      "accepted": false,
-      "at": "2026-08-26T22:50:01.138460+00:00",
-      "conviction": 0.832,
-      "engine": "trend_directional",
-      "max_loss_dollars": 989.0,
-      "reason": "permit refused: market_session",
-      "structure": "debit_vertical",
-      "underlying": "NFLX"
-    },
-    {
-      "accepted": false,
-      "at": "2026-08-26T23:20:06.737627+00:00",
-      "conviction": 0.869,
-      "engine": "trend_income",
-      "max_loss_dollars": 1296.0,
-      "reason": "permit refused: market_session",
-      "structure": "credit_vertical",
-      "underlying": "CRM"
-    },
-    {
-      "accepted": false,
-      "at": "2026-08-26T23:20:06.737627+00:00",
-      "conviction": 0.7,
-      "engine": "catalyst",
-      "max_loss_dollars": 1684.0,
-      "reason": "permit refused: market_session",
-      "structure": "debit_vertical",
-      "underlying": "CRWD"
-    },
-    {
-      "accepted": false,
-      "at": "2026-08-26T23:20:06.737627+00:00",
-      "conviction": 0.832,
-      "engine": "trend_directional",
-      "max_loss_dollars": 1496.0,
-      "reason": "permit refused: market_session",
-      "structure": "debit_vertical",
-      "underlying": "NFLX"
-    },
-    {
-      "accepted": false,
-      "at": "2026-08-26T23:35:17.353674+00:00",
-      "conviction": 0.869,
-      "engine": "trend_income",
-      "max_loss_dollars": 1728.0,
-      "reason": "permit refused: market_session",
-      "structure": "credit_vertical",
-      "underlying": "CRM"
-    },
-    {
-      "accepted": false,
-      "at": "2026-08-26T23:35:17.353674+00:00",
-      "conviction": 0.7,
-      "engine": "catalyst",
-      "max_loss_dollars": 3632.0,
-      "reason": "permit refused: market_session",
-      "structure": "debit_vertical",
-      "underlying": "CRWD"
-    },
-    {
-      "accepted": false,
-      "at": "2026-08-26T23:35:17.353674+00:00",
-      "conviction": 0.832,
-      "engine": "trend_directional",
-      "max_loss_dollars": 1991.0,
-      "reason": "permit refused: market_session",
-      "structure": "debit_vertical",
-      "underlying": "NFLX"
-    },
-    {
-      "accepted": false,
-      "at": "2026-08-26T23:44:05.842016+00:00",
-      "conviction": 0.869,
-      "engine": "trend_income",
-      "max_loss_dollars": 1728.0,
-      "reason": "permit refused: market_session",
-      "structure": "credit_vertical",
-      "underlying": "CRM"
-    },
-    {
-      "accepted": false,
-      "at": "2026-08-26T23:44:05.842016+00:00",
-      "conviction": 0.832,
-      "engine": "trend_directional",
-      "max_loss_dollars": 2000.0,
-      "reason": "permit refused: market_session",
-      "structure": "debit_vertical",
-      "underlying": "NFLX"
-    },
-    {
-      "accepted": false,
-      "at": "2026-08-27T02:03:45.668567+00:00",
-      "conviction": 0.869,
+      "accepted": true,
+      "at": "2026-08-27T16:00:02.821607+00:00",
+      "conviction": 0.957,
       "engine": "trend_single",
-      "max_loss_dollars": 2961.0,
-      "reason": "permit refused: market_session",
+      "max_loss_dollars": 2940.0,
+      "reason": "trend-single",
       "structure": "single_long",
-      "underlying": "CRM"
+      "underlying": "NVDA"
     },
     {
-      "accepted": false,
-      "at": "2026-08-27T02:03:45.668567+00:00",
-      "conviction": 0.869,
+      "accepted": true,
+      "at": "2026-08-27T16:30:05.702393+00:00",
+      "conviction": 0.974,
       "engine": "trend_income",
-      "max_loss_dollars": 1816.0,
-      "reason": "permit refused: market_session",
+      "max_loss_dollars": 1804.0,
+      "reason": "trend",
       "structure": "credit_vertical",
-      "underlying": "CRM"
+      "underlying": "NVDA"
     },
     {
-      "accepted": false,
-      "at": "2026-08-27T02:03:45.668567+00:00",
-      "conviction": 0.832,
-      "engine": "trend_directional",
-      "max_loss_dollars": 2000.0,
-      "reason": "permit refused: market_session",
-      "structure": "debit_vertical",
-      "underlying": "NFLX"
+      "accepted": true,
+      "at": "2026-08-27T16:30:05.702393+00:00",
+      "conviction": 0.974,
+      "engine": "trend_single",
+      "max_loss_dollars": 2910.0,
+      "reason": "trend-single",
+      "structure": "single_long",
+      "underlying": "NVDA"
     }
   ],
   "equity_history": [
     {
       "equity": 100000.0,
-      "t": "2026-08-26T02:08:14.020672+00:00"
+      "t": "2026-08-27T15:59:12.903086+00:00"
     },
     {
       "equity": 100000.0,
-      "t": "2026-08-26T22:50:01.138460+00:00"
+      "t": "2026-08-27T16:00:02.821607+00:00"
     },
     {
       "equity": 100000.0,
-      "t": "2026-08-26T23:20:06.737627+00:00"
-    },
-    {
-      "equity": 100000.0,
-      "t": "2026-08-26T23:35:17.353674+00:00"
-    },
-    {
-      "equity": 100000.0,
-      "t": "2026-08-26T23:44:05.842016+00:00"
-    },
-    {
-      "equity": 100000.0,
-      "t": "2026-08-27T02:03:45.668567+00:00"
+      "t": "2026-08-27T16:30:05.702393+00:00"
     }
   ],
   "gates": [
     {
-      "detail": "market closed; quote freshness n/a",
+      "detail": "option quotes 1s old (feed delay is 900s)",
       "dimension": "Data Readiness",
       "name": "option_chain_data",
       "ok": true,
@@ -221,7 +99,7 @@
       "severity": "BLOCKING"
     },
     {
-      "detail": "market closed; intraday freshness n/a",
+      "detail": "underlying bars 0s old",
       "dimension": "Data Readiness",
       "name": "underlying_data",
       "ok": true,
@@ -275,10 +153,10 @@
       "severity": "BLOCKING"
     },
     {
-      "detail": "market closed",
+      "detail": "12:30 inside entry window",
       "dimension": "Process Health",
       "name": "market_session",
-      "ok": false,
+      "ok": true,
       "phase": "preflight",
       "rationale": "Entries are forbidden in the opening and closing 30 minutes, where a delayed chain is least representative of what will actually fill.",
       "severity": "BLOCKING"
@@ -293,7 +171,7 @@
       "severity": "BLOCKING"
     },
     {
-      "detail": "SENTINEL-OPTIONS-V2@3.1.0+e2651be8fcf2",
+      "detail": "SENTINEL-OPTIONS-V2@3.1.1+7abea0021831",
       "dimension": "Release Integrity",
       "name": "manifest_identity",
       "ok": true,
@@ -302,7 +180,7 @@
       "severity": "BLOCKING"
     },
     {
-      "detail": "worktree dirty at a456b7a04dc3",
+      "detail": "worktree dirty at d8043dee7f1d",
       "dimension": "Release Integrity",
       "name": "release_integrity",
       "ok": false,
@@ -311,28 +189,26 @@
       "severity": "ATTENTION"
     }
   ],
-  "generated_at_utc": "2026-08-27T02:03:45.668567+00:00",
+  "generated_at_utc": "2026-08-27T16:30:05.702393+00:00",
   "market": {
-    "is_open": false
+    "is_open": true
   },
   "permit": {
-    "blocking_gates": [
-      "market_session"
-    ],
-    "entry_maintenance": true,
-    "status": "BLOCKED"
+    "blocking_gates": [],
+    "entry_maintenance": false,
+    "status": "READY"
   },
   "policy": {
-    "identity": "SENTINEL-OPTIONS-V2@3.1.0+e2651be8fcf2",
+    "identity": "SENTINEL-OPTIONS-V2@3.1.1+7abea0021831",
     "policy_id": "SENTINEL-OPTIONS-V2",
-    "sha": "e2651be8fcf2e70a8f3a901042842888927605cf384e6dc0282aa64ae070d8c1",
-    "version": "3.1.0"
+    "sha": "7abea0021831a4bb3935d47d87938abf7157b05b503948c2e0604307093e0d32",
+    "version": "3.1.1"
   },
   "positions": [],
   "regime": {
-    "confidence": 0.67,
+    "confidence": 0.9,
     "mode": "risk_on",
-    "reason": "SPY above EMA50 (+1.56%), RSI 54, breadth +0"
+    "reason": "SPY above EMA50 (+2.12%), RSI 59, breadth +1"
   },
   "schema_version": 1
 }

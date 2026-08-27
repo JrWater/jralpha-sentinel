@@ -1,26 +1,32 @@
-.venv/
-__pycache__/
-*.pyc
+# Credentials — never commit
 .env
-.env.*
-!.env.example
-state/*.json
-logs/
-.DS_Store
-.pytest_cache/
-state/*.jsonl
+.env.dev
+.env.*.local
 
-# video/slide build intermediates — large, regenerable from media/build/*.html + script.json
-media/build/*.png
-media/build/*.pdf
-media/build/*.aiff
-media/build/*.mp4
+# Live trading state and logs: per-run artifacts of the competition account,
+# not source. The judged, credential-free view is docs/snapshot.json, which
+# IS tracked.
+state/
+logs/
+
+# Rendered video outputs and snapshot scratch — large binaries rebuilt from
+# the composition by `npm run render` / `hyperframes snapshot`.
+sentinel-video/out/
+sentinel-video/.snapshots*/
+sentinel-video/.thumbnails/
+sentinel-video/.s04chk/
+sentinel-video/.snapcap/
+
+# Intermediate slide/video renders. The sources (slides.html, cover.html,
+# code.html, script.json) and the webp deliverables are tracked.
+media/audio/
+media/audio_el/
 media/build/clips/
 media/build/qa/
-media/audio/
+media/build/*.png
+media/build/*.pdf
+media/build/*.mp4
 
-# sentinel-video (HyperFrames) build intermediates
-sentinel-video/.snapshots*/
-sentinel-video/node_modules/
-sentinel-video/out/
-media/audio_el/
+__pycache__/
+*.pyc
+.venv/
