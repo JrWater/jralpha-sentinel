@@ -37,6 +37,8 @@ class FakeClient:
         self._sandbox = sandbox
         self._account_number = account_number
         self.submit_calls: list = []
+        self.get_orders_filters: list = []
+        self.canceled_order_ids: list = []
 
     def get_account(self):
         return SimpleNamespace(account_number=self._account_number)
@@ -44,6 +46,13 @@ class FakeClient:
     def submit_order(self, request):
         self.submit_calls.append(request)
         return SimpleNamespace(id="fake-order-1", status="accepted")
+
+    def get_orders(self, filter=None):
+        self.get_orders_filters.append(filter)
+        return [SimpleNamespace(id="stale-1", symbol="SPY")]
+
+    def cancel_order_by_id(self, order_id):
+        self.canceled_order_ids.append(order_id)
 
 
 @pytest.fixture
@@ -166,3 +175,17 @@ def test_undeclared_shape_is_still_refused_after_authority_clears(manifest):
     with pytest.raises(RuntimeError, match="undeclared shape"):
         ex.submit(_proposal(legs=three_legs, limit_price=1.0), now=AFTER_KICKOFF)
     assert client.submit_calls == []
+
+
+def test_open_order_cleanup_uses_the_sdk_filter_object(manifest):
+    from alpaca.trading.enums import QueryOrderStatus
+
+    declared = manifest.get("environment", "competition_account_id")
+    client = FakeClient(account_number=declared)
+    ex = Executor(client, manifest, verbose=False)
+
+    ex.retry_open_orders_cleanup()
+
+    assert len(client.get_orders_filters) == 1
+    assert client.get_orders_filters[0].status == QueryOrderStatus.OPEN
+    assert client.canceled_order_ids == ["stale-1"]
