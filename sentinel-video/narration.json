@@ -1,0 +1,38 @@
+{
+  "_": "Authored narration metadata. The single source for every timing fact in index.html. Run `npm run timing` after any re-record; see tools/timeline.py.",
+  "speed": 1.16,
+  "script": "../media/build/script.json",
+  "alignDir": "assets/align",
+  "audioDir": "assets/audio",
+  "scenes": [
+    { "key": "s01", "id": "01_title" },
+    { "key": "s02", "id": "02_problem" },
+    { "key": "s03", "id": "03_architecture" },
+    { "key": "s04", "id": "04_ai_logic" },
+    { "key": "s05", "id": "05_risk_gates" },
+    { "key": "s06", "id": "06_infra" },
+    { "key": "s07", "id": "07_dashboard" },
+    { "key": "s08", "id": "08_code" },
+    { "key": "s09", "id": "09_results" },
+    { "key": "s10", "id": "10_closing" }
+  ],
+  "cues": {
+    "s04": [
+      { "target": "#s04-vec-trend", "phrase": "Trend sells" },
+      { "target": "#s04-ev-trend",  "phrase": "eighty-seven" },
+      { "target": "#s04-ev-trend2", "phrase": "simulated" },
+      { "target": "#s04-vec-cat",   "phrase": "Catalyst is" },
+      { "target": "#s04-ev-cat",    "phrase": "Lululemon" },
+      { "target": "#s04-ev-pead",   "phrase": "drift leg" },
+      { "target": "#s04-vec-evt",   "phrase": "Event is" },
+      { "target": "#s04-ev-evt",    "phrase": "nine of ten" },
+      { "target": "#s04-vec-vol",   "phrase": "Vol sells" }
+    ]
+  },
+  "anchors": {
+    "s04": [
+      { "name": "S04_KILL", "phrase": "so it's off" },
+      { "name": "S04_LLM",  "phrase": "The model ranks" }
+    ]
+  }
+}

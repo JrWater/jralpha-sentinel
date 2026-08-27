@@ -1,0 +1,106 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <!-- Scene 03 · ARCHITECTURE. Timing is compiled: see ../narration.json and
+         ../tools/timeline.py. Shared design tokens and this scene's own CSS
+         live in the host stylesheet; the host slot keeps .clip/.scene. -->
+  </head>
+  <body>
+    <template>
+      <style>
+        #root { position: absolute; inset: 0; }
+      </style>
+
+      <div id="root" data-composition-id="scene-s03" data-width="1920" data-height="1080">
+        <div data-hf-id="hf-kp3u" class="grid-overlay"></div>
+        <div data-hf-id="hf-kcjh" class="cap" id="cap-s03-0">Four pieces, one job each.</div>
+        <div data-hf-id="hf-ydjb" class="cap" id="cap-s03-1">The proposer ranks candidates and writes the</div>
+        <div data-hf-id="hf-wu0b" class="cap" id="cap-s03-2">thesis -- a brain,</div>
+        <div data-hf-id="hf-4edz" class="cap" id="cap-s03-3">never a finger.</div>
+        <div data-hf-id="hf-lyrb" class="cap" id="cap-s03-4">Sixteen gates across five dimensions;</div>
+        <div data-hf-id="hf-ncha" class="cap" id="cap-s03-5">an unregistered gate defaults to blocking.</div>
+        <div data-hf-id="hf-7epz" class="cap" id="cap-s03-6">The permit is bound to the exact</div>
+        <div data-hf-id="hf-qkjt" class="cap" id="cap-s03-7">commit and policy hash,</div>
+        <div data-hf-id="hf-e20e" class="cap" id="cap-s03-8">and expires in ninety minutes.</div>
+        <div data-hf-id="hf-n2dg" class="cap" id="cap-s03-9">And the executor accepts only a declared</div>
+        <div data-hf-id="hf-v4q0" class="cap" id="cap-s03-10">order shape --</div>
+        <div data-hf-id="hf-up1o" class="cap" id="cap-s03-11">none of them is a market order.</div>
+        <div data-hf-id="hf-fvl0" class="wrap">
+          <span data-hf-id="hf-3u4l" class="kicker">Architecture</span>
+          <div data-hf-id="hf-oip8" class="h1" id="s03-h1">Four pieces of code. Four jobs.</div>
+
+          <div data-hf-id="hf-m8f6" style="display: flex; gap: 28px; margin-top: 74px; align-items: stretch;">
+            <div data-hf-id="hf-ivuy" class="pipe-box card" data-i="0" data-step="01" style="flex: 1; padding: 30px; opacity: 0;">
+              <div data-hf-id="hf-7s3c" class="mono" style="color: var(--blue); font-size: 15px;">agent/proposer.py</div>
+              <div data-hf-id="hf-y5w8" style="font-size: 25px; font-weight: 700; margin-top: 10px;">Proposer</div>
+              <div data-hf-id="hf-p8io" style="font-size: 16px; color: var(--muted); margin-top: 12px; line-height: 1.5;">Reads ranked candidates, writes the thesis. A brain, never a finger.</div>
+            </div>
+            <div data-hf-id="hf-qn7v" class="pipe-arrow" data-i="0" style="width: 44px; align-self: center; height: 3px; background: var(--border); transform: scaleX(0); transform-origin: left;"></div>
+            <div data-hf-id="hf-hqju" class="pipe-box card" data-i="1" data-step="02" style="flex: 1; padding: 30px; opacity: 0;">
+              <div data-hf-id="hf-wdyn" class="mono" style="color: var(--amber); font-size: 15px;">gates/registry.py</div>
+              <div data-hf-id="hf-35zv" style="font-size: 25px; font-weight: 700; margin-top: 10px;">16 Gates</div>
+              <div data-hf-id="hf-5qf1" style="font-size: 16px; color: var(--muted); margin-top: 12px; line-height: 1.5;">5 dimensions. Unregistered defaults to BLOCKING, never a softer answer.</div>
+            </div>
+            <div data-hf-id="hf-7roc" class="pipe-arrow" data-i="1" style="width: 44px; align-self: center; height: 3px; background: var(--border); transform: scaleX(0); transform-origin: left;"></div>
+            <div data-hf-id="hf-miry" class="pipe-box card" data-i="2" data-step="03" style="flex: 1; padding: 30px; opacity: 0;">
+              <div data-hf-id="hf-urmk" class="mono" style="color: var(--red); font-size: 15px;">gates/safety_gate.py</div>
+              <div data-hf-id="hf-w7e5" style="font-size: 25px; font-weight: 700; margin-top: 10px;">Safety Gate</div>
+              <div data-hf-id="hf-38hy" style="font-size: 16px; color: var(--muted); margin-top: 12px; line-height: 1.5;">Bound to the exact commit + policy hash. Expires in 90 minutes.</div>
+            </div>
+            <div data-hf-id="hf-ndxd" class="pipe-arrow" data-i="2" style="width: 44px; align-self: center; height: 3px; background: var(--border); transform: scaleX(0); transform-origin: left;"></div>
+            <div data-hf-id="hf-4223" class="pipe-box card" data-i="3" data-step="04" style="flex: 1; padding: 30px; opacity: 0; border-color: rgba(79,209,137,.3);">
+              <div data-hf-id="hf-6jro" class="mono" style="color: var(--green); font-size: 15px;">agent/executor.py</div>
+              <div data-hf-id="hf-lmjx" style="font-size: 25px; font-weight: 700; margin-top: 10px;">Executor</div>
+              <div data-hf-id="hf-jodl" style="font-size: 16px; color: var(--muted); margin-top: 12px; line-height: 1.5;">Accepts only a declared order shape. No shape declares a market order.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <script>
+        window.__timelines = window.__timelines || {};
+        (() => {
+          const SPEED = 1.16;
+          const S = (seconds) => seconds / SPEED;
+          const EASE = "power2.out";
+          const tl = gsap.timeline({ paused: true });
+
+          tl.fromTo("#s03-h1", { opacity: 0, y: 26 }, { opacity: 1, y: 0, duration: 0.7, ease: EASE }, S(0.1));
+          const pipeBoxes = gsap.utils.toArray(".pipe-box");
+          const pipeArrows = gsap.utils.toArray(".pipe-arrow");
+          pipeBoxes.forEach((el, i) => {
+            const t = S(2.0 + i * 6.8);
+            tl.fromTo(el, { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.6, ease: EASE }, t);
+            if (pipeArrows[i]) tl.fromTo(pipeArrows[i], { scaleX: 0 }, { scaleX: 1, duration: 0.4, ease: EASE }, t + 0.55);
+          });
+
+
+          // <<< GENERATED captions -- edit narration.json, then `npm run timing`
+          const CAPTIONS = [
+          {id:"cap-s03-0", start:0, end:2.357},
+          {id:"cap-s03-1", start:2.682, end:5.097},
+          {id:"cap-s03-2", start:5.143, end:6.699},
+          {id:"cap-s03-3", start:6.873, end:7.802},
+          {id:"cap-s03-4", start:8.243, end:10.913},
+          {id:"cap-s03-5", start:11.088, end:13.595},
+          {id:"cap-s03-6", start:13.978, end:15.894},
+          {id:"cap-s03-7", start:15.975, end:17.751},
+          {id:"cap-s03-8", start:18.03, end:20.12},
+          {id:"cap-s03-9", start:20.631, end:23.173},
+          {id:"cap-s03-10", start:23.231, end:24.032},
+          {id:"cap-s03-11", start:24.357, end:26.378}
+          ];
+          // >>> GENERATED captions
+          CAPTIONS.forEach(c => {
+            const el = document.getElementById(c.id);
+            tl.fromTo(el, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.1, ease: "none" }, S(c.start));
+            tl.set(el, { autoAlpha: 0 }, S(c.end));
+          });
+
+          window.__timelines["scene-s03"] = tl;
+        })();
+      </script>
+    </template>
+  </body>
+</html>

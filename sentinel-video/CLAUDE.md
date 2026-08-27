@@ -53,6 +53,32 @@ npx hyperframes docs <topic> # reference docs in terminal
 
 > **Pinned CLI version.** These scripts pin an exact `hyperframes@X.Y.Z` so this project re-renders identically over time. Weeks later that pin lags fixes shipped since. To move up: `npx hyperframes@latest upgrade --project . --check` (shows the delta), then `npx hyperframes@latest upgrade --project .` to rewrite the pins. Always unpinned — the pinned script re-runs the old version against itself.
 
+## Timing — narration is the source of truth
+
+Every timing fact in `index.html` is compiled, not hand-typed. `tools/timeline.py`
+reads `narration.json` plus the ElevenLabs alignment files in `assets/align/` and
+emits the scene windows, audio placements, the `T` map, the scene header ranges,
+and — into each scene module — that scene's caption cues and phrase-anchored
+cues, on that scene's own local clock.
+
+```bash
+npm run timing         # recompile index.html from the narration
+npm run timing:check    # verify it is current and every cue is in bounds
+```
+
+- **Never hand-edit anything between `<<< GENERATED` and `>>> GENERATED` markers**,
+  and never hand-edit a `data-start` / `data-duration` on a scene or audio clip.
+  Change `narration.json` (or re-record) and rerun `npm run timing`.
+- Caption **text** stays hand-authored in the HTML; its **timing** is searched out
+  of the alignment, so a re-record retimes captions automatically. A caption whose
+  text no longer appears in the narration is a hard failure, not a silent drift.
+- Scene starts and ends both derive from cumulative raw narration time divided by
+  `speed`, so durations tile the root exactly — no 1ms gaps or overlaps.
+- The 57 remaining motion cues are deliberately hand-authored (most are aesthetic —
+  breathing, floating, staggers — not narration-anchored). They are **bound-checked**,
+  not generated: `npm run timing:check` fails if a cue lands past the end of its
+  scene. That is the failure that once left scene 04's Vol row invisible.
+
 ## Documentation
 
 **For quick reference**, use the local CLI docs command (no network required):
@@ -71,10 +97,31 @@ https://hyperframes.heygen.com/llms.txt
 
 ## Project Structure
 
-- `index.html` — main composition (root timeline)
-- `compositions/` — sub-compositions referenced via `data-composition-src`
+- `index.html` — host: shared stylesheet, the ten scene slots, the audio track
+- `compositions/scene-01.html` … `scene-10.html` — one module per scene, each
+  owning its markup, its own paused GSAP timeline on scene-local time, and its
+  burned-in captions. Registered as `window.__timelines["scene-sNN"]`
+- `narration.json` — authored narration metadata (the timing source)
+- `tools/timeline.py` — the narration/timeline compiler
 - `meta.json` — project metadata (id, name)
-- `transcript.json` — whisper word-level transcript (if generated)
+
+**Scene modules.** A scene's host slot and its file must agree on
+`data-composition-id` (`scene-sNN`), and that id is also the timeline key. A
+sub-composition timeline only drives its own subtree — it cannot reach host
+elements — so all of a scene's motion lives in its own file.
+
+Shared design tokens (`:root`, `.scene`, `.cap`, `.sketch-note`, …) stay in the
+host stylesheet and still apply, because scene content is cloned into the host
+document. A scene file's own `<style>` is scoped to its `data-composition-id`,
+so put scene-specific CSS there and style its root with `#root`, never a class.
+
+**Never add a `#scene-sNN::before` or `::after` rule.** `.scene::before` and
+`.scene::after` already claim both pseudo-elements for the decorative frame and
+the grain overlay. An id rule targeting the same pseudo-element merges with
+them rather than replacing them: scene 08's badge did this and inherited
+`.scene::before`'s `inset: 34px`, so it stretched into an opaque full-frame
+cream box that hid the code screenshot for the whole scene. Add a real element
+inside the scene module instead.
 
 ## Linting — ALWAYS RUN AFTER CHANGES
 

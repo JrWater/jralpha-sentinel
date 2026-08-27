@@ -1,0 +1,90 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <!-- Scene 07 · DASHBOARD. Timing is compiled: see ../narration.json and
+         ../tools/timeline.py. Shared design tokens and this scene's own CSS
+         live in the host stylesheet; the host slot keeps .clip/.scene. -->
+  </head>
+  <body>
+    <template>
+      <style>
+        #root { position: absolute; inset: 0; }
+      </style>
+
+      <div id="root" data-composition-id="scene-s07" data-width="1920" data-height="1080">
+        <div data-hf-id="hf-maby" class="grid-overlay"></div>
+        <div data-hf-id="hf-yj41" class="cap" id="cap-s07-0">And here's the live evidence.</div>
+        <div data-hf-id="hf-bl7x" class="cap" id="cap-s07-1">This dashboard reads a credential-free snapshot</div>
+        <div data-hf-id="hf-1xpv" class="cap" id="cap-s07-2">the agent writes every cycle --</div>
+        <div data-hf-id="hf-25fs" class="cap" id="cap-s07-3">no Alpaca keys in the hosted page.</div>
+        <div data-hf-id="hf-slxx" class="cap" id="cap-s07-4">Before kickoff the market is closed,</div>
+        <div data-hf-id="hf-qhqf" class="cap" id="cap-s07-5">the market session gate is correctly red,</div>
+        <div data-hf-id="hf-nhlt" class="cap" id="cap-s07-6">the permit reads Blocked,</div>
+        <div data-hf-id="hf-al63" class="cap" id="cap-s07-7">and the agent sits in Entry Maintenance.</div>
+        <div data-hf-id="hf-3i9f" class="cap" id="cap-s07-8">A refused proposal,</div>
+        <div data-hf-id="hf-m1hu" class="cap" id="cap-s07-9">not a trusted claim.</div>
+        <div data-hf-id="hf-rjx2" id="s07-note" class="sketch-note" style="right:170px; top:154px; opacity:0; transform:rotate(2deg);"><span data-hf-id="hf-dk1n">proof,</span><span data-hf-id="hf-i1ub">not promise</span></div>
+        <div data-hf-id="hf-83p0" class="wrap" style="padding: 64px 150px;">
+          <div data-hf-id="hf-3dwj" style="display:flex; align-items:baseline; justify-content: space-between;">
+            <span data-hf-id="hf-jekl" class="kicker">Live evidence</span>
+            <span data-hf-id="hf-xauk" class="pill mono" style="font-size:14px; opacity:.9;"><span data-hf-id="hf-5k14" class="dot" style="background: var(--green);"></span>jralpha-sentinel.streamlit.app</span>
+          </div>
+          <div data-hf-id="hf-a0by" style="position: relative; margin-top: 26px; flex: 1; border-radius: 18px; overflow: hidden; border: 1px solid var(--border); box-shadow: 0 40px 90px rgba(0,0,0,.5);">
+            <img data-hf-id="hf-nl5j" id="s07-img1" data-layout-allow-overflow="" src="assets/dash_f1_hero.png" style="position:absolute; inset:0; width:100%; height:100%; object-fit:contain; object-position: center;">
+            <img data-hf-id="hf-u1h1" id="s07-img2" data-layout-allow-overflow="" src="assets/dash_f2_gates.png" style="position:absolute; inset:0; width:100%; height:100%; object-fit:contain; object-position: center; opacity:0;">
+            <img data-hf-id="hf-mlow" id="s07-img3" data-layout-allow-overflow="" src="assets/dash_f3_decisions.png" style="position:absolute; inset:0; width:100%; height:100%; object-fit:contain; object-position: center; opacity:0;">
+          </div>
+        </div>
+      </div>
+
+      <script>
+        window.__timelines = window.__timelines || {};
+        (() => {
+          const SPEED = 1.16;
+          const S = (seconds) => seconds / SPEED;
+          const EASE = "power2.out";
+          const tl = gsap.timeline({ paused: true });
+
+          const shotDur = S(7.910);
+          [
+            { img: "#s07-img1", t: T.s07 },
+            { img: "#s07-img2", t: shotDur },
+            { img: "#s07-img3", t: shotDur * 2 },
+          ].forEach(({ img, t }, i) => {
+            tl.fromTo(img, { scale: 1.0 }, { scale: 1.045, duration: shotDur + 0.6, ease: "none" }, t);
+            if (i > 0) {
+              tl.to(img, { opacity: 1, duration: 0.6, ease: EASE }, t);
+              tl.to(document.querySelector(i === 1 ? "#s07-img1" : "#s07-img2"), { opacity: 0, duration: 0.6, ease: EASE }, t);
+            }
+          });
+          tl.fromTo("#s07-note", { opacity: 0, x: 34, rotation: 8 }, { opacity: 1, x: 0, rotation: 2, duration: 0.55, ease: "back.out(1.6)" }, S(3.7));
+          tl.to("#s07-note", { y: -6, rotation: -1, duration: 1.5, ease: "sine.inOut", repeat: 8, yoyo: true }, S(4.5));
+
+
+          // <<< GENERATED captions -- edit narration.json, then `npm run timing`
+          const CAPTIONS = [
+          {id:"cap-s07-0", start:0, end:1.718},
+          {id:"cap-s07-1", start:1.962, end:4.876},
+          {id:"cap-s07-2", start:5.12, end:7.001},
+          {id:"cap-s07-3", start:7.326, end:9.834},
+          {id:"cap-s07-4", start:10.159, end:12.446},
+          {id:"cap-s07-5", start:12.655, end:15},
+          {id:"cap-s07-6", start:15.383, end:17.31},
+          {id:"cap-s07-7", start:17.519, end:20.085},
+          {id:"cap-s07-8", start:20.526, end:22},
+          {id:"cap-s07-9", start:22.279, end:23.73}
+          ];
+          // >>> GENERATED captions
+          CAPTIONS.forEach(c => {
+            const el = document.getElementById(c.id);
+            tl.fromTo(el, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.1, ease: "none" }, S(c.start));
+            tl.set(el, { autoAlpha: 0 }, S(c.end));
+          });
+
+          window.__timelines["scene-s07"] = tl;
+        })();
+      </script>
+    </template>
+  </body>
+</html>

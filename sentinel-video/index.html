@@ -1,21 +1,29 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
   <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=1920, height=1080" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1920, height=1080">
     <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
     <style>
+      @font-face {
+        font-family: "Caveat";
+        src: url("assets/fonts/Caveat-700-latin.woff2") format("woff2");
+        font-weight: 700;
+        font-display: block;
+      }
       :root {
-        --bg: #0a0e14;
-        --bg2: #0d1420;
-        --panel: rgba(255, 255, 255, 0.035);
-        --border: rgba(255, 255, 255, 0.1);
-        --text: #eef2f6;
-        --muted: #8a96a8;
-        --green: #4fd189;
-        --red: #ef6b6b;
-        --amber: #ffcf70;
-        --blue: #7fa3ff;
+        --bg: #11151c;
+        --bg2: #19212b;
+        --panel: rgba(245, 239, 228, 0.055);
+        --border: rgba(245, 239, 228, 0.19);
+        --text: #f5efe4;
+        --muted: #a8b1bd;
+        --green: #72d89b;
+        --red: #ff7b72;
+        --amber: #f2c96d;
+        --blue: #91adff;
+        --ink: #2b3038;
+        --paper: #f4dfa4;
       }
       * { margin: 0; padding: 0; box-sizing: border-box; }
       html, body {
@@ -29,39 +37,61 @@
       .scene {
         position: absolute; inset: 0; width: 1920px; height: 1080px;
         background:
-          radial-gradient(1200px 700px at 82% 0%, rgba(46, 196, 120, 0.08), transparent 60%),
-          radial-gradient(900px 600px at 10% 100%, rgba(224, 64, 64, 0.05), transparent 60%),
-          linear-gradient(160deg, var(--bg) 0%, var(--bg2) 55%, var(--bg) 100%);
+          radial-gradient(1050px 680px at 84% 4%, rgba(114, 216, 155, 0.15), transparent 62%),
+          radial-gradient(800px 560px at 8% 96%, rgba(242, 201, 109, 0.11), transparent 64%),
+          var(--bg);
+      }
+      .scene::before {
+        content: ""; position: absolute; inset: 34px; pointer-events: none;
+        border: 2px solid rgba(244, 223, 164, 0.12); border-radius: 34px 27px 41px 30px;
+        box-shadow: inset 0 0 0 4px rgba(145,173,255,0.018), 0 0 0 1px rgba(114,216,155,0.035);
+      }
+      .scene::after {
+        content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .26;
+        background-image:
+          radial-gradient(rgba(245,239,228,.27) .75px, transparent .75px),
+          repeating-linear-gradient(13deg, transparent 0 19px, rgba(244,223,164,.045) 20px 21px);
+        background-size: 7px 7px, 52px 52px;
+        mix-blend-mode: soft-light;
       }
       .grid-overlay {
         position: absolute; inset: 0;
         background-image:
-          linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
-        background-size: 48px 48px;
+          linear-gradient(rgba(145, 173, 255, 0.045) 2px, transparent 2px),
+          linear-gradient(90deg, rgba(145, 173, 255, 0.04) 2px, transparent 2px);
+        background-size: 64px 64px;
+        opacity: .75;
       }
-      .wrap { position: relative; height: 100%; padding: 90px 120px; display: flex; flex-direction: column; }
+      .wrap { position: relative; z-index: 2; height: 100%; padding: 90px 120px; display: flex; flex-direction: column; }
 
       .kicker {
         display: block; font-size: 16px; letter-spacing: 0.16em; text-transform: uppercase;
-        color: var(--muted); font-weight: 700;
+        color: var(--amber); font-weight: 800;
       }
-      .h1 { font-size: 76px; font-weight: 800; letter-spacing: -0.02em; color: #fff; line-height: 1.05; margin-top: 18px; max-width: 1500px; }
+      .kicker::before {
+        content: "✦"; margin-right: 11px; color: var(--green); font-size: 18px;
+      }
+      .h1 { position: relative; width: fit-content; font-size: 76px; font-weight: 800; letter-spacing: -0.02em; color: var(--text); line-height: 1.05; margin-top: 18px; max-width: 1500px; }
+      .h1::after {
+        content: ""; position: absolute; left: 1%; right: 8%; bottom: -15px; height: 8px;
+        border-top: 4px solid rgba(114,216,155,.72); border-radius: 50%; transform: rotate(-.6deg);
+      }
       .h2 { font-size: 46px; font-weight: 800; letter-spacing: -0.02em; color: #fff; line-height: 1.15; margin-top: 16px; max-width: 1400px; }
       .lead { font-size: 24px; color: var(--muted); line-height: 1.55; margin-top: 22px; max-width: 1200px; }
       .lead b { color: var(--text); font-weight: 600; }
 
       .pill {
         display: inline-flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 700;
-        padding: 8px 16px; border-radius: 999px; border: 1px solid var(--border); background: var(--panel);
+        padding: 8px 16px; border-radius: 999px; border: 2px dashed var(--border); background: var(--panel);
         color: var(--text);
       }
       .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
 
       .vec {
         display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
-        padding: 16px 22px; border-radius: 14px;
-        background: var(--panel); border: 1px solid var(--border);
+        padding: 16px 22px; border-radius: 18px 14px 20px 15px;
+        background: linear-gradient(118deg, rgba(244,223,164,.10), rgba(245,239,228,.035)); border: 2px solid var(--border);
+        box-shadow: 5px 5px 0 rgba(145,173,255,.08), -2px -2px 0 rgba(244,223,164,.035);
       }
       .vec-rail { width: 5px; height: 34px; border-radius: 3px; display: inline-block; }
       .vec-name { font-size: 25px; font-weight: 800; min-width: 132px; }
@@ -80,7 +110,7 @@
 
       .cap {
         position: absolute; left: 50%; bottom: 64px; transform: translateX(-50%);
-        max-width: 1500px; text-align: center; font-size: 27px; font-weight: 600;
+        max-width: 1640px; text-align: center; font-size: 46px; font-weight: 600;
         color: #fff; text-shadow: 0 2px 14px rgba(0,0,0,.85), 0 0 2px rgba(0,0,0,.6);
         opacity: 0; padding: 0 24px; display: block;
       }
@@ -90,13 +120,78 @@
       .cap-bar {
         left: 0; bottom: 0; transform: none; width: 100%; max-width: none;
         background: linear-gradient(0deg, rgba(8,11,16,.97) 0%, rgba(8,11,16,.97) 70%, rgba(8,11,16,0) 100%);
-        padding: 22px 24px 20px; font-size: 25px;
+        padding: 22px 24px 20px; font-size: 44px;
       }
 
       .card {
-        background: var(--panel); border: 1px solid var(--border); border-radius: 16px;
-        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+        position: relative; background: var(--panel); border: 2px solid var(--border);
+        border-radius: 19px 14px 21px 16px;
+        background-image: linear-gradient(118deg, rgba(244,223,164,.095), rgba(245,239,228,.03));
+        box-shadow: 7px 7px 0 rgba(145,173,255,.085), -2px -2px 0 rgba(244,223,164,.035), 0 24px 60px rgba(0, 0, 0, 0.28);
       }
+
+      .pipe-box::before {
+        content: attr(data-step); position: absolute; right: 18px; top: -20px; width: 45px; height: 45px;
+        display: grid; place-items: center; border-radius: 50% 45% 52% 43%;
+        border: 2px solid var(--ink); background: var(--paper); color: var(--ink);
+        font: 800 17px/1 "SF Mono", Menlo, monospace; transform: rotate(4deg);
+      }
+      .sketch-note {
+        position: absolute; z-index: 5; padding: 16px 21px; min-width: 190px;
+        border: 2px solid var(--ink); border-radius: 9px 13px 8px 12px;
+        background: var(--paper); color: var(--ink); box-shadow: 6px 7px 0 rgba(0,0,0,.28);
+        font: 700 28px/1.5 "Caveat", Georgia, serif; letter-spacing: .01em;
+      }
+      .sketch-note::before {
+        content: ""; position: absolute; width: 58px; height: 18px; left: 50%; top: -11px;
+        transform: translateX(-50%) rotate(-3deg); background: rgba(235,226,198,.7);
+        border: 1px solid rgba(43,48,56,.25);
+      }
+      .sketch-note span { display: block; }
+      .note-br { right: 118px; bottom: 186px; transform: rotate(-2deg); }
+      .note-tr { right: 118px; top: 82px; transform: rotate(2deg); }
+      .stamp {
+        position: absolute; z-index: 5; right: 128px; top: 88px; padding: 12px 20px;
+        border: 4px double var(--green); border-radius: 10px 7px 12px 8px;
+        color: var(--green); font: 900 22px/1 "SF Mono", Menlo, monospace;
+        letter-spacing: .13em; transform: rotate(4deg); opacity: 0;
+      }
+      .bot {
+        position: absolute; z-index: 4; width: 190px; height: 190px;
+        filter: drop-shadow(8px 10px 0 rgba(0,0,0,.22));
+      }
+      .bot-title { left: 248px; top: 250px; opacity: 0; }
+      .bot-close { left: 318px; top: 330px; width: 150px; height: 150px; opacity: 0; }
+      .bot .ink { fill: var(--paper); stroke: var(--ink); stroke-width: 8; stroke-linecap: round; stroke-linejoin: round; }
+      .bot .accent { fill: none; stroke: var(--green); stroke-width: 9; stroke-linecap: round; stroke-linejoin: round; }
+      .bot .face { fill: var(--ink); }
+      .scribble-arrow { fill: none; stroke: var(--amber); stroke-width: 6; stroke-linecap: round; stroke-linejoin: round; opacity: .85; }
+
+      /* The title scene gets its own evolving pencil sketch. These are not
+         decorative facts: they visually restate narration already on screen. */
+      .s01-orbit { position: absolute; z-index: 2; left: 166px; top: 166px; width: 430px; height: 430px; opacity: 0; }
+      .s01-orbit path { fill: none; stroke: var(--amber); stroke-width: 4; stroke-linecap: round; stroke-dasharray: 12 15; opacity: .55; }
+      .s01-orbit circle { fill: var(--green); stroke: var(--ink); stroke-width: 3; }
+      .s01-paper-strip { position: absolute; z-index: 2; left: 116px; top: 146px; width: 460px; height: 458px; opacity: 0; pointer-events: none; }
+      .s01-paper-strip::before, .s01-paper-strip::after { content: ""; position: absolute; border: 2px solid rgba(244,223,164,.22); border-radius: 37px 46px 33px 51px; }
+      .s01-paper-strip::before { inset: 32px 56px 48px 42px; transform: rotate(-8deg); }
+      .s01-paper-strip::after { inset: 70px 26px 22px 76px; border-color: rgba(114,216,155,.17); transform: rotate(9deg); }
+      .s01-note { right: 152px; top: 132px; transform: rotate(3deg); opacity: 0; }
+      .s01-note small { display: block; margin-top: 8px; font: 700 16px/1.1 "SF Mono", Menlo, monospace; letter-spacing: .03em; color: rgba(43,48,56,.72); }
+      .s01-gates { position: absolute; z-index: 4; right: 148px; top: 328px; width: 290px; padding: 22px 25px 20px; opacity: 0; }
+      .s01-gates-title { color: var(--text); font: 800 16px/1 "SF Mono", Menlo, monospace; letter-spacing: .11em; }
+      .s01-gate-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 18px; }
+      .s01-gate { height: 34px; border: 3px solid rgba(245,239,228,.42); border-radius: 8px 5px 9px 6px; background: rgba(17,21,28,.55); box-shadow: 2px 2px 0 rgba(244,223,164,.08); }
+      .s01-gate.ready { border-color: var(--green); background: rgba(114,216,155,.28); box-shadow: 2px 2px 0 rgba(114,216,155,.18); }
+      .s01-callout { position: absolute; z-index: 5; right: 86px; top: 286px; width: 420px; height: 260px; pointer-events: none; opacity: 0; }
+      .s01-callout svg { width: 100%; height: 100%; overflow: visible; }
+      .s01-callout path { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+      #s01-callout-outline { stroke: var(--amber); stroke-width: 6; }
+      #s01-callout-scribble { stroke: var(--amber); stroke-width: 3; opacity: .32; }
+      #s01-callout-connector { stroke: var(--paper); stroke-width: 4; }
+      .s01-callout-label { position: absolute; left: 6px; top: 216px; color: var(--paper); font: 700 31px/1.12 "Caveat", Georgia, serif; letter-spacing: .02em; opacity: 0; text-shadow: 0 2px 14px rgba(0,0,0,.45); }
+      .s01-callout-label span { display: block; }
+      .s01-callout-label span + span { margin-top: 7px; }
 
       .arrow { position: relative; height: 3px; background: var(--border); transform-origin: left center; }
       .arrow::after {
@@ -112,669 +207,103 @@
     </style>
   </head>
   <body>
-    <div
-      id="root"
-      data-composition-id="main"
-      data-start="0"
-      data-duration="274.459"
-      data-width="1920"
-      data-height="1080"
-    >
-      <!-- ============================= 01 · TITLE (0 -> 14.86) ============================= -->
-      <section id="scene-s01" class="clip scene s01" data-start="0" data-duration="15.882">
-        <div class="grid-overlay"></div>
-        <div class="cap" id="cap-s01-0">Sentinel. The model proposes.</div>
-        <div class="cap" id="cap-s01-1">The gates decide.</div>
-        <div class="cap" id="cap-s01-2">This is an autonomous options trading agent</div>
-        <div class="cap" id="cap-s01-3">for the Alpaca A-I Trading Agents Hackathon,</div>
-        <div class="cap" id="cap-s01-4">built on one design claim:</div>
-        <div class="cap" id="cap-s01-5">the language model cannot place an order.</div>
-        <div class="cap" id="cap-s01-6">It can only propose one.</div>
-        <div class="wrap" style="align-items: center; justify-content: center; text-align: center;">
-          <div id="s01-mark" style="display: flex; align-items: center; gap: 22px;">
-            <svg width="72" height="72" viewBox="0 0 72 72" fill="none">
-              <rect x="3" y="3" width="66" height="66" rx="16" stroke="#4fd189" stroke-width="3" />
-              <path d="M22 37 L32 47 L50 25" stroke="#4fd189" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
-            <div style="font-size: 96px; font-weight: 800; letter-spacing: -0.03em; color: #fff;">SENTINEL</div>
-          </div>
-          <div id="s01-tag" style="font-size: 32px; color: var(--text); margin-top: 30px; max-width: 1200px;">
-            The model proposes. <b style="color: var(--green)">The gates decide.</b>
-          </div>
-          <div id="s01-sub" style="font-size: 19px; color: var(--muted); margin-top: 22px; letter-spacing: 0.02em;">
-            Alpaca AI Trading Agents Hackathon &nbsp;·&nbsp; lablab.ai &times; Alpaca &nbsp;·&nbsp; Aug 28 – Sep 4
-          </div>
-        </div>
-      </section>
+    <div data-hf-id="hf-6rhi" id="root" data-composition-id="main" data-start="0" data-duration="182.997" data-width="1920" data-height="1080">
+      <!-- ============================= 01 · TITLE (0 -> 14.933) ============================= -->
+      <div data-hf-id="hf-qe51" id="scene-s01" class="clip scene s01"
+           data-composition-id="scene-s01" data-composition-src="compositions/scene-01.html"
+           data-start="0" data-duration="14.933" data-width="1920" data-height="1080"></div>
 
-      <!-- ============================= 02 · PROBLEM (14.86 -> 43.65) ============================= -->
-      <section id="scene-s02" class="clip scene s02" data-start="15.882" data-duration="18.204">
-        <div class="grid-overlay"></div>
-        <div class="cap" id="cap-s02-0">The failure mode of an L-L-M trader</div>
-        <div class="cap" id="cap-s02-1">isn't being wrong --</div>
-        <div class="cap" id="cap-s02-2">it's being confidently wrong.</div>
-        <div class="cap" id="cap-s02-3">Most agents this week give the model</div>
-        <div class="cap" id="cap-s02-4">a broker tool and let it call</div>
-        <div class="cap" id="cap-s02-5">it directly. Sentinel splits that apart:</div>
-        <div class="cap" id="cap-s02-6">the model emits a proposal,</div>
-        <div class="cap" id="cap-s02-7">with no broker credentials and no submission</div>
-        <div class="cap" id="cap-s02-8">tool. Sixteen deterministic gates decide whether</div>
-        <div class="cap" id="cap-s02-9">it becomes an order.</div>
-        <div class="wrap">
-          <span class="kicker">The failure mode</span>
-          <div class="h1" id="s02-h1">Confidently wrong is worse than wrong.</div>
-          <div class="lead">Most agents this week hand the model a broker tool and let it call it. Sentinel never gives it one.</div>
+      <!-- ============================= 02 · PROBLEM (14.933 -> 29.826) ============================= -->
+      <div data-hf-id="hf-cv7e" id="scene-s02" class="clip scene s02"
+           data-composition-id="scene-s02" data-composition-src="compositions/scene-02.html"
+           data-start="14.933" data-duration="14.893" data-width="1920" data-height="1080"></div>
 
-          <div style="display: flex; gap: 56px; margin-top: 64px; align-items: flex-start;">
-            <div class="card" id="s02-left" style="flex: 1; padding: 36px; opacity: 0;">
-              <div class="pill" style="border-color: rgba(239,107,107,0.35); color: var(--red);"><span class="dot" style="background: var(--red);"></span>TYPICAL AGENT</div>
-              <div style="display: flex; align-items: center; gap: 18px; margin-top: 34px;">
-                <div class="mono" style="font-size: 20px; padding: 14px 22px; border-radius: 10px; border: 1px solid var(--border); background: rgba(255,255,255,.03);">LLM</div>
-                <div class="arrow" id="s02-arrow1" style="flex: 1; transform: scaleX(0);"></div>
-                <div class="mono" style="font-size: 20px; padding: 14px 22px; border-radius: 10px; border: 1px solid rgba(239,107,107,.4); background: rgba(239,107,107,.08); color: var(--red);">Broker</div>
-              </div>
-              <div style="margin-top: 22px; font-size: 16px; color: var(--muted);">direct tool call — the model can place the order itself</div>
-            </div>
+      <!-- ============================= 03 · ARCHITECTURE (29.826 -> 52.566) ============================= -->
+      <div data-hf-id="hf-s4vn" id="scene-s03" class="clip scene s03"
+           data-composition-id="scene-s03" data-composition-src="compositions/scene-03.html"
+           data-start="29.826" data-duration="22.740" data-width="1920" data-height="1080"></div>
 
-            <div class="card" id="s02-right" style="flex: 1; padding: 36px; opacity: 0; border-color: rgba(79,209,137,0.3);">
-              <div class="pill" style="border-color: rgba(79,209,137,0.35); color: var(--green);"><span class="dot" style="background: var(--green);"></span>SENTINEL</div>
-              <div style="display: flex; align-items: center; gap: 14px; margin-top: 34px;">
-                <div class="mono" style="font-size: 18px; padding: 12px 16px; border-radius: 10px; border: 1px solid var(--border); background: rgba(255,255,255,.03);">LLM</div>
-                <div class="arrow" id="s02-arrow2" style="flex: 1; transform: scaleX(0);"></div>
-                <div class="mono" style="font-size: 18px; padding: 12px 16px; border-radius: 10px; border: 1px solid var(--border); background: rgba(255,255,255,.03);">16 Gates</div>
-                <div class="arrow on" id="s02-arrow3" style="flex: 1; transform: scaleX(0);"></div>
-                <div class="mono" style="font-size: 18px; padding: 12px 16px; border-radius: 10px; border: 1px solid rgba(79,209,137,.4); background: rgba(79,209,137,.08); color: var(--green);">Broker</div>
-              </div>
-              <div style="margin-top: 22px; font-size: 16px; color: var(--muted);">a structured proposal — no broker credentials, no submission tool</div>
-            </div>
-          </div>
-        </div>
-      </section>
+      <!-- ============================= 04 · AI LOGIC (52.566 -> 85.394) ============================= -->
+      <div data-hf-id="hf-84ok" id="scene-s04" class="clip scene s04"
+           data-composition-id="scene-s04" data-composition-src="compositions/scene-04.html"
+           data-start="52.566" data-duration="32.828" data-width="1920" data-height="1080"></div>
 
-      <!-- ============================= 03 · ARCHITECTURE (43.65 -> 78.11) ============================= -->
-      <section id="scene-s03" class="clip scene s03" data-start="34.086" data-duration="30.186">
-        <div class="grid-overlay"></div>
-        <div class="cap" id="cap-s03-0">Four pieces of code,</div>
-        <div class="cap" id="cap-s03-1">four jobs. The proposer reads ranked candidates</div>
-        <div class="cap" id="cap-s03-2">and writes the thesis --</div>
-        <div class="cap" id="cap-s03-3">a brain, never a finger.</div>
-        <div class="cap" id="cap-s03-4">The gates check sixteen conditions;</div>
-        <div class="cap" id="cap-s03-5">an unregistered gate defaults to blocking,</div>
-        <div class="cap" id="cap-s03-6">never a softer answer.</div>
-        <div class="cap" id="cap-s03-7">The safety gate is bound to the</div>
-        <div class="cap" id="cap-s03-8">exact code commit and policy version,</div>
-        <div class="cap" id="cap-s03-9">and expires in ninety minutes.</div>
-        <div class="cap" id="cap-s03-10">The executor accepts a proposal only if</div>
-        <div class="cap" id="cap-s03-11">its order shape is declared --</div>
-        <div class="cap" id="cap-s03-12">no shape declares a market order,</div>
-        <div class="cap" id="cap-s03-13">so one is structurally impossible to submit.</div>
-        <div class="wrap">
-          <span class="kicker">Architecture</span>
-          <div class="h1" id="s03-h1">Four pieces of code. Four jobs.</div>
+      <!-- ============================= 05 · RISK GATES (85.394 -> 109.134) ============================= -->
+      <div data-hf-id="hf-507g" id="scene-s05" class="clip scene s05"
+           data-composition-id="scene-s05" data-composition-src="compositions/scene-05.html"
+           data-start="85.394" data-duration="23.740" data-width="1920" data-height="1080"></div>
 
-          <div style="display: flex; gap: 28px; margin-top: 74px; align-items: stretch;">
-            <div class="pipe-box card" data-i="0" style="flex: 1; padding: 30px; opacity: 0;">
-              <div class="mono" style="color: var(--blue); font-size: 15px;">agent/proposer.py</div>
-              <div style="font-size: 25px; font-weight: 700; margin-top: 10px;">Proposer</div>
-              <div style="font-size: 16px; color: var(--muted); margin-top: 12px; line-height: 1.5;">Reads ranked candidates, writes the thesis. A brain, never a finger.</div>
-            </div>
-            <div class="pipe-arrow" data-i="0" style="width: 44px; align-self: center; height: 3px; background: var(--border); transform: scaleX(0); transform-origin: left;"></div>
-            <div class="pipe-box card" data-i="1" style="flex: 1; padding: 30px; opacity: 0;">
-              <div class="mono" style="color: var(--amber); font-size: 15px;">gates/registry.py</div>
-              <div style="font-size: 25px; font-weight: 700; margin-top: 10px;">16 Gates</div>
-              <div style="font-size: 16px; color: var(--muted); margin-top: 12px; line-height: 1.5;">5 dimensions. Unregistered defaults to BLOCKING, never a softer answer.</div>
-            </div>
-            <div class="pipe-arrow" data-i="1" style="width: 44px; align-self: center; height: 3px; background: var(--border); transform: scaleX(0); transform-origin: left;"></div>
-            <div class="pipe-box card" data-i="2" style="flex: 1; padding: 30px; opacity: 0;">
-              <div class="mono" style="color: var(--red); font-size: 15px;">gates/safety_gate.py</div>
-              <div style="font-size: 25px; font-weight: 700; margin-top: 10px;">Safety Gate</div>
-              <div style="font-size: 16px; color: var(--muted); margin-top: 12px; line-height: 1.5;">Bound to the exact commit + policy hash. Expires in 90 minutes.</div>
-            </div>
-            <div class="pipe-arrow" data-i="2" style="width: 44px; align-self: center; height: 3px; background: var(--border); transform: scaleX(0); transform-origin: left;"></div>
-            <div class="pipe-box card" data-i="3" style="flex: 1; padding: 30px; opacity: 0; border-color: rgba(79,209,137,.3);">
-              <div class="mono" style="color: var(--green); font-size: 15px;">agent/executor.py</div>
-              <div style="font-size: 25px; font-weight: 700; margin-top: 10px;">Executor</div>
-              <div style="font-size: 16px; color: var(--muted); margin-top: 12px; line-height: 1.5;">Accepts only a declared order shape. No shape declares a market order.</div>
-            </div>
-          </div>
-        </div>
-      </section>
+      <!-- ============================= 06 · INFRA (109.134 -> 127.230) ============================= -->
+      <div data-hf-id="hf-iobf" id="scene-s06" class="clip scene s06"
+           data-composition-id="scene-s06" data-composition-src="compositions/scene-06.html"
+           data-start="109.134" data-duration="18.096" data-width="1920" data-height="1080"></div>
 
-      <!-- ============================= 04 · AI LOGIC (78.11 -> 116.98) ============================= -->
-      <section id="scene-s04" class="clip scene s04" data-start="64.272" data-duration="55.496">
-        <div class="grid-overlay"></div>
-        <div class="cap" id="cap-s04-0">The trading logic is a quant engine</div>
-        <div class="cap" id="cap-s04-1">first: regime classification,</div>
-        <div class="cap" id="cap-s04-2">a per-name score,</div>
-        <div class="cap" id="cap-s04-3">and a gap detector.</div>
-        <div class="cap" id="cap-s04-4">Four vectors consume that signal.</div>
-        <div class="cap" id="cap-s04-5">Trend trades short-dated credit spreads in the</div>
-        <div class="cap" id="cap-s04-6">regime's direction --</div>
-        <div class="cap" id="cap-s04-7">measured at eighty-seven percent wins over two</div>
-        <div class="cap" id="cap-s04-8">hundred and fifty simulated sessions --</div>
-        <div class="cap" id="cap-s04-9">plus one conviction single-leg when conviction</div>
-        <div class="cap" id="cap-s04-10">is highest. Catalyst is the confirmed earnings</div>
-        <div class="cap" id="cap-s04-11">event: the Lululemon straddle,</div>
-        <div class="cap" id="cap-s04-12">sized from a move study.</div>
-        <div class="cap" id="cap-s04-13">Its post-earnings drift leg was measured negative</div>
-        <div class="cap" id="cap-s04-14">over three years of data,</div>
-        <div class="cap" id="cap-s04-15">so it is off.</div>
-        <div class="cap" id="cap-s04-16">Event is the August jobs report:</div>
-        <div class="cap" id="cap-s04-17">a strangle the night before,</div>
-        <div class="cap" id="cap-s04-18">plus a zero-DTE gap continuation measured at</div>
-        <div class="cap" id="cap-s04-19">nine wins in ten.</div>
-        <div class="cap" id="cap-s04-20">And Vol sells iron condors when the</div>
-        <div class="cap" id="cap-s04-21">tape is range-bound.</div>
-        <div class="cap" id="cap-s04-22">The language model ranks the candidates these</div>
-        <div class="cap" id="cap-s04-23">engines produce and writes the reasoning --</div>
-        <div class="cap" id="cap-s04-24">it never invents a trade from nothing.</div>
-        <div class="wrap">
-          <span class="kicker">AI logic</span>
-          <div class="h1" id="s04-h1">A quant engine first. The model ranks — never invents.</div>
+      <!-- ============================= 07 · DASHBOARD — REAL SCREENSHOTS (127.230 -> 147.687) ============================= -->
+      <div data-hf-id="hf-0se9" id="scene-s07" class="clip scene s07"
+           data-composition-id="scene-s07" data-composition-src="compositions/scene-07.html"
+           data-start="127.230" data-duration="20.457" data-width="1920" data-height="1080"></div>
 
-          <div style="margin-top: 46px; display: flex; flex-direction: column; gap: 18px; max-width: 1520px;">
-            <div class="vec" id="s04-vec-trend" style="opacity:0;">
-              <span class="vec-rail" style="background: var(--blue);"></span>
-              <span class="vec-name">Trend</span>
-              <span class="vec-desc">short-dated credit spreads in the regime's direction</span>
-              <span class="vec-ev" id="s04-ev-trend" style="opacity:0; border-color: rgba(127,163,255,.4); color: var(--blue);">87% wins · 250 simulated sessions</span>
-              <span class="vec-ev" id="s04-ev-trend2" style="opacity:0;">+ 1 conviction single-leg</span>
-            </div>
+      <!-- ============================= 08 · CODE — REAL SCREENSHOT (147.687 -> 161.419) ============================= -->
+      <div data-hf-id="hf-1wkw" id="scene-s08" class="clip scene s08"
+           data-composition-id="scene-s08" data-composition-src="compositions/scene-08.html"
+           data-start="147.687" data-duration="13.732" data-width="1920" data-height="1080"></div>
 
-            <div class="vec" id="s04-vec-cat" style="opacity:0;">
-              <span class="vec-rail" style="background: var(--green);"></span>
-              <span class="vec-name">Catalyst</span>
-              <span class="vec-desc">the one confirmed earnings event in the window</span>
-              <span class="vec-ev" id="s04-ev-cat" style="opacity:0; border-color: rgba(79,209,137,.4); color: var(--green);">LULU straddle · sized from a move study</span>
-              <span class="vec-ev" id="s04-ev-pead" style="opacity:0;">PEAD drift leg</span>
-            </div>
+      <!-- ============================= 09 · RESULTS PLACEHOLDER (161.419 -> 171.868) ============================= -->
+      <div data-hf-id="hf-9s6l" id="scene-s09" class="clip scene s09"
+           data-composition-id="scene-s09" data-composition-src="compositions/scene-09.html"
+           data-start="161.419" data-duration="10.449" data-width="1920" data-height="1080"></div>
 
-            <div class="vec" id="s04-vec-evt" style="opacity:0;">
-              <span class="vec-rail" style="background: var(--amber);"></span>
-              <span class="vec-name">Event</span>
-              <span class="vec-desc">the August jobs report — strangle the night before</span>
-              <span class="vec-ev" id="s04-ev-evt" style="opacity:0; border-color: rgba(255,207,112,.4); color: var(--amber);">0-DTE gap continuation · 9 wins in 10</span>
-            </div>
-
-            <div class="vec" id="s04-vec-vol" style="opacity:0;">
-              <span class="vec-rail" style="background: var(--muted);"></span>
-              <span class="vec-name">Vol</span>
-              <span class="vec-desc">iron condors, only when the tape is range-bound</span>
-            </div>
-          </div>
-
-          <div id="s04-llm" style="margin-top: 42px; font-size: 23px; color: var(--muted); max-width: 1400px; opacity:0;">
-            The language model <b style="color: var(--text)">ranks what these engines produce</b> and writes the
-            reasoning. <b style="color: var(--text)">It never invents a trade from nothing.</b>
-          </div>
-        </div>
-      </section>
-
-      <!-- ============================= 05 · RISK GATES (116.98 -> 152.65) ============================= -->
-      <section id="scene-s05" class="clip scene s05" data-start="119.768" data-duration="35.016">
-        <div class="grid-overlay"></div>
-        <div class="cap" id="cap-s05-0">Every position is defined-risk.</div>
-        <div class="cap" id="cap-s05-1">No naked shorts,</div>
-        <div class="cap" id="cap-s05-2">no market orders.</div>
-        <div class="cap" id="cap-s05-3">Twelve thousand dollars is the hard cap</div>
-        <div class="cap" id="cap-s05-4">on any single trade --</div>
-        <div class="cap" id="cap-s05-5">tournament-calibrated from the event studies,</div>
-        <div class="cap" id="cap-s05-6">and always a fraction of starting equity,</div>
-        <div class="cap" id="cap-s05-7">never of current.</div>
-        <div class="cap" id="cap-s05-8">Forty thousand across the whole book at</div>
-        <div class="cap" id="cap-s05-9">once, enforced at submission,</div>
-        <div class="cap" id="cap-s05-10">not just declared.</div>
-        <div class="cap" id="cap-s05-11">A daily kill switch at negative twelve</div>
-        <div class="cap" id="cap-s05-12">thousand halts new entries for the rest</div>
-        <div class="cap" id="cap-s05-13">of the day.</div>
-        <div class="cap" id="cap-s05-14">And below seventy thousand,</div>
-        <div class="cap" id="cap-s05-15">the agent enters what we call Entry</div>
-        <div class="cap" id="cap-s05-16">Maintenance: no new exposure,</div>
-        <div class="cap" id="cap-s05-17">but exits and reconciliation keep running normally.</div>
-        <div class="wrap">
-          <span class="kicker">Risk gates</span>
-          <div class="h1" id="s05-h1">Every position is defined-risk. No exceptions.</div>
-
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 26px; margin-top: 60px; max-width: 1500px;">
-            <div class="card stat-card" data-i="0" style="padding: 32px 36px; opacity:0;">
-              <div class="mono" style="font-size: 52px; font-weight: 800; color: var(--text);">$12,000</div>
-              <div style="font-size: 17px; color: var(--muted); margin-top: 10px;">max on any single trade — a fraction of <b style="color:var(--text)">starting</b> equity, not current</div>
-            </div>
-            <div class="card stat-card" data-i="1" style="padding: 32px 36px; opacity:0;">
-              <div class="mono" style="font-size: 52px; font-weight: 800; color: var(--text);">$40,000</div>
-              <div style="font-size: 17px; color: var(--muted); margin-top: 10px;">max across the whole book — enforced at submission, not just declared</div>
-            </div>
-            <div class="card stat-card" data-i="2" style="padding: 32px 36px; opacity:0; border-color: rgba(239,107,107,.3);">
-              <div class="mono" style="font-size: 52px; font-weight: 800; color: var(--red);">-$12,000</div>
-              <div style="font-size: 17px; color: var(--muted); margin-top: 10px;">daily kill switch — halts new entries for the rest of the day</div>
-            </div>
-            <div class="card stat-card" data-i="3" style="padding: 32px 36px; opacity:0; border-color: rgba(255,207,112,.3);">
-              <div class="mono" style="font-size: 52px; font-weight: 800; color: var(--amber);">&lt;$70,000</div>
-              <div style="font-size: 17px; color: var(--muted); margin-top: 10px;">Entry Maintenance — no new exposure, exits keep running</div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ============================= 06 · INFRA (152.65 -> 183.90) ============================= -->
-      <section id="scene-s06" class="clip scene s06" data-start="154.784" data-duration="26.006">
-        <div class="grid-overlay"></div>
-        <div class="cap" id="cap-s06-0">On the Alpaca side:</div>
-        <div class="cap" id="cap-s06-1">the Trading API for limit-only,</div>
-        <div class="cap" id="cap-s06-2">multi-leg execution. Market data blends real-time</div>
-        <div class="cap" id="cap-s06-3">I-E-X stock prices with the free option</div>
-        <div class="cap" id="cap-s06-4">feed, delayed fifteen minutes --</div>
-        <div class="cap" id="cap-s06-5">so every strike is picked by that</div>
-        <div class="cap" id="cap-s06-6">snapshot's delta, then priced fresh with Black-Scholes.</div>
-        <div class="cap" id="cap-s06-7">The delayed feed picks the contract;</div>
-        <div class="cap" id="cap-s06-8">it never sets the price.</div>
-        <div class="cap" id="cap-s06-9">Both the M-C-P server and the Alpaca</div>
-        <div class="cap" id="cap-s06-10">C-L-I are wired in.</div>
-        <div class="wrap">
-          <span class="kicker">Alpaca infrastructure</span>
-          <div class="h1" id="s06-h1">Real plumbing, not a demo shim.</div>
-
-          <div style="display: flex; gap: 18px; margin-top: 50px;" id="s06-pills">
-            <span class="pill" style="opacity:0;">⚡ Trading API</span>
-            <span class="pill" style="opacity:0;">🔌 MCP Server</span>
-            <span class="pill" style="opacity:0;">⌨️ Alpaca CLI</span>
-          </div>
-
-          <div style="margin-top: 70px; display: flex; align-items: center; gap: 0; max-width: 1650px;">
-            <div class="card flow-box" data-i="0" style="padding: 22px 26px; opacity:0;">
-              <div style="font-size: 17px; font-weight: 700;">15-min snapshot</div>
-              <div style="font-size: 14px; color: var(--muted); margin-top: 6px;">picks the strike by delta</div>
-            </div>
-            <div class="flow-arrow" data-i="0" style="width: 90px; height: 3px; background: var(--border); transform: scaleX(0); transform-origin: left;"></div>
-            <div class="card flow-box" data-i="1" style="padding: 22px 26px; opacity:0;">
-              <div style="font-size: 17px; font-weight: 700;">Real-time IEX</div>
-              <div style="font-size: 14px; color: var(--muted); margin-top: 6px;">underlying price, live</div>
-            </div>
-            <div class="flow-arrow" data-i="1" style="width: 90px; height: 3px; background: var(--border); transform: scaleX(0); transform-origin: left;"></div>
-            <div class="card flow-box" data-i="2" style="padding: 22px 26px; opacity:0;">
-              <div style="font-size: 17px; font-weight: 700;">Black-Scholes</div>
-              <div style="font-size: 14px; color: var(--muted); margin-top: 6px;">prices it fresh</div>
-            </div>
-            <div class="flow-arrow on" data-i="2" style="width: 90px; height: 3px; background: var(--green); transform: scaleX(0); transform-origin: left;"></div>
-            <div class="card flow-box" data-i="3" style="padding: 22px 26px; opacity:0; border-color: rgba(79,209,137,.35);">
-              <div style="font-size: 17px; font-weight: 700; color: var(--green);">Limit order</div>
-              <div style="font-size: 14px; color: var(--muted); margin-top: 6px;">never a market order</div>
-            </div>
-          </div>
-          <div style="margin-top: 26px; font-size: 16px; color: var(--muted); max-width: 1200px;">The delayed feed picks the contract. It never sets the price.</div>
-        </div>
-      </section>
-
-      <!-- ============================= 07 · DASHBOARD — REAL SCREENSHOTS (183.90 -> 210.97) ============================= -->
-      <section id="scene-s07" class="clip scene s07" data-start="180.79" data-duration="25.681">
-        <div class="grid-overlay"></div>
-        <div class="cap" id="cap-s07-0">And here's the live evidence.</div>
-        <div class="cap" id="cap-s07-1">This dashboard reads a credential-free snapshot</div>
-        <div class="cap" id="cap-s07-2">the agent writes every cycle --</div>
-        <div class="cap" id="cap-s07-3">no Alpaca keys anywhere in the hosted</div>
-        <div class="cap" id="cap-s07-4">page. Right now,</div>
-        <div class="cap" id="cap-s07-5">before kickoff, the market is closed,</div>
-        <div class="cap" id="cap-s07-6">and the market session gate is correctly</div>
-        <div class="cap" id="cap-s07-7">red -- so the entry permit reads</div>
-        <div class="cap" id="cap-s07-8">Blocked, and the agent is in Entry</div>
-        <div class="cap" id="cap-s07-9">Maintenance. That is the core design claim,</div>
-        <div class="cap" id="cap-s07-10">checkable in the record:</div>
-        <div class="cap" id="cap-s07-11">a refused proposal,</div>
-        <div class="cap" id="cap-s07-12">not a trusted claim.</div>
-        <div class="wrap" style="padding: 64px 150px;">
-          <div style="display:flex; align-items:baseline; justify-content: space-between;">
-            <span class="kicker">Live evidence</span>
-            <span class="pill mono" style="font-size:14px; opacity:.9;"><span class="dot" style="background: var(--green);"></span>jralpha-sentinel.streamlit.app</span>
-          </div>
-          <div style="position: relative; margin-top: 26px; flex: 1; border-radius: 18px; overflow: hidden; border: 1px solid var(--border); box-shadow: 0 40px 90px rgba(0,0,0,.5);">
-            <img id="s07-img1" src="assets/dash_f1_hero.png" style="position:absolute; inset:0; width:100%; height:100%; object-fit:contain; object-position: center;" />
-            <img id="s07-img2" src="assets/dash_f2_gates.png" style="position:absolute; inset:0; width:100%; height:100%; object-fit:contain; object-position: center; opacity:0;" />
-            <img id="s07-img3" src="assets/dash_f3_decisions.png" style="position:absolute; inset:0; width:100%; height:100%; object-fit:contain; object-position: center; opacity:0;" />
-          </div>
-        </div>
-      </section>
-
-      <!-- ============================= 08 · CODE — REAL SCREENSHOT (210.97 -> 228.06) ============================= -->
-      <section id="scene-s08" class="clip scene s08" data-start="206.471" data-duration="17.09">
-        <img id="s08-img" src="assets/code_screenshot.png" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover;" />
-        <div class="cap cap-bar" id="cap-s08-0">This is what a gate actually looks</div>
-        <div class="cap cap-bar" id="cap-s08-1">like -- plain code,</div>
-        <div class="cap cap-bar" id="cap-s08-2">a rationale, and a severity that can't</div>
-        <div class="cap cap-bar" id="cap-s08-3">default to something weaker than intended.</div>
-        <div class="cap cap-bar" id="cap-s08-4">And this is the permit:</div>
-        <div class="cap cap-bar" id="cap-s08-5">bound to a git commit and a</div>
-        <div class="cap cap-bar" id="cap-s08-6">policy hash, so a run under one</div>
-        <div class="cap cap-bar" id="cap-s08-7">set of parameters can never borrow permission</div>
-        <div class="cap cap-bar" id="cap-s08-8">earned by another.</div>
-      </section>
-
-      <!-- ============================= 09 · RESULTS PLACEHOLDER (228.06 -> 251.51) ============================= -->
-      <section id="scene-s09" class="clip scene s09" data-start="223.561" data-duration="19.876">
-        <div class="grid-overlay"></div>
-        <div class="cap" id="cap-s09-0">This video is recorded before kickoff,</div>
-        <div class="cap" id="cap-s09-1">so the results slide is intentionally a</div>
-        <div class="cap" id="cap-s09-2">placeholder. The real numbers --</div>
-        <div class="cap" id="cap-s09-3">P-and-L, win rate by vector,</div>
-        <div class="cap" id="cap-s09-4">the equity curve --</div>
-        <div class="cap" id="cap-s09-5">come from account P-A-3-K-3-A-9-Z-B-C-B-I after</div>
-        <div class="cap" id="cap-s09-6">the window closes,</div>
-        <div class="cap" id="cap-s09-7">reported honestly whichever way they land.</div>
-        <div class="cap" id="cap-s09-8">Follow the live dashboard for the current</div>
-        <div class="cap" id="cap-s09-9">state at any moment.</div>
-        <div class="wrap">
-          <span class="kicker">Results</span>
-          <div class="h1" id="s09-h1">Recorded live. Reported after judging — whichever way it lands.</div>
-          <div class="lead">This video is made before kickoff. No numbers to show yet — that's the honest state, not an omission.</div>
-
-          <div style="display: flex; gap: 26px; margin-top: 58px;">
-            <div class="card placeholder-card" data-i="0" style="flex:1; padding: 34px; border-style: dashed; opacity:0;">
-              <div style="font-size: 15px; color: var(--muted); letter-spacing:.06em; text-transform:uppercase;">P&amp;L</div>
-              <div style="font-size: 30px; font-weight: 700; color: var(--muted); margin-top: 14px;">— pending —</div>
-            </div>
-            <div class="card placeholder-card" data-i="1" style="flex:1; padding: 34px; border-style: dashed; opacity:0;">
-              <div style="font-size: 15px; color: var(--muted); letter-spacing:.06em; text-transform:uppercase;">Win rate by vector</div>
-              <div style="font-size: 30px; font-weight: 700; color: var(--muted); margin-top: 14px;">— pending —</div>
-            </div>
-            <div class="card placeholder-card" data-i="2" style="flex:1; padding: 34px; border-style: dashed; opacity:0;">
-              <div style="font-size: 15px; color: var(--muted); letter-spacing:.06em; text-transform:uppercase;">Equity curve</div>
-              <div style="font-size: 30px; font-weight: 700; color: var(--muted); margin-top: 14px;">— pending —</div>
-            </div>
-          </div>
-          <div class="mono" style="margin-top: 40px; font-size: 16px; color: var(--muted);">account&nbsp;<span style="color: var(--text)">PA3K3A9ZBCBI</span> · live at jralpha-sentinel.streamlit.app</div>
-        </div>
-      </section>
-
-      <!-- ============================= 10 · CLOSING (251.51 -> 279.93) ============================= -->
-      <section id="scene-s10" class="clip scene s10" data-start="243.437" data-duration="31.022">
-        <div class="grid-overlay"></div>
-        <div class="cap" id="cap-s10-0">Six scheduled catalysts sit inside this exact</div>
-        <div class="cap" id="cap-s10-1">five-day window, so the agent is never</div>
-        <div class="cap" id="cap-s10-2">directionally agnostic on a catalyst day --</div>
-        <div class="cap" id="cap-s10-3">and it never risks more than twelve</div>
-        <div class="cap" id="cap-s10-4">percent of the account on one idea,</div>
-        <div class="cap" id="cap-s10-5">while every structure stays defined-risk.</div>
-        <div class="cap" id="cap-s10-6">A catalyst-adaptive, tournament-calibrated strategy</div>
-        <div class="cap" id="cap-s10-7">is the only one that can be</div>
-        <div class="cap" id="cap-s10-8">near the top of the P-and-L board</div>
-        <div class="cap" id="cap-s10-9">and at the top of the risk-policy</div>
-        <div class="cap" id="cap-s10-10">table at the same time.</div>
-        <div class="cap" id="cap-s10-11">That's Sentinel. Repo and live dashboard are</div>
-        <div class="cap" id="cap-s10-12">on screen now.</div>
-        <div class="cap" id="cap-s10-13">Thanks for watching.</div>
-        <div class="wrap" style="align-items: center; justify-content: center; text-align: center;">
-          <div id="s10-mark" style="font-size: 68px; font-weight: 800; letter-spacing: -0.03em; color: #fff;">SENTINEL</div>
-          <div class="lead" id="s10-lead" style="text-align:center; margin-top: 24px;">Defined-risk. Catalyst-adaptive. <b>Never directionally agnostic on a catalyst day.</b></div>
-
-          <div style="display:flex; gap: 18px; margin-top: 34px;" id="s10-chips">
-            <span class="pill">6 scheduled catalysts this window</span>
-            <span class="pill">&le;12% risk per idea, always defined</span>
-          </div>
-
-          <div class="mono" id="s10-links" style="margin-top: 54px; font-size: 19px; color: var(--blue); opacity:0;">
-            github.com/JrWater/jralpha-sentinel &nbsp;·&nbsp; jralpha-sentinel.streamlit.app
-          </div>
-          <div id="s10-thanks" style="margin-top: 20px; font-size: 20px; color: var(--muted); opacity:0;">Thanks for watching.</div>
-        </div>
-      </section>
+      <!-- ============================= 10 · CLOSING (171.868 -> 182.997) ============================= -->
+      <div data-hf-id="hf-lh3q" id="scene-s10" class="clip scene s10"
+           data-composition-id="scene-s10" data-composition-src="compositions/scene-10.html"
+           data-start="171.868" data-duration="11.129" data-width="1920" data-height="1080"></div>
 
       <!-- ============================= AUDIO ============================= -->
-      <audio id="a01" src="assets/audio/01_title.mp3" data-start="0" data-duration="15.882"></audio>
-      <audio id="a02" src="assets/audio/02_problem.mp3" data-start="15.882" data-duration="18.204"></audio>
-      <audio id="a03" src="assets/audio/03_architecture.mp3" data-start="34.086" data-duration="30.186"></audio>
-      <audio id="a04" src="assets/audio/04_ai_logic.mp3" data-start="64.272" data-duration="55.496"></audio>
-      <audio id="a05" src="assets/audio/05_risk_gates.mp3" data-start="119.768" data-duration="35.016"></audio>
-      <audio id="a06" src="assets/audio/06_infra.mp3" data-start="154.784" data-duration="26.006"></audio>
-      <audio id="a07" src="assets/audio/07_dashboard.mp3" data-start="180.79" data-duration="25.681"></audio>
-      <audio id="a08" src="assets/audio/08_code.mp3" data-start="206.471" data-duration="17.09"></audio>
-      <audio id="a09" src="assets/audio/09_results.mp3" data-start="223.561" data-duration="19.876"></audio>
-      <audio id="a10" src="assets/audio/10_closing.mp3" data-start="243.437" data-duration="31.022"></audio>
+      <audio data-hf-id="hf-ovd8" id="a01" src="assets/audio/01_title.mp3" data-start="0" data-duration="14.933" data-playback-rate="1.16"></audio>
+      <audio data-hf-id="hf-a1d8" id="a02" src="assets/audio/02_problem.mp3" data-start="14.933" data-duration="14.893" data-playback-rate="1.16"></audio>
+      <audio data-hf-id="hf-6vct" id="a03" src="assets/audio/03_architecture.mp3" data-start="29.826" data-duration="22.740" data-playback-rate="1.16"></audio>
+      <audio data-hf-id="hf-t29c" id="a04" src="assets/audio/04_ai_logic.mp3" data-start="52.566" data-duration="32.828" data-playback-rate="1.16"></audio>
+      <audio data-hf-id="hf-auhd" id="a05" src="assets/audio/05_risk_gates.mp3" data-start="85.394" data-duration="23.740" data-playback-rate="1.16"></audio>
+      <audio data-hf-id="hf-kjt8" id="a06" src="assets/audio/06_infra.mp3" data-start="109.134" data-duration="18.096" data-playback-rate="1.16"></audio>
+      <audio data-hf-id="hf-pt9i" id="a07" src="assets/audio/07_dashboard.mp3" data-start="127.230" data-duration="20.457" data-playback-rate="1.16"></audio>
+      <audio data-hf-id="hf-t0fg" id="a08" src="assets/audio/08_code.mp3" data-start="147.687" data-duration="13.732" data-playback-rate="1.16"></audio>
+      <audio data-hf-id="hf-vbjc" id="a09" src="assets/audio/09_results.mp3" data-start="161.419" data-duration="10.449" data-playback-rate="1.16"></audio>
+      <audio data-hf-id="hf-psvs" id="a10" src="assets/audio/10_closing.mp3" data-start="171.868" data-duration="11.129" data-playback-rate="1.16"></audio>
     </div>
 
     <script>
+      const SPEED = 1.16;
+      const S = (seconds) => seconds / SPEED;
+      // <<< GENERATED T -- edit narration.json, then `npm run timing`
       const T = {
-        s01: 0, s02: 15.882, s03: 34.086, s04: 64.272, s05: 119.768, s06: 154.784, s07: 180.79, s08: 206.471, s09: 223.561, s10: 243.437, end: 274.459,
+        s01: 0, s02: 14.933, s03: 29.826, s04: 52.566, s05: 85.394, s06: 109.134, s07: 127.230, s08: 147.687, s09: 161.419, s10: 171.868, end: 182.997,
       };
+      // >>> GENERATED T
 
       document.fonts.ready.then(() => {
         const tl = gsap.timeline({ paused: true });
         const EASE = "power2.out";
 
-        // ---- 01 title ----
-        tl.fromTo("#s01-mark", { opacity: 0, scale: 0.9 }, { opacity: 1, scale: 1, duration: 0.9, ease: EASE }, T.s01 + 0.15);
-        tl.fromTo("#s01-tag", { opacity: 0, y: 22 }, { opacity: 1, y: 0, duration: 0.7, ease: EASE }, T.s01 + 1.0);
-        tl.fromTo("#s01-sub", { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.7, ease: EASE }, T.s01 + 1.5);
 
-        // ---- 02 problem ----
-        tl.fromTo("#s02-h1", { opacity: 0, y: 26 }, { opacity: 1, y: 0, duration: 0.7, ease: EASE }, T.s02 + 0.1);
-        tl.fromTo("#s02-left", { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.6, ease: EASE }, T.s02 + 1.4);
-        tl.fromTo("#s02-arrow1", { scaleX: 0 }, { scaleX: 1, duration: 0.5, ease: EASE }, T.s02 + 2.1);
-        tl.fromTo("#s02-right", { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.6, ease: EASE }, T.s02 + 3.2);
-        tl.fromTo("#s02-arrow2", { scaleX: 0 }, { scaleX: 1, duration: 0.4, ease: EASE }, T.s02 + 3.9);
-        tl.fromTo("#s02-arrow3", { scaleX: 0 }, { scaleX: 1, duration: 0.4, ease: EASE }, T.s02 + 4.4);
 
-        // ---- 03 architecture (4 boxes, staggered across the scene) ----
-        tl.fromTo("#s03-h1", { opacity: 0, y: 26 }, { opacity: 1, y: 0, duration: 0.7, ease: EASE }, T.s03 + 0.1);
-        const pipeBoxes = gsap.utils.toArray(".pipe-box");
-        const pipeArrows = gsap.utils.toArray(".pipe-arrow");
-        pipeBoxes.forEach((el, i) => {
-          const t = T.s03 + 2.0 + i * 6.8;
-          tl.fromTo(el, { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.6, ease: EASE }, t);
-          if (pipeArrows[i]) tl.fromTo(pipeArrows[i], { scaleX: 0 }, { scaleX: 1, duration: 0.4, ease: EASE }, t + 0.55);
-        });
 
-        // ---- 04 ai logic (bars + tickers) ----
-        tl.fromTo("#s04-h1", { opacity: 0, y: 26 }, { opacity: 1, y: 0, duration: 0.7, ease: EASE }, T.s04 + 0.1);
-        // Beats keyed to when each phrase is actually SPOKEN, read out of the
-        // ElevenLabs word alignment for 04_ai_logic — not spaced evenly. The
-        // v3.1 rewrite tripled this scene's narration (22.9s -> 55.5s); left
-        // on its old 9-second animation it would have held a static frame for
-        // 46 seconds, which is the "it's just a PPT" failure this whole
-        // rebuild exists to avoid.
-        [
-          ["#s04-vec-trend", 6.86], ["#s04-ev-trend", 13.29],
-          ["#s04-ev-trend2", 18.19], ["#s04-vec-cat", 22.26],
-          ["#s04-ev-cat", 25.23], ["#s04-ev-pead", 28.98],
-          ["#s04-vec-evt", 34.62], ["#s04-ev-evt", 39.26],
-          ["#s04-vec-vol", 43.75],
-        ].forEach(([sel, at]) => {
-          tl.fromTo(sel, { opacity: 0, y: 14 },
-                    { opacity: 1, y: 0, duration: 0.45, ease: EASE }, T.s04 + at);
-        });
-        // "...so it is off" — the drift leg is struck out on the word
-        tl.set("#s04-ev-pead", { attr: { class: "vec-ev killed" } }, T.s04 + 33.38);
-        tl.fromTo("#s04-llm", { opacity: 0, y: 16 },
-                  { opacity: 1, y: 0, duration: 0.6, ease: EASE }, T.s04 + 47.89);
 
-        // ---- 05 risk gates (4 stat cards) ----
-        tl.fromTo("#s05-h1", { opacity: 0, y: 26 }, { opacity: 1, y: 0, duration: 0.7, ease: EASE }, T.s05 + 0.1);
-        gsap.utils.toArray(".stat-card").forEach((el, i) => {
-          const t = T.s05 + 2.4 + i * 5.6;
-          tl.fromTo(el, { opacity: 0, y: 26, scale: 0.97 }, { opacity: 1, y: 0, scale: 1, duration: 0.55, ease: EASE }, t);
-        });
 
-        // ---- 06 infra (pills + flow) ----
-        tl.fromTo("#s06-h1", { opacity: 0, y: 26 }, { opacity: 1, y: 0, duration: 0.7, ease: EASE }, T.s06 + 0.1);
-        tl.fromTo("#s06-pills > *", { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.4, stagger: 0.15, ease: EASE }, T.s06 + 1.3);
-        const flowBoxes = gsap.utils.toArray(".flow-box");
-        const flowArrows = gsap.utils.toArray(".flow-arrow");
-        flowBoxes.forEach((el, i) => {
-          const t = T.s06 + 3.0 + i * 2.0;
-          tl.fromTo(el, { opacity: 0, x: -16 }, { opacity: 1, x: 0, duration: 0.5, ease: EASE }, t);
-          if (flowArrows[i]) tl.fromTo(flowArrows[i], { scaleX: 0 }, { scaleX: 1, duration: 0.35, ease: EASE }, t + 0.45);
-        });
 
-        // ---- 07 dashboard: real screenshots, crossfade + slow pan ----
-        const shotDur = 8.56;
-        [
-          { img: "#s07-img1", t: T.s07 },
-          { img: "#s07-img2", t: T.s07 + shotDur },
-          { img: "#s07-img3", t: T.s07 + shotDur * 2 },
-        ].forEach(({ img, t }, i) => {
-          tl.fromTo(img, { scale: 1.0 }, { scale: 1.045, duration: shotDur + 0.6, ease: "none" }, t);
-          if (i > 0) {
-            tl.to(img, { opacity: 1, duration: 0.6, ease: EASE }, t);
-            tl.to(document.querySelector(i === 1 ? "#s07-img1" : "#s07-img2"), { opacity: 0, duration: 0.6, ease: EASE }, t);
-          }
-        });
 
-        // ---- 08 code: gentle scale-settle ----
-        tl.fromTo("#s08-img", { scale: 1.05 }, { scale: 1.0, duration: 1.0, ease: EASE }, T.s08);
 
-        // ---- 09 results placeholder ----
-        tl.fromTo("#s09-h1", { opacity: 0, y: 26 }, { opacity: 1, y: 0, duration: 0.7, ease: EASE }, T.s09 + 0.1);
-        gsap.utils.toArray(".placeholder-card").forEach((el, i) => {
-          const t = T.s09 + 2.2 + i * 0.5;
-          tl.fromTo(el, { opacity: 0, y: 20 }, { opacity: 0.9, y: 0, duration: 0.5, ease: EASE }, t);
-          tl.to(el, { opacity: 0.55, duration: 1.4, ease: "sine.inOut", repeat: 3, yoyo: true }, t + 0.6);
-        });
 
-        // ---- 10 closing ----
-        tl.fromTo("#s10-mark", { opacity: 0, scale: 0.94 }, { opacity: 1, scale: 1, duration: 0.7, ease: EASE }, T.s10 + 0.1);
-        tl.fromTo("#s10-lead", { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.6, ease: EASE }, T.s10 + 0.9);
-        tl.fromTo("#s10-chips > *", { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.4, stagger: 0.15, ease: EASE }, T.s10 + 1.6);
-        tl.fromTo("#s10-links", { opacity: 0 }, { opacity: 1, duration: 0.6, ease: EASE }, T.s10 + 2.6);
-        tl.fromTo("#s10-thanks", { opacity: 0 }, { opacity: 1, duration: 0.6, ease: EASE }, T.s10 + 3.2);
 
-        
-
-        // ---- burned-in captions (real per-word alignment from ElevenLabs) ----
+        // ---- burned-in captions (real per-character alignment from ElevenLabs) ----
+        // <<< GENERATED captions -- edit narration.json, then `npm run timing`
         const CAPTIONS = [
-        {id:"cap-s01-0", start:0, end:1.997},
-        {id:"cap-s01-1", start:2.322, end:3.309},
-        {id:"cap-s01-2", start:3.75, end:6.293},
-        {id:"cap-s01-3", start:6.618, end:9.59},
-        {id:"cap-s01-4", start:9.915, end:11.413},
-        {id:"cap-s01-5", start:11.796, end:13.874},
-        {id:"cap-s01-6", start:14.257, end:15.882},
-        {id:"cap-s02-0", start:15.882, end:17.612},
-        {id:"cap-s02-1", start:17.67, end:18.517},
-        {id:"cap-s02-2", start:18.668, end:20.027},
-        {id:"cap-s02-3", start:20.201, end:22.059},
-        {id:"cap-s02-4", start:22.117, end:23.777},
-        {id:"cap-s02-5", start:23.823, end:26.18},
-        {id:"cap-s02-6", start:26.389, end:27.794},
-        {id:"cap-s02-7", start:27.968, end:30},
-        {id:"cap-s02-8", start:30.046, end:32.879},
-        {id:"cap-s02-9", start:32.914, end:34.087},
-        {id:"cap-s03-0", start:34.086, end:35.259},
-        {id:"cap-s03-1", start:35.328, end:38.637},
-        {id:"cap-s03-2", start:38.881, end:40.251},
-        {id:"cap-s03-3", start:40.321, end:41.9},
-        {id:"cap-s03-4", start:42.341, end:44.361},
-        {id:"cap-s03-5", start:44.639, end:47.089},
-        {id:"cap-s03-6", start:47.414, end:48.668},
-        {id:"cap-s03-7", start:49.109, end:50.63},
-        {id:"cap-s03-8", start:50.676, end:53.126},
-        {id:"cap-s03-9", start:53.451, end:55.076},
-        {id:"cap-s03-10", start:55.518, end:57.7},
-        {id:"cap-s03-11", start:57.758, end:59.291},
-        {id:"cap-s03-12", start:59.732, end:61.532},
-        {id:"cap-s03-13", start:61.81, end:64.272},
-        {id:"cap-s04-0", start:64.272, end:65.99},
-        {id:"cap-s04-1", start:66.048, end:68.161},
-        {id:"cap-s04-2", start:68.335, end:69.473},
-        {id:"cap-s04-3", start:69.647, end:70.692},
-        {id:"cap-s04-4", start:71.133, end:72.991},
-        {id:"cap-s04-5", start:73.374, end:75.568},
-        {id:"cap-s04-6", start:75.603, end:76.776},
-        {id:"cap-s04-7", start:77.055, end:79.597},
-        {id:"cap-s04-8", start:79.655, end:82.14},
-        {id:"cap-s04-9", start:82.465, end:85.367},
-        {id:"cap-s04-10", start:85.425, end:88.455},
-        {id:"cap-s04-11", start:88.513, end:90.754},
-        {id:"cap-s04-12", start:91.033, end:92.484},
-        {id:"cap-s04-13", start:92.995, end:96.059},
-        {id:"cap-s04-14", start:96.106, end:97.476},
-        {id:"cap-s04-15", start:97.65, end:98.509},
-        {id:"cap-s04-16", start:98.892, end:101.04},
-        {id:"cap-s04-17", start:101.365, end:102.863},
-        {id:"cap-s04-18", start:103.107, end:106.427},
-        {id:"cap-s04-19", start:106.485, end:107.635},
-        {id:"cap-s04-20", start:108.018, end:110.525},
-        {id:"cap-s04-21", start:110.56, end:111.721},
-        {id:"cap-s04-22", start:112.162, end:114.415},
-        {id:"cap-s04-23", start:114.473, end:116.876},
-        {id:"cap-s04-24", start:117.48, end:119.767},
-        {id:"cap-s05-0", start:119.768, end:121.637},
-        {id:"cap-s05-1", start:121.962, end:123.1},
-        {id:"cap-s05-2", start:123.274, end:124.284},
-        {id:"cap-s05-3", start:124.667, end:126.583},
-        {id:"cap-s05-4", start:127.024, end:128.243},
-        {id:"cap-s05-5", start:128.684, end:130.948},
-        {id:"cap-s05-6", start:131.157, end:133.073},
-        {id:"cap-s05-7", start:133.456, end:134.281},
-        {id:"cap-s05-8", start:134.722, end:136.521},
-        {id:"cap-s05-9", start:136.591, end:138.634},
-        {id:"cap-s05-10", start:138.878, end:139.807},
-        {id:"cap-s05-11", start:140.248, end:142.233},
-        {id:"cap-s05-12", start:142.268, end:144.463},
-        {id:"cap-s05-13", start:144.509, end:145.09},
-        {id:"cap-s05-14", start:145.473, end:146.901},
-        {id:"cap-s05-15", start:147.179, end:149.327},
-        {id:"cap-s05-16", start:149.397, end:151.324},
-        {id:"cap-s05-17", start:151.359, end:154.784},
-        {id:"cap-s06-0", start:154.784, end:155.957},
-        {id:"cap-s06-1", start:155.98, end:157.965},
-        {id:"cap-s06-2", start:158.116, end:161.576},
-        {id:"cap-s06-3", start:161.645, end:164.594},
-        {id:"cap-s06-4", start:164.676, end:166.696},
-        {id:"cap-s06-5", start:166.812, end:168.472},
-        {id:"cap-s06-6", start:168.53, end:172.013},
-        {id:"cap-s06-7", start:172.454, end:174.393},
-        {id:"cap-s06-8", start:174.567, end:175.833},
-        {id:"cap-s06-9", start:176.274, end:178.712},
-        {id:"cap-s06-10", start:178.758, end:180.79},
-        {id:"cap-s07-0", start:180.79, end:182.125},
-        {id:"cap-s07-1", start:182.148, end:184.819},
-        {id:"cap-s07-2", start:185.26, end:187.048},
-        {id:"cap-s07-3", start:187.373, end:189.695},
-        {id:"cap-s07-4", start:189.73, end:191.065},
-        {id:"cap-s07-5", start:191.088, end:193.329},
-        {id:"cap-s07-6", start:193.503, end:195.732},
-        {id:"cap-s07-7", start:195.791, end:197.683},
-        {id:"cap-s07-8", start:197.729, end:199.75},
-        {id:"cap-s07-9", start:199.808, end:202.257},
-        {id:"cap-s07-10", start:202.466, end:203.604},
-        {id:"cap-s07-11", start:203.929, end:205.02},
-        {id:"cap-s07-12", start:205.067, end:206.472},
-        {id:"cap-s08-0", start:206.471, end:207.992},
-        {id:"cap-s08-1", start:208.038, end:209.292},
-        {id:"cap-s08-2", start:209.362, end:211.637},
-        {id:"cap-s08-3", start:211.684, end:213.774},
-        {id:"cap-s08-4", start:214.215, end:215.457},
-        {id:"cap-s08-5", start:215.782, end:217.675},
-        {id:"cap-s08-6", start:217.721, end:219.718},
-        {id:"cap-s08-7", start:219.753, end:222.121},
-        {id:"cap-s08-8", start:222.446, end:223.561},
-        {id:"cap-s09-0", start:223.561, end:225.535},
-        {id:"cap-s09-1", start:225.628, end:227.717},
-        {id:"cap-s09-2", start:227.752, end:229.482},
-        {id:"cap-s09-3", start:229.529, end:231.409},
-        {id:"cap-s09-4", start:231.456, end:232.466},
-        {id:"cap-s09-5", start:232.617, end:237.11},
-        {id:"cap-s09-6", start:237.145, end:238.143},
-        {id:"cap-s09-7", start:238.224, end:240.198},
-        {id:"cap-s09-8", start:240.523, end:242.218},
-        {id:"cap-s09-9", start:242.253, end:243.437},
-        {id:"cap-s10-0", start:243.437, end:246.479},
-        {id:"cap-s10-1", start:246.548, end:248.836},
-        {id:"cap-s10-2", start:248.894, end:251.181},
-        {id:"cap-s10-3", start:251.506, end:253.433},
-        {id:"cap-s10-4", start:253.468, end:256.034},
-        {id:"cap-s10-5", start:256.243, end:258.437},
-        {id:"cap-s10-6", start:258.762, end:261.92},
-        {id:"cap-s10-7", start:262.303, end:263.452},
-        {id:"cap-s10-8", start:263.499, end:265.194},
-        {id:"cap-s10-9", start:265.403, end:267.539},
-        {id:"cap-s10-10", start:267.597, end:268.851},
-        {id:"cap-s10-11", start:269.234, end:272.438},
-        {id:"cap-s10-12", start:272.485, end:273.239},
-        {id:"cap-s10-13", start:273.355, end:274.458}
+
         ];
+        // >>> GENERATED captions
         CAPTIONS.forEach(c => {
           const el = document.getElementById(c.id);
-          tl.fromTo(el, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.12, ease: "none" }, c.start);
-          tl.set(el, { autoAlpha: 0 }, c.end);
+          tl.fromTo(el, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.1, ease: "none" }, S(c.start));
+          tl.set(el, { autoAlpha: 0 }, S(c.end));
         });
 
         window.__timelines["main"] = tl;

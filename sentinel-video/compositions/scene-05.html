@@ -1,0 +1,103 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <!-- Scene 05 · RISK GATES. Timing is compiled: see ../narration.json and
+         ../tools/timeline.py. Shared design tokens and this scene's own CSS
+         live in the host stylesheet; the host slot keeps .clip/.scene. -->
+  </head>
+  <body>
+    <template>
+      <style>
+        #root { position: absolute; inset: 0; }
+      </style>
+
+      <div id="root" data-composition-id="scene-s05" data-width="1920" data-height="1080">
+        <div data-hf-id="hf-n2y0" class="grid-overlay"></div>
+        <div data-hf-id="hf-x6k9" class="cap" id="cap-s05-0">Every position is defined-risk --</div>
+        <div data-hf-id="hf-t1y4" class="cap" id="cap-s05-1">no naked shorts,</div>
+        <div data-hf-id="hf-rrm2" class="cap" id="cap-s05-2">no market orders.</div>
+        <div data-hf-id="hf-oj94" class="cap" id="cap-s05-3">Twelve thousand is the cap on one</div>
+        <div data-hf-id="hf-a47c" class="cap" id="cap-s05-4">trade, always a fraction of starting equity,</div>
+        <div data-hf-id="hf-6mcr" class="cap" id="cap-s05-5">never of current.</div>
+        <div data-hf-id="hf-eor5" class="cap" id="cap-s05-6">Forty thousand across the book,</div>
+        <div data-hf-id="hf-kwa6" class="cap" id="cap-s05-7">enforced at submission,</div>
+        <div data-hf-id="hf-lmt9" class="cap" id="cap-s05-8">not just declared.</div>
+        <div data-hf-id="hf-t384" class="cap" id="cap-s05-9">A kill switch at minus twelve thousand</div>
+        <div data-hf-id="hf-y76k" class="cap" id="cap-s05-10">ends the day's entries.</div>
+        <div data-hf-id="hf-apq8" class="cap" id="cap-s05-11">And below seventy thousand:</div>
+        <div data-hf-id="hf-ftpf" class="cap" id="cap-s05-12">no new exposure,</div>
+        <div data-hf-id="hf-vnfq" class="cap" id="cap-s05-13">but exits keep running.</div>
+        <div data-hf-id="hf-ixmx" id="s05-stamp" class="stamp">DEFINED RISK</div>
+        <div data-hf-id="hf-f2yy" class="wrap">
+          <span data-hf-id="hf-jyqd" class="kicker">Risk gates</span>
+          <div data-hf-id="hf-su4p" class="h1" id="s05-h1">Every position is defined-risk. No exceptions.</div>
+
+          <div data-hf-id="hf-z8rk" style="display: grid; grid-template-columns: 1fr 1fr; gap: 26px; margin-top: 60px; max-width: 1500px;">
+            <div data-hf-id="hf-eebq" class="card stat-card" data-i="0" style="padding: 32px 36px; opacity:0;">
+              <div data-hf-id="hf-9dbv" class="mono" style="font-size: 52px; font-weight: 800; color: var(--text);">$12,000</div>
+              <div data-hf-id="hf-tkjg" style="font-size: 17px; color: var(--muted); margin-top: 10px;">max on any single trade — a fraction of <b data-hf-id="hf-mhbw" style="color:var(--text)">starting</b> equity, not current</div>
+            </div>
+            <div data-hf-id="hf-fpcx" class="card stat-card" data-i="1" style="padding: 32px 36px; opacity:0;">
+              <div data-hf-id="hf-v7po" class="mono" style="font-size: 52px; font-weight: 800; color: var(--text);">$40,000</div>
+              <div data-hf-id="hf-cexg" style="font-size: 17px; color: var(--muted); margin-top: 10px;">max across the whole book — enforced at submission, not just declared</div>
+            </div>
+            <div data-hf-id="hf-4vsb" class="card stat-card" data-i="2" style="padding: 32px 36px; opacity:0; border-color: rgba(239,107,107,.3);">
+              <div data-hf-id="hf-9bck" class="mono" style="font-size: 52px; font-weight: 800; color: var(--red);">-$12,000</div>
+              <div data-hf-id="hf-xxpj" style="font-size: 17px; color: var(--muted); margin-top: 10px;">daily kill switch — halts new entries for the rest of the day</div>
+            </div>
+            <div data-hf-id="hf-57y1" class="card stat-card" data-i="3" style="padding: 32px 36px; opacity:0; border-color: rgba(255,207,112,.3);">
+              <div data-hf-id="hf-byrh" class="mono" style="font-size: 52px; font-weight: 800; color: var(--amber);">&lt;$70,000</div>
+              <div data-hf-id="hf-dvq2" style="font-size: 17px; color: var(--muted); margin-top: 10px;">Entry Maintenance — no new exposure, exits keep running</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <script>
+        window.__timelines = window.__timelines || {};
+        (() => {
+          const SPEED = 1.16;
+          const S = (seconds) => seconds / SPEED;
+          const EASE = "power2.out";
+          const tl = gsap.timeline({ paused: true });
+
+          tl.fromTo("#s05-h1", { opacity: 0, y: 26 }, { opacity: 1, y: 0, duration: 0.7, ease: EASE }, S(0.1));
+          tl.fromTo("#s05-stamp", { opacity: 0, scale: 1.45, rotation: 15 }, { opacity: 0.92, scale: 1, rotation: 4, duration: 0.45, ease: "back.out(1.8)" }, S(1.35));
+          tl.to("#s05-stamp", { scale: 1.035, rotation: 2, duration: 1.5, ease: "sine.inOut", repeat: 13, yoyo: true }, S(2.0));
+          gsap.utils.toArray(".stat-card").forEach((el, i) => {
+            const t = S(2.4 + i * 5.6);
+            tl.fromTo(el, { opacity: 0, y: 26, scale: 0.97 }, { opacity: 1, y: 0, scale: 1, duration: 0.55, ease: EASE }, t);
+          });
+
+
+          // <<< GENERATED captions -- edit narration.json, then `npm run timing`
+          const CAPTIONS = [
+          {id:"cap-s05-0", start:0, end:2.322},
+          {id:"cap-s05-1", start:2.45, end:3.738},
+          {id:"cap-s05-2", start:3.913, end:5.05},
+          {id:"cap-s05-3", start:5.433, end:7.338},
+          {id:"cap-s05-4", start:7.372, end:10.542},
+          {id:"cap-s05-5", start:10.786, end:11.726},
+          {id:"cap-s05-6", start:12.109, end:13.932},
+          {id:"cap-s05-7", start:14.211, end:15.697},
+          {id:"cap-s05-8", start:16.022, end:17.09},
+          {id:"cap-s05-9", start:17.473, end:19.784},
+          {id:"cap-s05-10", start:19.9, end:21.351},
+          {id:"cap-s05-11", start:21.792, end:23.766},
+          {id:"cap-s05-12", start:24.277, end:25.589},
+          {id:"cap-s05-13", start:25.798, end:27.539}
+          ];
+          // >>> GENERATED captions
+          CAPTIONS.forEach(c => {
+            const el = document.getElementById(c.id);
+            tl.fromTo(el, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.1, ease: "none" }, S(c.start));
+            tl.set(el, { autoAlpha: 0 }, S(c.end));
+          });
+
+          window.__timelines["scene-s05"] = tl;
+        })();
+      </script>
+    </template>
+  </body>
+</html>

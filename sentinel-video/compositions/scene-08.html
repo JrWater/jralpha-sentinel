@@ -1,0 +1,73 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <!-- Scene 08 · CODE. Timing is compiled: see ../narration.json and
+         ../tools/timeline.py. Shared design tokens and this scene's own CSS
+         live in the host stylesheet; the host slot keeps .clip/.scene. -->
+  </head>
+  <body>
+    <template>
+      <style>
+        #root { position: absolute; inset: 0; }
+        /* A real element, not ::before: .scene::before is already claimed by
+           the shared decorative frame, so reusing it left this badge carrying
+           that rule's right/bottom insets — an opaque full-frame cream box
+           over the screenshot. */
+        .code-badge {
+          position: absolute; z-index: 4; left: 58px; top: 38px;
+          padding: 12px 18px; color: var(--ink); background: var(--paper);
+          border: 2px solid var(--ink); box-shadow: 5px 6px 0 rgba(0,0,0,.3);
+          transform: rotate(-1.5deg);
+          font: 900 17px/1 "SF Mono", Menlo, monospace; letter-spacing: .08em;
+        }
+      </style>
+
+      <div id="root" data-composition-id="scene-s08" data-width="1920" data-height="1080">
+        <div class="code-badge">REAL CODE · NO PSEUDOCODE</div>
+        <img data-hf-id="hf-27az" id="s08-img" src="assets/code_screenshot.png" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover;">
+        <div data-hf-id="hf-6crn" class="cap cap-bar" id="cap-s08-0">This is a gate:</div>
+        <div data-hf-id="hf-laj7" class="cap cap-bar" id="cap-s08-1">plain code, a rationale,</div>
+        <div data-hf-id="hf-77bw" class="cap cap-bar" id="cap-s08-2">and a severity that can't quietly default</div>
+        <div data-hf-id="hf-ra0k" class="cap cap-bar" id="cap-s08-3">to something weaker.</div>
+        <div data-hf-id="hf-thge" class="cap cap-bar" id="cap-s08-4">And this is the permit --</div>
+        <div data-hf-id="hf-6kx1" class="cap cap-bar" id="cap-s08-5">bound to a commit and a policy</div>
+        <div data-hf-id="hf-nqqj" class="cap cap-bar" id="cap-s08-6">hash, so one run can't borrow another's</div>
+        <div data-hf-id="hf-jlmh" class="cap cap-bar" id="cap-s08-7">permission.</div>
+      </div>
+
+      <script>
+        window.__timelines = window.__timelines || {};
+        (() => {
+          const SPEED = 1.16;
+          const S = (seconds) => seconds / SPEED;
+          const EASE = "power2.out";
+          const tl = gsap.timeline({ paused: true });
+
+          tl.fromTo("#s08-img", { scale: 1.035, x: -8 }, { scale: 1.0, x: 0, duration: 13.5, ease: "sine.inOut" }, 0);
+
+
+          // <<< GENERATED captions -- edit narration.json, then `npm run timing`
+          const CAPTIONS = [
+          {id:"cap-s08-0", start:0, end:1.01},
+          {id:"cap-s08-1", start:1.451, end:3.738},
+          {id:"cap-s08-2", start:3.947, end:6.525},
+          {id:"cap-s08-3", start:6.571, end:7.686},
+          {id:"cap-s08-4", start:8.127, end:9.451},
+          {id:"cap-s08-5", start:9.892, end:11.842},
+          {id:"cap-s08-6", start:11.912, end:15.012},
+          {id:"cap-s08-7", start:15.058, end:15.929}
+          ];
+          // >>> GENERATED captions
+          CAPTIONS.forEach(c => {
+            const el = document.getElementById(c.id);
+            tl.fromTo(el, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.1, ease: "none" }, S(c.start));
+            tl.set(el, { autoAlpha: 0 }, S(c.end));
+          });
+
+          window.__timelines["scene-s08"] = tl;
+        })();
+      </script>
+    </template>
+  </body>
+</html>

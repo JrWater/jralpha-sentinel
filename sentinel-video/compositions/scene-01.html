@@ -1,0 +1,157 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <!-- Scene 01 · TITLE. Timing is compiled: see ../narration.json and
+         ../tools/timeline.py. Shared design tokens and this scene's own CSS
+         live in the host stylesheet; the host slot keeps .clip/.scene. -->
+  </head>
+  <body>
+    <template>
+      <style>
+        #root { position: absolute; inset: 0; }
+      </style>
+
+      <div id="root" data-composition-id="scene-s01" data-width="1920" data-height="1080">
+        <div data-hf-id="hf-gycn" class="grid-overlay"></div>
+        <div data-hf-id="hf-7xpp" class="cap" id="cap-s01-0">Sentinel: an autonomous options trading agent</div>
+        <div data-hf-id="hf-ptv0" class="cap" id="cap-s01-1">for the Alpaca A-I Trading Agents Hackathon.</div>
+        <div data-hf-id="hf-ty22" class="cap" id="cap-s01-2">It trades unattended --</div>
+        <div data-hf-id="hf-isjx" class="cap" id="cap-s01-3">no human approves anything.</div>
+        <div data-hf-id="hf-tw2v" class="cap" id="cap-s01-4">Inside, the language model proposes,</div>
+        <div data-hf-id="hf-2mn6" class="cap" id="cap-s01-5">and sixteen deterministic gates decide.</div>
+        <svg data-hf-id="hf-rdvs" id="s01-bot" class="bot bot-title" viewBox="0 0 200 200" aria-hidden="true">
+          <path data-hf-id="hf-80qx" class="accent" d="M100 28V12m0 0 13 8M35 92 17 80m148 12 18-12" />
+          <rect data-hf-id="hf-g5l1" class="ink" x="37" y="43" width="126" height="112" rx="34" />
+          <circle data-hf-id="hf-lxmy" class="face" cx="78" cy="94" r="8" /><circle data-hf-id="hf-rsdi" class="face" cx="122" cy="94" r="8" />
+          <path data-hf-id="hf-g6tq" class="accent" d="M75 122c14 13 36 13 50 0M67 156l-10 25m76-25 10 25" />
+        </svg>
+        <div data-hf-id="hf-lcdb" class="s01-paper-strip" id="s01-paper-strip" aria-hidden="true"></div>
+        <svg data-hf-id="hf-ezyv" class="s01-orbit" id="s01-orbit" viewBox="0 0 430 430" aria-hidden="true">
+          <path data-hf-id="hf-n93m" id="s01-orbit-path" d="M54 220 C54 104 160 48 267 67 C375 86 398 183 352 276 C306 369 171 401 91 326 C40 278 30 249 54 220" />
+          <circle data-hf-id="hf-hfub" id="s01-orbit-dot" cx="354" cy="177" r="9" />
+        </svg>
+        <div data-hf-id="hf-77cd" class="sketch-note s01-note" id="s01-note"><span data-hf-id="hf-w6px">autonomous</span><span data-hf-id="hf-i1en">≠ unchecked</span><small data-hf-id="hf-uhrr">rules stay awake</small></div>
+        <div data-hf-id="hf-werm" class="card s01-gates" id="s01-gates">
+          <div data-hf-id="hf-36me" class="s01-gates-title">DETERMINISTIC GATES</div>
+          <div data-hf-id="hf-3e8k" class="s01-gate-grid" aria-label="sixteen deterministic gates">
+            <i data-hf-id="hf-9vhy" class="s01-gate"></i><i data-hf-id="hf-iska" class="s01-gate"></i><i data-hf-id="hf-j6vb" class="s01-gate"></i><i data-hf-id="hf-jl6c" class="s01-gate"></i>
+            <i data-hf-id="hf-jzhd" class="s01-gate"></i><i data-hf-id="hf-kdse" class="s01-gate"></i><i data-hf-id="hf-ks3f" class="s01-gate"></i><i data-hf-id="hf-l6eg" class="s01-gate"></i>
+            <i data-hf-id="hf-lkph" class="s01-gate"></i><i data-hf-id="hf-lz0i" class="s01-gate"></i><i data-hf-id="hf-xcta" class="s01-gate"></i><i data-hf-id="hf-wyi9" class="s01-gate"></i>
+            <i data-hf-id="hf-y5fc" class="s01-gate"></i><i data-hf-id="hf-xr4b" class="s01-gate"></i><i data-hf-id="hf-vrl6" class="s01-gate"></i><i data-hf-id="hf-vda5" class="s01-gate"></i>
+          </div>
+        </div>
+        <!-- Adapted from the registry's hw-callout-circle: a deterministic
+             measured SVG outline around the gate panel, not a static frame. -->
+        <div data-hf-id="hf-edl5" class="s01-callout" id="s01-callout" aria-hidden="true">
+          <svg data-hf-id="hf-fi3n" viewBox="0 0 420 260">
+            <path data-hf-id="hf-cs1p" id="s01-callout-scribble" />
+            <path data-hf-id="hf-erh1" id="s01-callout-outline" />
+            <path data-hf-id="hf-oke2" id="s01-callout-connector" />
+          </svg>
+          <div data-hf-id="hf-lfju" class="s01-callout-label" id="s01-callout-label"><span data-hf-id="hf-krke">16 gates</span><span data-hf-id="hf-e7hp">decide</span></div>
+        </div>
+        <div data-hf-id="hf-3yfv" class="wrap" style="align-items: center; justify-content: center; text-align: center;">
+          <div data-hf-id="hf-nmum" id="s01-mark" style="display: flex; align-items: center; gap: 22px;">
+            <svg data-hf-id="hf-hn7m" width="72" height="72" viewBox="0 0 72 72" fill="none">
+              <rect data-hf-id="hf-r7sp" x="3" y="3" width="66" height="66" rx="16" stroke="#4fd189" stroke-width="3" />
+              <path data-hf-id="hf-hif2" d="M22 37 L32 47 L50 25" stroke="#4fd189" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+            <div data-hf-id="hf-kd35" style="font-size: 96px; font-weight: 800; letter-spacing: -0.03em; color: #fff;">SENTINEL</div>
+          </div>
+          <div data-hf-id="hf-8qeu" id="s01-tag" style="font-size: 32px; color: var(--text); margin-top: 30px; max-width: 1200px;">
+            The model proposes. <b data-hf-id="hf-dhmj" style="color: var(--green)">The gates decide.</b>
+          </div>
+          <div data-hf-id="hf-su38" id="s01-sub" style="font-size: 19px; color: var(--muted); margin-top: 22px; letter-spacing: 0.02em;">
+            Alpaca AI Trading Agents Hackathon &#160;·&#160; lablab.ai × Alpaca &#160;·&#160; Aug 28 – Sep 4
+          </div>
+        </div>
+      </div>
+
+      <script>
+        window.__timelines = window.__timelines || {};
+        (() => {
+          const SPEED = 1.16;
+          const S = (seconds) => seconds / SPEED;
+          const EASE = "power2.out";
+          const tl = gsap.timeline({ paused: true });
+
+          tl.fromTo("#s01-paper-strip", { opacity: 0, scale: 0.92, rotation: -7 }, { opacity: 1, scale: 1, rotation: 0, duration: 1.0, ease: "power2.out" }, S(0.05));
+          tl.fromTo("#s01-orbit", { opacity: 0, scale: 0.82, rotation: -14 }, { opacity: 1, scale: 1, rotation: 0, duration: 1.0, ease: "power2.out" }, S(0.18));
+          tl.to("#s01-orbit", { rotation: 10, duration: 6.2, ease: "sine.inOut", repeat: 1, yoyo: true }, S(1.3));
+          tl.to("#s01-orbit-dot", { scale: 1.34, duration: 0.8, ease: "sine.inOut", repeat: 8, yoyo: true, transformOrigin: "50% 50%" }, S(1.8));
+          tl.fromTo("#s01-bot", { opacity: 0, x: -55, y: 24, rotation: -9 }, { opacity: 1, x: 0, y: 0, rotation: -3, duration: 0.8, ease: "back.out(1.5)" }, S(0.1));
+          tl.to("#s01-bot", { y: -8, rotation: 1, duration: 1.45, ease: "sine.inOut", repeat: 8, yoyo: true }, S(1.8));
+          tl.fromTo("#s01-mark", { opacity: 0, scale: 0.9 }, { opacity: 1, scale: 1, duration: 0.9, ease: EASE }, S(0.15));
+          tl.fromTo("#s01-tag", { opacity: 0, y: 22 }, { opacity: 1, y: 0, duration: 0.7, ease: "power3.out" }, S(1.0));
+          tl.fromTo("#s01-sub", { opacity: 0, x: 22 }, { opacity: 1, x: 0, duration: 0.7, ease: "sine.out" }, S(1.5));
+          tl.to("#s01-mark", { y: -8, scale: 1.018, duration: 3.2, ease: "sine.inOut", repeat: 1, yoyo: true }, S(2.3));
+          tl.fromTo("#s01-note", { opacity: 0, x: 38, y: -16, rotation: 9 }, { opacity: 1, x: 0, y: 0, rotation: 3, duration: 0.58, ease: "back.out(1.7)" }, S(3.9));
+          tl.to("#s01-note", { y: -9, rotation: 1, duration: 1.3, ease: "sine.inOut", repeat: 4, yoyo: true }, S(4.7));
+          tl.fromTo("#s01-gates", { opacity: 0, x: 50, y: 12, rotation: 3 }, { opacity: 1, x: 0, y: 0, rotation: 0, duration: 0.65, ease: "back.out(1.4)" }, S(6.6));
+          const s01Paths = ["#s01-callout-outline", "#s01-callout-scribble", "#s01-callout-connector"];
+          const s01Callout = document.querySelector("#s01-callout");
+          const s01Outline = document.querySelector("#s01-callout-outline");
+          const s01Scribble = document.querySelector("#s01-callout-scribble");
+          const s01Connector = document.querySelector("#s01-callout-connector");
+          const s01Hash = (n) => {
+            const x = Math.sin(n * 127.1 + 4 * 311.7) * 43758.5453;
+            return (x - Math.floor(x)) * 2 - 1;
+          };
+          const s01Ellipse = (cx, cy, rx, ry) => {
+            const count = 14, points = [];
+            for (let i = 0; i < count; i += 1) {
+              const angle = (i / count) * Math.PI * 2;
+              const wobble = 1 + s01Hash(i * 13 + 5) * 0.04;
+              points.push([cx + Math.cos(angle) * rx * wobble, cy + Math.sin(angle) * ry * wobble]);
+            }
+            const first = points[0], last = points[count - 1];
+            let d = `M ${((first[0] + last[0]) / 2).toFixed(1)} ${((first[1] + last[1]) / 2).toFixed(1)}`;
+            for (let i = 0; i < count; i += 1) {
+              const p = points[i], q = points[(i + 1) % count];
+              d += ` Q ${p[0].toFixed(1)} ${p[1].toFixed(1)} ${((p[0] + q[0]) / 2).toFixed(1)} ${((p[1] + q[1]) / 2).toFixed(1)}`;
+            }
+            return d;
+          };
+          s01Outline.setAttribute("d", s01Ellipse(245, 108, 146, 78));
+          s01Scribble.setAttribute("d", "M 136 56 L 356 72 L 131 92 L 360 111 L 129 130 L 352 150 L 145 171");
+          s01Connector.setAttribute("d", "M 110 153 Q 72 192 28 207");
+          s01Paths.forEach((selector) => {
+            const path = document.querySelector(selector);
+            const length = path.getTotalLength();
+            path.style.strokeDasharray = String(length);
+            path.style.strokeDashoffset = String(length);
+          });
+          tl.set(s01Callout, { opacity: 1 }, S(7.1));
+          tl.to(s01Outline, { strokeDashoffset: 0, duration: 0.64, ease: "power2.out" }, S(7.1));
+          tl.to(s01Scribble, { strokeDashoffset: 0, duration: 0.52, ease: "power2.out" }, S(7.63));
+          tl.to(s01Connector, { strokeDashoffset: 0, duration: 0.38, ease: "power2.out" }, S(8.06));
+          tl.fromTo("#s01-callout-label", { opacity: 0, scale: 0.8 }, { opacity: 1, scale: 1, duration: 0.35, ease: "back.out(1.6)" }, S(8.36));
+          tl.to("#s01-callout", { y: -5, rotation: -0.7, duration: 1.25, ease: "sine.inOut", repeat: 4, yoyo: true }, S(8.9));
+          gsap.utils.toArray("#s01-gates .s01-gate").forEach((gate, i) => {
+            tl.to(gate, { borderColor: "#72d89b", backgroundColor: "rgba(114,216,155,.28)", duration: 0.18, ease: "power2.out" }, S(11.1 + i * 0.15));
+          });
+
+
+          // <<< GENERATED captions -- edit narration.json, then `npm run timing`
+          const CAPTIONS = [
+          {id:"cap-s01-0", start:0, end:3.239},
+          {id:"cap-s01-1", start:3.448, end:6.699},
+          {id:"cap-s01-2", start:7.024, end:8.719},
+          {id:"cap-s01-3", start:8.87, end:10.728},
+          {id:"cap-s01-4", start:11.053, end:13.618},
+          {id:"cap-s01-5", start:13.793, end:17.322}
+          ];
+          // >>> GENERATED captions
+          CAPTIONS.forEach(c => {
+            const el = document.getElementById(c.id);
+            tl.fromTo(el, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.1, ease: "none" }, S(c.start));
+            tl.set(el, { autoAlpha: 0 }, S(c.end));
+          });
+
+          window.__timelines["scene-s01"] = tl;
+        })();
+      </script>
+    </template>
+  </body>
+</html>

@@ -2,51 +2,51 @@
   {
     "id": "01_title",
     "visual": "cover",
-    "text": "Sentinel. The model proposes. The gates decide. This is an autonomous options trading agent for the Alpaca A-I Trading Agents Hackathon, built on one design claim: the language model cannot place an order. It can only propose one."
+    "text": "Sentinel: an autonomous options trading agent for the Alpaca A-I Trading Agents Hackathon. It trades unattended -- no human approves anything. Inside, the language model proposes, and sixteen deterministic gates decide."
   },
   {
     "id": "02_problem",
     "visual": "slide:2",
-    "text": "The failure mode of an L-L-M trader isn't being wrong. It's being confidently wrong -- at three times the intended size, in a symbol it invented, using an order type nobody authorized. Most agents this week will give the model a broker tool and let it call it directly. Sentinel splits that apart: the model emits a structured proposal, with no broker credentials and no submission tool. Sixteen deterministic gates decide whether it becomes an order."
+    "text": "An L-L-M trader's failure mode isn't being wrong. It's being confidently wrong -- at three times the size, in a symbol it invented. Most agents hand the model a broker tool. Sentinel gives it none. It proposes; the gates dispose."
   },
   {
     "id": "03_architecture",
     "visual": "slide:3",
-    "text": "Four pieces of code, each with one job. The proposer reads ranked candidates and writes the thesis -- a brain, never a finger. The gates check sixteen conditions across five dimensions; an unregistered gate defaults to blocking, never to a softer answer. The safety gate is a durable permit, bound to the exact code commit and policy version that produced it, and it expires in ninety minutes. And the executor accepts a proposal only if it matches an order shape declared in the manifest -- no shape declares a market order, so a market order is structurally impossible to submit."
+    "text": "Four pieces, one job each. The proposer ranks candidates and writes the thesis -- a brain, never a finger. Sixteen gates across five dimensions; an unregistered gate defaults to blocking. The permit is bound to the exact commit and policy hash, and expires in ninety minutes. And the executor accepts only a declared order shape -- none of them is a market order."
   },
   {
     "id": "04_ai_logic",
     "visual": "slide:4",
-    "text": "The trading logic is a quant engine first: regime classification, a per-name score, and a gap detector. Four vectors consume that signal. Trend trades short-dated credit spreads in the regime's direction -- measured at eighty-seven percent wins over two hundred and fifty simulated sessions -- plus one conviction single-leg when conviction is highest. Catalyst is the confirmed earnings event: the Lululemon straddle, sized from a move study. Its post-earnings drift leg was measured negative over three years of data, so it is off. Event is the August jobs report: a strangle the night before, plus a zero-DTE gap continuation measured at nine wins in ten. And Vol sells iron condors when the tape is range-bound. The language model ranks the candidates these engines produce and writes the reasoning -- it never invents a trade from nothing."
+    "text": "A quant engine first: regime, a per-name score, a gap detector. Four vectors consume it. Trend sells short-dated credit spreads with the regime -- eighty-seven percent wins over two hundred fifty simulated sessions. Catalyst is the Lululemon straddle; its drift leg measured negative over three years, so it's off. Event is the jobs report: a strangle, plus a zero-D-T-E gap continuation that won nine of ten. And Vol sells condors in a range. The model ranks. It never invents."
   },
   {
     "id": "05_risk_gates",
     "visual": "slide:5",
-    "text": "Every position is defined-risk. No naked shorts, no market orders. Twelve thousand dollars is the hard cap on any single trade -- tournament-calibrated from the event studies, and always a fraction of starting equity, never of current. Forty thousand across the whole book at once, enforced at submission, not just declared. A daily kill switch at negative twelve thousand halts new entries for the rest of the day. And below seventy thousand, the agent enters what we call Entry Maintenance: no new exposure, but exits and reconciliation keep running normally."
+    "text": "Every position is defined-risk -- no naked shorts, no market orders. Twelve thousand is the cap on one trade, always a fraction of starting equity, never of current. Forty thousand across the book, enforced at submission, not just declared. A kill switch at minus twelve thousand ends the day's entries. And below seventy thousand: no new exposure, but exits keep running."
   },
   {
     "id": "06_infra",
     "visual": "slide:6",
-    "text": "On the Alpaca side: the Trading API for limit-only, multi-leg execution. Market data blends real-time I-E-X stock prices with the free option snapshot feed, which is delayed fifteen minutes -- so every strike is selected by that snapshot's delta, then priced with Black-Scholes on the real-time underlying. The delayed feed picks the contract; it never sets the price. The M-C-P server and the Alpaca C-L-I are both wired in -- the C-L-I for cron-friendly ops and status checks."
+    "text": "On Alpaca: the Trading API for limit-only, multi-leg execution. Real-time I-E-X prices blended with the free options feed, delayed fifteen minutes -- so the snapshot's delta picks the strike, and Black-Scholes on the live underlying sets the price. M-C-P server and C-L-I both wired in."
   },
   {
     "id": "07_dashboard",
     "visual": "dashboard_live",
-    "text": "And here's the live evidence. This dashboard reads a credential-free snapshot the agent writes every cycle -- no Alpaca keys anywhere in the hosted page. Right now, before kickoff, the market is closed, and the market session gate is correctly red -- so the entry permit reads Blocked, and the agent is in Entry Maintenance. That is the core design claim, checkable in the record: a refused proposal, not a trusted claim."
+    "text": "And here's the live evidence. This dashboard reads a credential-free snapshot the agent writes every cycle -- no Alpaca keys in the hosted page. Before kickoff the market is closed, the market session gate is correctly red, the permit reads Blocked, and the agent sits in Entry Maintenance. A refused proposal, not a trusted claim."
   },
   {
     "id": "08_code",
     "visual": "code",
-    "text": "This is what a gate actually looks like -- plain code, a rationale, and a severity that can't default to something weaker than intended. And this is the permit: bound to a git commit and a policy hash, so a run under one set of parameters can never borrow permission earned by another."
+    "text": "This is a gate: plain code, a rationale, and a severity that can't quietly default to something weaker. And this is the permit -- bound to a commit and a policy hash, so one run can't borrow another's permission."
   },
   {
     "id": "09_results",
     "visual": "slide:8",
-    "text": "This video is recorded before kickoff, so the results slide is intentionally a placeholder. The real numbers -- P-and-L, win rate by vector, the equity curve -- come from account P-A-3-K-3-A-9-Z-B-C-B-I after the window closes, reported honestly whichever way they land. Follow the live dashboard for the current state at any moment."
+    "text": "This is recorded before kickoff, so the results are deliberately blank. They come from account P-A-3-K-3-A-9-Z-B-C-B-I, reported whichever way they land."
   },
   {
     "id": "10_closing",
     "visual": "slide:9",
-    "text": "Six scheduled catalysts sit inside this exact five-day window, so the agent is never directionally agnostic on a catalyst day -- and it never risks more than twelve percent of the account on one idea, while every structure stays defined-risk. A catalyst-adaptive, tournament-calibrated strategy is the only one that can be near the top of the P-and-L board and at the top of the risk-policy table at the same time. That's Sentinel. Repo and live dashboard are on screen now. Thanks for watching."
+    "text": "Six scheduled catalysts sit inside this five-day window, and the agent never risks more than twelve percent on one idea. That's Sentinel. The repo and the live dashboard are on screen. Thanks for watching."
   }
 ]

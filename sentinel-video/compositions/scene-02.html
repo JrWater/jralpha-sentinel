@@ -1,0 +1,96 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <!-- Scene 02 · PROBLEM. Timing is compiled: see ../narration.json and
+         ../tools/timeline.py. Shared design tokens and this scene's own CSS
+         live in the host stylesheet; the host slot keeps .clip/.scene. -->
+  </head>
+  <body>
+    <template>
+      <style>
+        #root { position: absolute; inset: 0; }
+      </style>
+
+      <div id="root" data-composition-id="scene-s02" data-width="1920" data-height="1080">
+        <div data-hf-id="hf-l3ev" class="grid-overlay"></div>
+        <div data-hf-id="hf-1iuu" class="cap" id="cap-s02-0">An L-L-M trader's failure mode isn't being</div>
+        <div data-hf-id="hf-p7tb" class="cap" id="cap-s02-1">wrong. It's being confidently wrong --</div>
+        <div data-hf-id="hf-prgu" class="cap" id="cap-s02-2">at three times the size,</div>
+        <div data-hf-id="hf-b11g" class="cap" id="cap-s02-3">in a symbol it invented.</div>
+        <div data-hf-id="hf-rkyz" class="cap" id="cap-s02-4">Most agents hand the model a broker</div>
+        <div data-hf-id="hf-b84h" class="cap" id="cap-s02-5">tool. Sentinel gives it none.</div>
+        <div data-hf-id="hf-vcmg" class="cap" id="cap-s02-6">It proposes; the gates dispose.</div>
+        <div data-hf-id="hf-kfww" id="s02-note" class="sketch-note note-br" style="opacity:0;"><span data-hf-id="hf-ffge">confidence is not</span><span data-hf-id="hf-d3ym">permission</span></div>
+        <div data-hf-id="hf-wnm4" class="wrap">
+          <span data-hf-id="hf-t2v2" class="kicker">The failure mode</span>
+          <div data-hf-id="hf-x56i" class="h1" id="s02-h1">Confidently wrong is worse than wrong.</div>
+          <div data-hf-id="hf-rncl" class="lead">Most agents this week hand the model a broker tool and let it call it. Sentinel never gives it one.</div>
+
+          <div data-hf-id="hf-28al" style="display: flex; gap: 56px; margin-top: 64px; align-items: flex-start;">
+            <div data-hf-id="hf-sbxr" class="card" id="s02-left" style="flex: 1; padding: 36px; opacity: 0;">
+              <div data-hf-id="hf-5dkv" class="pill" style="border-color: rgba(239,107,107,0.35); color: var(--red);"><span data-hf-id="hf-hi7k" class="dot" style="background: var(--red);"></span>TYPICAL AGENT</div>
+              <div data-hf-id="hf-xqjr" style="display: flex; align-items: center; gap: 18px; margin-top: 34px;">
+                <div data-hf-id="hf-0664" class="mono" style="font-size: 20px; padding: 14px 22px; border-radius: 10px; border: 1px solid var(--border); background: rgba(255,255,255,.03);">LLM</div>
+                <div data-hf-id="hf-ry6q" class="arrow" id="s02-arrow1" style="flex: 1; transform: scaleX(0);"></div>
+                <div data-hf-id="hf-4xn5" class="mono" style="font-size: 20px; padding: 14px 22px; border-radius: 10px; border: 1px solid rgba(239,107,107,.4); background: rgba(239,107,107,.08); color: var(--red);">Broker</div>
+              </div>
+              <div data-hf-id="hf-ho2o" style="margin-top: 22px; font-size: 16px; color: var(--muted);">direct tool call — the model can place the order itself</div>
+            </div>
+
+            <div data-hf-id="hf-421v" class="card" id="s02-right" style="flex: 1; padding: 36px; opacity: 0; border-color: rgba(79,209,137,0.3);">
+              <div data-hf-id="hf-5rxa" class="pill" style="border-color: rgba(79,209,137,0.35); color: var(--green);"><span data-hf-id="hf-jky8" class="dot" style="background: var(--green);"></span>SENTINEL</div>
+              <div data-hf-id="hf-qyor" style="display: flex; align-items: center; gap: 14px; margin-top: 34px;">
+                <div data-hf-id="hf-g602" class="mono" style="font-size: 18px; padding: 12px 16px; border-radius: 10px; border: 1px solid var(--border); background: rgba(255,255,255,.03);">LLM</div>
+                <div data-hf-id="hf-55kb" class="arrow" id="s02-arrow2" style="flex: 1; transform: scaleX(0);"></div>
+                <div data-hf-id="hf-a2o4" class="mono" style="font-size: 18px; padding: 12px 16px; border-radius: 10px; border: 1px solid var(--border); background: rgba(255,255,255,.03);">16 Gates</div>
+                <div data-hf-id="hf-pcpn" class="arrow on" id="s02-arrow3" style="flex: 1; transform: scaleX(0);"></div>
+                <div data-hf-id="hf-zrqr" class="mono" style="font-size: 18px; padding: 12px 16px; border-radius: 10px; border: 1px solid rgba(79,209,137,.4); background: rgba(79,209,137,.08); color: var(--green);">Broker</div>
+              </div>
+              <div data-hf-id="hf-u86h" style="margin-top: 22px; font-size: 16px; color: var(--muted);">a structured proposal — no broker credentials, no submission tool</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <script>
+        window.__timelines = window.__timelines || {};
+        (() => {
+          const SPEED = 1.16;
+          const S = (seconds) => seconds / SPEED;
+          const EASE = "power2.out";
+          const tl = gsap.timeline({ paused: true });
+
+          tl.fromTo("#s02-h1", { opacity: 0, y: 26 }, { opacity: 1, y: 0, duration: 0.7, ease: EASE }, S(0.1));
+          tl.fromTo("#s02-left", { opacity: 0, x: -30, rotation: -1.5 }, { opacity: 1, x: 0, rotation: 0, duration: 0.6, ease: "power3.out" }, S(1.4));
+          tl.fromTo("#s02-arrow1", { scaleX: 0 }, { scaleX: 1, duration: 0.5, ease: EASE }, S(2.1));
+          tl.fromTo("#s02-right", { opacity: 0, x: 30, rotation: 1.5 }, { opacity: 1, x: 0, rotation: 0, duration: 0.6, ease: "back.out(1.2)" }, S(3.2));
+          tl.fromTo("#s02-arrow2", { scaleX: 0 }, { scaleX: 1, duration: 0.4, ease: EASE }, S(3.9));
+          tl.fromTo("#s02-arrow3", { scaleX: 0 }, { scaleX: 1, duration: 0.4, ease: EASE }, S(4.4));
+          tl.fromTo("#s02-note", { opacity: 0, scale: 0.8, rotation: -8 }, { opacity: 1, scale: 1, rotation: -2, duration: 0.55, ease: "back.out(1.8)" }, S(7.1));
+          tl.to("#s02-note", { y: -6, rotation: 1, duration: 1.3, ease: "sine.inOut", repeat: 5, yoyo: true }, S(8.0));
+
+
+          // <<< GENERATED captions -- edit narration.json, then `npm run timing`
+          const CAPTIONS = [
+          {id:"cap-s02-0", start:0, end:3.065},
+          {id:"cap-s02-1", start:3.146, end:5.492},
+          {id:"cap-s02-2", start:5.608, end:7.256},
+          {id:"cap-s02-3", start:7.43, end:9.079},
+          {id:"cap-s02-4", start:9.358, end:11.505},
+          {id:"cap-s02-5", start:11.575, end:13.735},
+          {id:"cap-s02-6", start:14.06, end:17.276}
+          ];
+          // >>> GENERATED captions
+          CAPTIONS.forEach(c => {
+            const el = document.getElementById(c.id);
+            tl.fromTo(el, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.1, ease: "none" }, S(c.start));
+            tl.set(el, { autoAlpha: 0 }, S(c.end));
+          });
+
+          window.__timelines["scene-s02"] = tl;
+        })();
+      </script>
+    </template>
+  </body>
+</html>
