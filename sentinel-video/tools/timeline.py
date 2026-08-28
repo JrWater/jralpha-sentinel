@@ -22,9 +22,22 @@ HTML = os.path.join(ROOT, "index.html")
 
 
 def scene_file(key):
-    """Path of a scene's sub-composition, if it has been split out yet."""
+    """Path of a required split scene composition.
+
+    The project has completed its split-scene migration.  Falling back to the
+    root document would silently resurrect a second timing mode, so a missing
+    file is a compiler error rather than a conditional branch.
+    """
     path = os.path.join(ROOT, "compositions", "scene-%s.html" % key[1:])
-    return path if os.path.exists(path) else None
+    if not os.path.exists(path):
+        die("missing required composition for %s: %s" % (key, path))
+    return path
+
+
+def scene_files(cfg):
+    """The one declared-scene to composition mapping used by every pass."""
+    return {scene["key"]: scene_file(scene["key"])
+            for scene in cfg["scenes"]}
 
 BEGIN = "// <<< GENERATED %s -- edit narration.json, then `npm run timing`"
 END = "// >>> GENERATED %s"
@@ -150,14 +163,11 @@ def compile_timeline(cfg, captions):
 
 # -------------------------------------------------------------------- reader
 
-def read_captions(cfg):
-    """Caption text is hand-authored; collect it per scene from wherever that
-    scene currently lives, so the order stays authoring order."""
-    root = open(HTML).read()
+def read_captions(cfg, paths):
+    """Caption text is hand-authored in every required scene composition."""
     out = []
     for s in cfg["scenes"]:
-        path = scene_file(s["key"])
-        text = open(path).read() if path else root
+        text = open(paths[s["key"]]).read()
         out += re.findall(r'class="cap[^"]*" id="(cap-%s-\d+)">([^<]*)</div>' % s["key"], text)
     return out
 
@@ -206,25 +216,6 @@ def emit(html, tl):
                          "      const T = {\n        %s, end: %s,\n      };"
                          % (row, f3(tl["total"])))
 
-    # phrase-anchored cue arrays and named anchors the root still owns
-    for key in sorted(set(tl["cues"]) | set(tl["anchors"])):
-        if scene_file(key):
-            continue
-        parts = []
-        if key in tl["cues"]:
-            rows = "\n".join('          ["%s", %s],' % (t, fs(v)) for t, v in tl["cues"][key])
-            parts.append("        const CUES_%s = [\n%s\n        ];" % (key.upper(), rows))
-        for name, value, phrase in tl["anchors"].get(key, []):
-            parts.append('        const %s = %s;  // "%s"' % (name, fs(value), phrase))
-        html = replace_block(html, "cues-" + key, 8, "\n".join(parts))
-
-    # captions the root still owns (a scene that has been split out carries
-    # its own captions inside its sub-composition instead)
-    rows = [c for c in tl["captions"] if scene_file(c["scene"]) is None]
-    body = ",\n".join('        {id:"%s", start:%s, end:%s}'
-                       % (c["id"], fs(c["start"]), fs(c["end"])) for c in rows)
-    html = replace_block(html, "captions", 8,
-                         "        const CAPTIONS = [\n%s\n        ];" % body)
     return html
 
 
@@ -288,67 +279,25 @@ def validate_scene(text, scene, anchors):
     return problems, checked, staggered
 
 
-def validate(html, tl):
-    """Bound-check the motion cues that stay hand-authored.
-
-    A cue is authored in scene-relative RAW narration seconds inside S(...),
-    so it must land inside that scene's raw narration length. This is the
-    check that scene 04 needed: cues tuned to a 55.5s take silently fell past
-    the end when the script was cut to 38s, and the Vol row never appeared.
-    """
-    anchors = {name: v for rows in tl["anchors"].values() for name, v, _ in rows}
-    problems, checked, staggered, generated = [], 0, 0, 0
-    for m in re.finditer(r"T\.(s\d\d) \+ S\(([^)]*)\)", html):
-        key, arg = m.group(1), m.group(2).strip()
-        scene = tl["byKey"].get(key)
-        if scene is None:
-            problems.append("unknown scene %s referenced at offset %d" % (key, m.start()))
-            continue
-        stagger = STAGGER.match(arg)
-        if stagger:
-            value, staggered = float(stagger.group(1)), staggered + 1
-        elif re.fullmatch(r"[\d.]+", arg):
-            value = float(arg)
-        elif arg in anchors:
-            value = anchors[arg]
-        elif re.fullmatch(r"[A-Za-z_]\w*", arg):
-            # a loop variable over a compiler-generated cue array, already
-            # bound-checked when those values were derived
-            generated += 1
-            continue
-        else:
-            problems.append("%s: cue offset %r is not a plain number" % (key, arg))
-            continue
-        checked += 1
-        if value >= scene["raw"]:
-            line = html.count("\n", 0, m.start()) + 1
-            problems.append("index.html:%d %s cue at +%.2fs is past the %.2fs end of the scene"
-                            % (line, key, value, scene["raw"]))
-    return problems, checked, staggered, generated
-
-
 # ---------------------------------------------------------------------- main
 
 def main():
     check = "--check" in sys.argv
     cfg, _ = load()
-    tl = compile_timeline(cfg, read_captions(cfg))
+    paths = scene_files(cfg)
+    tl = compile_timeline(cfg, read_captions(cfg, paths))
 
     root_before = open(HTML).read()
     files = {HTML: (root_before, emit(root_before, tl))}
-    split = []
     for s in cfg["scenes"]:
-        path = scene_file(s["key"])
-        if path:
-            was = open(path).read()
-            files[path] = (was, emit_scene(was, tl, s["key"]))
-            split.append(s["key"])
+        path = paths[s["key"]]
+        was = open(path).read()
+        files[path] = (was, emit_scene(was, tl, s["key"]))
 
-    after = files[HTML][1]
-    problems, checked, staggered, generated = validate(after, tl)
+    problems, checked, staggered = [], 0, 0
     anchor_values = {n: v for rows in tl["anchors"].values() for n, v, _ in rows}
-    for key in split:
-        found, n, st = validate_scene(files[scene_file(key)][1], tl["byKey"][key], anchor_values)
+    for key, path in paths.items():
+        found, n, st = validate_scene(files[path][1], tl["byKey"][key], anchor_values)
         problems += found
         checked += n
         staggered += st
@@ -357,12 +306,11 @@ def main():
 
     if check:
         stale = any(was != now for was, now in files.values())
-        print("timeline --check: %d scenes (%d split out), %d captions, %d cues "
-              "bound-checked (%d staggered, %d generated)"
-              % (len(tl["scenes"]), len(split), len(tl["captions"]),
-                 checked, staggered, generated))
+        print("timeline --check: %d required scene compositions, %d captions, "
+              "%d cues bound-checked (%d staggered)"
+              % (len(paths), len(tl["captions"]), checked, staggered))
         if stale:
-            sys.stderr.write("timeline: index.html is out of date; run `npm run timing`\n")
+            sys.stderr.write("timeline: generated timing is out of date; run `npm run timing`\n")
         return 1 if (stale or problems) else 0
 
     if problems:
@@ -373,10 +321,10 @@ def main():
         if was != now:
             open(path, "w").write(now)
             written += 1
-    print("timeline: %.3fs total, %d scenes (%d split out), %d captions, %d cues "
-          "bound-checked (%d staggered, base only; %d generated); %d file(s) written"
-          % (tl["total"], len(tl["scenes"]), len(split), len(tl["captions"]),
-             checked, staggered, generated, written))
+    print("timeline: %.3fs total, %d required scene compositions, %d captions, "
+          "%d cues bound-checked (%d staggered); %d file(s) written"
+          % (tl["total"], len(paths), len(tl["captions"]), checked,
+             staggered, written))
     return 0
 
 

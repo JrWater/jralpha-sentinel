@@ -25,17 +25,15 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-import scripts.run_cycle as rc                                  # noqa: E402
+from agent.ledger import StructureLedger                         # noqa: E402
 from policy.loader import load as load_manifest                 # noqa: E402
 from strategy.proposal import OptionLeg, Proposal                # noqa: E402
 
 
 @pytest.fixture
-def meta_path(tmp_path, monkeypatch):
-    """Redirect the meta file so no test can touch the real ledger."""
-    p = tmp_path / "positions_meta.json"
-    monkeypatch.setattr(rc, "META_PATH", p)
-    return p
+def structures(tmp_path):
+    """An isolated structure-ledger adapter, without cycle global patches."""
+    return StructureLedger(tmp_path / "positions_meta.json")
 
 
 def _gap_proposal() -> Proposal:
@@ -51,7 +49,7 @@ def _gap_proposal() -> Proposal:
         thesis="Event Vector: NFP gap continuation")
 
 
-def test_group_record_identifies_a_gap_entry(meta_path):
+def test_group_record_identifies_a_gap_entry(structures):
     """v3.1.1 caps the gap continuation at gap_max_entries_total per WINDOW,
     and counts prior entries out of the group meta with
 
@@ -62,9 +60,9 @@ def test_group_record_identifies_a_gap_entry(meta_path):
     not written, every comparison is None == "single_long" -> the tally is
     always 0, the cap never trips, and nothing anywhere reports a problem.
     """
-    rc.record_group(_gap_proposal(), "093500")
+    structures.record_entry(_gap_proposal(), "093500")
 
-    groups = json.loads(meta_path.read_text())["groups"]
+    groups = json.loads(structures.path.read_text())["groups"]
     assert len(groups) == 1
     group = next(iter(groups.values()))
 
@@ -74,7 +72,7 @@ def test_group_record_identifies_a_gap_entry(meta_path):
         f"it wrote {sorted(group)}")
 
 
-def test_the_window_cap_predicate_actually_tallies(meta_path):
+def test_the_window_cap_predicate_actually_tallies(structures):
     """The guard's own expression, run against two recorded gap entries.
 
     Asserting on the predicate rather than on record_group's field list is
@@ -86,8 +84,8 @@ def test_the_window_cap_predicate_actually_tallies(meta_path):
                                "gap_max_entries_total", default=2))
 
     for i, stamp in enumerate(("093500", "094500"), start=1):
-        rc.record_group(_gap_proposal(), stamp)
-        meta = json.loads(meta_path.read_text())
+        structures.record_entry(_gap_proposal(), stamp)
+        meta = json.loads(structures.path.read_text())
         tally = sum(1 for g in meta.get("groups", {}).values()
                     if g.get("engine") == "event_macro"
                     and g.get("structure") == "single_long")
@@ -98,7 +96,7 @@ def test_the_window_cap_predicate_actually_tallies(meta_path):
         f"through (tally {tally} < cap {gap_max})")
 
 
-def test_a_non_gap_entry_does_not_consume_the_gap_budget(meta_path):
+def test_a_non_gap_entry_does_not_consume_the_gap_budget(structures):
     """The NFP strangle is also engine event_macro. It is a different trade
     and must not spend the gap continuation's two entries — which is exactly
     why the predicate tests structure and not engine alone."""
@@ -110,9 +108,9 @@ def test_a_non_gap_entry_does_not_consume_the_gap_budget(meta_path):
               OptionLeg("SPY260904P00760000", "buy", 1, 760.0, "put",
                         date(2026, 9, 4), 1.0, 1.2)],
         limit_price=2.2, max_loss_dollars=220.0, thesis="NFP strangle")
-    rc.record_group(strangle, "103500")
+    structures.record_entry(strangle, "103500")
 
-    meta = json.loads(meta_path.read_text())
+    meta = json.loads(structures.path.read_text())
     tally = sum(1 for g in meta.get("groups", {}).values()
                 if g.get("engine") == "event_macro"
                 and g.get("structure") == "single_long")

@@ -15,7 +15,8 @@ from pathlib import Path
 
 import streamlit as st
 
-from decision_view import classify_decision, summarize_decisions
+from decision_view import (classify_decision, proposer_summary,
+                           summarize_decisions)
 
 ROOT = Path(__file__).resolve().parents[1]
 SNAPSHOT = ROOT / "docs" / "snapshot.json"
@@ -168,6 +169,7 @@ else:
         st.markdown(line)
         if detail:
             st.caption(f"&nbsp;&nbsp;&nbsp;&nbsp;{detail}")
+        st.caption(f"&nbsp;&nbsp;&nbsp;&nbsp;Proposer: {proposer_summary(d)}")
 
 # ── book and equity ─────────────────────────────────────────────────────────
 left, right = st.columns([1, 1])

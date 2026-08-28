@@ -3,11 +3,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "npx --yes hyperframes@0.8.16 preview",
-    "check": "npx --yes hyperframes@0.8.16 check",
+    "dev": "npx --yes hyperframes@0.8.17 preview",
+    "check": "npx --yes hyperframes@0.8.17 check",
     "timing": "python3 tools/timeline.py",
     "timing:check": "python3 tools/timeline.py --check",
-    "render": "npx --yes hyperframes@0.8.16 render",
-    "publish": "npx --yes hyperframes@0.8.16 publish"
+    "render": "npx --yes hyperframes@0.8.17 render",
+    "publish": "npx --yes hyperframes@0.8.17 publish"
   }
 }

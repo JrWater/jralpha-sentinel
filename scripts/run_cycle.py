@@ -19,7 +19,6 @@ v2.1 changes from v2.0:
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import sys
 import uuid
@@ -32,24 +31,25 @@ sys.path.insert(0, str(ROOT))
 
 from agent.executor import Executor
 from agent.cycle_lock import CycleAlreadyRunning, cycle_lock
-from agent.ledger import (atomic_write, append_decision, ledger_positions,
-                          mirror_from_broker)
-from agent.proposer import select as llm_select
-from agent.submission_wal import (JournalView, Reservation, SubmissionJournal,
-                                  dispatch_entry, make_client_order_id,
+from agent.entry_submission import (project_day_risk, proposal_fingerprint,
+                                    submit_entries)
+from agent.ledger import (StructureLedger, atomic_write, append_decision,
+                          ledger_positions, mirror_from_broker)
+from agent.proposer import SelectionResult, select as llm_select
+from agent.submission_wal import (JournalView, SubmissionJournal,
                                   reconcile_unresolved,
                                   refresh_committed_orders)
 from gates import checks
+from gates.evaluation import GateEvaluator, code_identity
 from gates.registry import severity_of
 from gates.safety_gate import write_permit
 from policy.loader import load as load_manifest
 from scripts.verify_account import creds, load_env
 from strategy.data import AlpacaData, MarketState, parse_contract
-from strategy.daystate import (check_kill, fire_key, fired, load_or_reset,
-                               mark_fired, record_risk, release_risk)
+from strategy.daystate import check_kill, load_or_reset, record_risk, release_risk
 from strategy.engine import EngineContext, run as run_engines
 from strategy.exits import (GroupView, build_close_proposal, decide_exit,
-                            group_key, pnl_of)
+                            pnl_of)
 from strategy.proposal import OptionLeg, Proposal
 from strategy.regime import classify, universe_breadth
 from strategy.signals import score_symbol
@@ -58,106 +58,31 @@ from strategy.sizing import PortfolioState, record_open_risk, release_open_risk
 GREEN, RED, YELLOW, DIM, RESET = (
     "\033[32m", "\033[31m", "\033[33m", "\033[2m", "\033[0m")
 
-META_PATH = ROOT / "state" / "positions_meta.json"
 DAY_PATH = ROOT / "state" / "day_state.json"
 SUBMISSION_WAL_PATH = ROOT / "state" / "submission_wal.jsonl"
 CYCLE_LOCK_PATH = ROOT / "state" / "cycle.lock"
 PUBLIC_ACCOUNT_SCOPE = "competition"
-
-
-def proposal_fingerprint(proposal: Proposal) -> str:
-    """Canonical identity of the entry content used by this release.
-
-    This is intentionally narrower than the future ``EntryIntent`` module:
-    the competition safety patch needs a stable audit identity now, while the
-    one-object wire translation is deferred to the post-competition rewrite.
-    Every field that currently changes the order or its declared risk is in
-    the canonical payload.
-    """
-    payload = {
-        "engine": proposal.engine,
-        "underlying": proposal.underlying,
-        "direction": proposal.direction,
-        "structure": proposal.structure,
-        "expiry": proposal.expiry.isoformat() if proposal.expiry else None,
-        "order_class": proposal.order_class,
-        "type": proposal.type,
-        "time_in_force": proposal.time_in_force,
-        "limit_price": proposal.limit_price,
-        "max_loss_dollars": proposal.max_loss_dollars,
-        "legs": [{
-            "symbol": leg.symbol,
-            "side": leg.side,
-            "quantity": leg.quantity,
-        } for leg in proposal.legs],
-    }
-    encoded = json.dumps(payload, sort_keys=True,
-                         separators=(",", ":")).encode()
-    return hashlib.sha256(encoded).hexdigest()
+STRUCTURES = StructureLedger()
 
 
 def unresolved_dispatch_count(view: JournalView) -> int | None:
-    """Gate input from the journal; corruption is unknown, never zero."""
+    """Compatibility projection of durable dispatch state.
+
+    Gate context construction lives in :mod:`gates.evaluation`; this small
+    pure helper remains for callers that need to display the same durable
+    fact without constructing an evaluation subject.
+    """
     if not view.integrity_ok:
         return None
     return len(view.unresolved_dispatches)
 
 
-def project_day_risk(day, view: JournalView, trading_date) -> None:
-    """Make the mutable day-state number a projection, not an accumulator."""
-    risk = view.risk_for(trading_date)
-    day.new_risk_dollars = (risk.committed_cents + risk.held_cents) / 100.0
-    day.fired_once = list(risk.fire_keys)
-
-
-def project_gap_usage(view: JournalView, trading_date, key: str) -> int:
-    """Read one window counter from the same durable submission truth."""
-    return int(view.risk_for(trading_date).gap_units.get(key, 0))
-
-
-def entry_budget_refusal(portfolio: PortfolioState, day, dollars: float,
-                         *, at_risk_cap: float,
-                         exposure_cap: float) -> str | None:
-    """Pure capacity check; the WAL owns the reservation that follows."""
-    if portfolio.max_loss_total + dollars > at_risk_cap:
-        return "portfolio"
-    if day.new_risk_dollars + dollars > exposure_cap:
-        return "daily"
-    return None
-
-
-def make_reservation(*, proposal: Proposal, manifest, account_id: str,
-                     trading_date, cycle_id: str,
-                     logical_submission_id: str | None = None,
-                     fire_keys: tuple[str, ...] = (),
-                     gap_counters: tuple[tuple[str, int], ...] = ()) -> Reservation:
-    """Bind one logical attempt to its content, account and risk claims."""
-    logical_id = logical_submission_id or uuid.uuid4().hex
-    fingerprint = proposal_fingerprint(proposal)
-    client_id = make_client_order_id(
-        manifest_sha=manifest.sha, intent_fingerprint=fingerprint,
-        logical_submission_id=logical_id)
-    head, _dirty = _code_identity()
-    return Reservation(
-        logical_submission_id=logical_id,
-        client_order_id=client_id,
-        account_id=account_id,
-        trading_date_et=trading_date,
-        cycle_id=cycle_id,
-        intent_fingerprint=fingerprint,
-        manifest_sha=manifest.sha,
-        git_head=head or "UNKNOWN",
-        max_loss_cents=int(round(proposal.max_loss_dollars * 100)),
-        fire_keys=fire_keys,
-        gap_counters=gap_counters,
-    )
-
-
 def new_decision_row(candidate, *, at_utc: datetime,
-                     selected: bool, account_scope: str) -> dict:
+                     selected: bool, account_scope: str,
+                     proposer: SelectionResult | None = None) -> dict:
     """Public facts for one candidate; the retired `accepted` cannot appear."""
     proposal = candidate.proposal
-    return {
+    row = {
         "at": at_utc.isoformat(),
         "engine": proposal.engine,
         "underlying": proposal.underlying,
@@ -171,47 +96,14 @@ def new_decision_row(candidate, *, at_utc: datetime,
         "refused_by": [],
         "reason": candidate.label,
     }
-
-
-def mark_submission_uncertain(row: dict, exc: Exception) -> None:
-    """Record uncertainty without falsely claiming a broker refusal."""
-    row["submission_uncertain"] = True
-    row["broker_status"] = "unknown"
-    row["reason"] = f"submission unresolved: {type(exc).__name__}"
-
-
-def mark_remaining_aborted(decisions: list[dict], indices: list[int]) -> None:
-    """Mark candidates not evaluated after an uncertain broker dispatch."""
-    for index in indices:
-        row = decisions[index]
-        if row["refused_by"]:
-            continue
-        row["refused_by"] = [
-            "control:cycle_aborted_after_uncertain_dispatch"]
-        row["reason"] = "not evaluated after an unresolved dispatch"
-
-
-def broker_order_facts(order) -> dict:
-    """JSON-safe immediate broker observation for the public decision row."""
-    status = str(getattr(order, "status", "") or "")
-    if "." in status:
-        status = status.rsplit(".", 1)[-1]
-    filled_qty = getattr(order, "filled_qty", 0) or 0
-    filled_avg = getattr(order, "filled_avg_price", None)
-    try:
-        filled_qty = float(filled_qty)
-    except (TypeError, ValueError):
-        filled_qty = 0.0
-    try:
-        filled_avg = float(filled_avg) if filled_avg is not None else None
-    except (TypeError, ValueError):
-        filled_avg = None
-    return {
-        "broker_order_id": str(order.id),
-        "broker_status": status.lower(),
-        "filled_qty": filled_qty,
-        "filled_avg_price": filled_avg,
-    }
+    if proposer is not None:
+        row["proposer"] = {
+            "decision_mode": proposer.decision_mode,
+            "provider": proposer.provider,
+            "model": proposer.model,
+            "fallback_reason": proposer.fallback_reason,
+        }
+    return row
 
 
 def build_state(data: AlpacaData, manifest, symbols: list[str]) -> MarketState:
@@ -237,28 +129,6 @@ def build_state(data: AlpacaData, manifest, symbols: list[str]) -> MarketState:
     return state
 
 
-def _code_identity() -> tuple:
-    """The commit this cycle runs, and whether the tree was edited.
-
-    Without this the release_integrity gate reported "git head unknown" every
-    cycle, and every decision record carried no code identity at all — which
-    defeats the point of recording one. Failure is not fatal: the gate is
-    ATTENTION, and (None, None) is the honest answer when git cannot be read.
-    """
-    import subprocess
-    try:
-        head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=str(ROOT),
-                              capture_output=True, text=True, timeout=10,
-                              check=True).stdout.strip()
-        dirty = bool(subprocess.run(["git", "status", "--porcelain"],
-                                    cwd=str(ROOT), capture_output=True,
-                                    text=True, timeout=10,
-                                    check=True).stdout.strip())
-        return head, dirty
-    except (OSError, subprocess.SubprocessError):
-        return None, None
-
-
 def publish_snapshot(*, manifest, state, results, blockers, decisions,
                      regime=None, day=None, decision_updates=None) -> None:
     """Write the credential-free page the judges read. Never fatal.
@@ -267,7 +137,7 @@ def publish_snapshot(*, manifest, state, results, blockers, decisions,
     trading, so every failure here is reported and swallowed.
     """
     from agent import snapshot as snap_mod
-    head, dirty = _code_identity()
+    head, dirty = code_identity()
     try:
         payload = snap_mod.build(
             manifest=manifest, account=state.account, clock=state.clock,
@@ -286,55 +156,14 @@ def publish_snapshot(*, manifest, state, results, blockers, decisions,
 
 def run_preflight(state: MarketState, manifest, ledger,
                   journal_view: JournalView | None = None) -> dict:
-    head, dirty = _code_identity()
     journal_view = journal_view or SubmissionJournal(
         SUBMISSION_WAL_PATH).replay()
-    ctx = checks.EvalContext(
-        manifest=manifest, now_utc=state.now_utc, account=state.account,
-        is_paper_session=True, clock=state.clock, positions=state.positions,
-        ledger_positions=ledger,
-        option_quote_age_seconds=state.chain_ages.get("SPY"),
-        underlying_bar_age_seconds=_underlying_bar_age(state),
-        decision_log_writable=_decisions_writable(),
-        git_head=head, git_dirty=dirty,
-        unresolved_dispatch_count=unresolved_dispatch_count(journal_view),
+    evaluator = GateEvaluator(root=ROOT)
+    subject = evaluator.cycle_subject(
+        state=state, manifest=manifest, ledger_positions=ledger,
+        journal_view=journal_view,
     )
-    results = {}
-    for gate in checks.GATES:
-        if gate.phase != "preflight":
-            continue
-        results[gate.name] = gate.check(ctx)
-    return results
-
-
-def _underlying_bar_age(state: MarketState) -> float | None:
-    """Freshness of the underlying the signal consumes.
-
-    The signal reads real-time IEX quotes (plus daily bars for trend); the
-    freshness gate must measure the QUOTE, not the daily bar - a 1-Day bar's
-    timestamp is the session open, which would read hours old all day and
-    keep the gate permanently red. IEX quote timestamps tick all session.
-    """
-    q = state.latest.get("SPY")
-    if q is None:
-        return None
-    ts = getattr(q, "timestamp", None)
-    if ts is None:
-        return None
-    if ts.tzinfo is None:
-        ts = ts.replace(tzinfo=timezone.utc)
-    return max(0.0, (state.now_utc - ts).total_seconds())
-
-
-def _decisions_writable() -> bool:
-    p = ROOT / "state" / "decisions.jsonl"
-    try:
-        p.parent.mkdir(parents=True, exist_ok=True)
-        with p.open("a"):
-            pass
-        return True
-    except OSError:
-        return False
+    return evaluator.evaluate(subject)
 
 
 def print_gates(results: dict) -> None:
@@ -375,67 +204,10 @@ def release_entry_risk(portfolio: PortfolioState, day, dollars: float) -> None:
     release_risk(day, dollars)
 
 
-# ── meta (structure records) ─────────────────────────────────────────────────
-
-def load_meta() -> dict:
-    try:
-        return json.loads(META_PATH.read_text())
-    except (OSError, json.JSONDecodeError):
-        return {"groups": {}}
-
-
-def save_meta(meta: dict) -> None:
-    atomic_write(META_PATH, meta)
-
-
-def record_group(proposal: Proposal, entered_at: str) -> None:
-    meta = load_meta()
-    gid = group_key(proposal.engine, proposal.underlying,
-                    proposal.expiry.isoformat() if proposal.expiry else "",
-                    entered_at)
-    entry_net = sum(leg.mid * (1.0 if leg.side == "buy" else -1.0)
-                    for leg in proposal.legs)
-    kind = "credit" if proposal.structure in ("credit_vertical",
-                                              "iron_condor") else "debit"
-    ref_amount = -entry_net if kind == "credit" else entry_net
-    meta["groups"][gid] = {
-        "engine": proposal.engine,
-        "underlying": proposal.underlying,
-        # v3.1.1: the window cap on the gap continuation counts prior entries
-        # out of this file, matching on engine AND structure — the NFP
-        # strangle is also engine event_macro and must not spend the gap's
-        # budget. Without this key that match is None == "single_long" for
-        # every record, so the tally is always 0 and the cap never trips.
-        "structure": proposal.structure,
-        "expiry": proposal.expiry.isoformat() if proposal.expiry else "",
-        "kind": kind,
-        "entry_net": round(entry_net, 4),
-        "ref_amount": round(abs(ref_amount), 4),
-        "max_loss_dollars": proposal.max_loss_dollars,
-        "take_profit_fraction": 0.0,
-        "stop_loss_fraction": 0.0,
-        "event_exit_date": proposal.event_exit_date,
-        "event_exit_time": proposal.event_exit_time,
-        "legs": {leg.symbol: {"side": leg.side, "qty": leg.quantity,
-                              "entry_mid": leg.mid}
-                 for leg in proposal.legs},
-        "closed": False,
-    }
-    save_meta(meta)
-
-
-def patch_group_tp_sl(gid: str, take_profit: float, stop_loss: float) -> None:
-    meta = load_meta()
-    group = meta.get("groups", {}).get(gid)
-    if group:
-        group["take_profit_fraction"] = take_profit
-        group["stop_loss_fraction"] = stop_loss
-        save_meta(meta)
-
-
 # ── exits ────────────────────────────────────────────────────────────────────
 
-def manage_exits(state: MarketState, manifest, executor: Executor) -> int:
+def manage_exits(state: MarketState, manifest, executor: Executor,
+                 *, structures: StructureLedger | None = None) -> int:
     """Structure-level exits. Legs of one structure close as one order.
 
     Marked on the STRUCTURE net (all legs together), so a debit spread's
@@ -448,7 +220,8 @@ def manage_exits(state: MarketState, manifest, executor: Executor) -> int:
     final_date = str(manifest.get("session", "final_trading_date"))
     flatten_at = str(manifest.get("session", "flatten_all_at"))
 
-    meta = load_meta()
+    structures = structures or STRUCTURES
+    meta = structures.load()
     groups = meta.get("groups", {})
     broker = {p.symbol: p for p in state.positions}
     exit_orders_submitted = 0
@@ -586,7 +359,7 @@ def manage_exits(state: MarketState, manifest, executor: Executor) -> int:
             print(f"  {RED}EXIT FAILED{RESET} orphan {sym}: {exc}")
 
     if meta_changed:
-        save_meta(meta)
+        structures.save(meta)
     return exit_orders_submitted
 
 
@@ -722,7 +495,7 @@ def _run_cycle() -> int:
         if len(closes) >= 60:
             signals[sym] = score_symbol(closes, spy_closes, highs, lows, sym)
 
-    meta = load_meta()
+    meta = STRUCTURES.load()
     open_groups = [g for g in meta.get("groups", {}).values()
                    if not g.get("closed")]
     portfolio = PortfolioState(
@@ -759,17 +532,23 @@ def _run_cycle() -> int:
               f"not an error.{RESET}")
 
     chosen = []
+    proposer_result = None
     if candidates and not (blockers or killed or args.dry_run):
-        chosen = (list(range(min(int(manifest.get("agent",
-                                                  "max_proposals_per_cycle",
-                                                  default=3)),
-                                len(candidates))))
-                  if args.no_llm else llm_select(
-                      candidates, regime=regime.mode,
-                      portfolio={"equity": state.equity,
-                                 "open_positions": len(state.positions),
-                                 "regime": regime.mode, "killed": day.killed},
-                      manifest=manifest))
+        if args.no_llm:
+            chosen = list(range(min(int(manifest.get(
+                "agent", "max_proposals_per_cycle", default=3)),
+                len(candidates))))
+            proposer_result = SelectionResult(
+                tuple(chosen), "deterministic_fallback", "disabled", "none",
+                "disabled_by_operator")
+        else:
+            proposer_result = llm_select(
+                candidates, regime=regime.mode,
+                portfolio={"equity": state.equity,
+                           "open_positions": len(state.positions),
+                           "regime": regime.mode, "killed": day.killed},
+                manifest=manifest)
+            chosen = list(proposer_result.indices)
     print(f"\nproposer chose candidates: {chosen}")
 
     # These rows are updated by the admission/submission loop below, then
@@ -777,7 +556,7 @@ def _run_cycle() -> int:
     # a proposer selection as `accepted` before the pretrade gates had run.
     decisions = [new_decision_row(
         c, at_utc=now_utc, selected=(i in chosen),
-        account_scope=PUBLIC_ACCOUNT_SCOPE)
+        account_scope=PUBLIC_ACCOUNT_SCOPE, proposer=proposer_result)
                  for i, c in enumerate(candidates)]
     if blockers:
         for row in decisions:
@@ -811,163 +590,58 @@ def _run_cycle() -> int:
                          day=day, decision_updates=decision_updates)
         return 0
 
-    # ── 4. fire-once guards, exposure cap, pretrade gates, submit ───────────
-    entered_at = now_utc.strftime("%H%M%S")
-    submitted = 0
-    submission_uncertain = False
-    for chosen_position, idx in enumerate(chosen):
-        c = candidates[idx]
-        p = c.proposal
-        row = decisions[idx]
-
-        fire_once = p.engine in ("catalyst", "event_macro", "vol_income")
-        if p.engine == "event_macro" and p.structure == "single_long":
-            # v3.0 ALL-IN: the NFP gap continuation may fire twice in the
-            # 09:30-09:50 window (two cycles) - the second entry is the
-            # re-confirmation bet. Bounded by the per-underlying and daily
-            # exposure caps, not by the fire-once guard.
-            fire_once = False
-        if fire_once:
-            key = fire_key(p.engine, p.underlying, today)
-            if fired(day, key):
-                print(f"  {YELLOW}SKIP (already fired today){RESET} "
-                      f"{p.underlying} {p.structure}")
-                row["refused_by"] = ["control:fire_once"]
-                row["reason"] = "already fired today"
-                continue
-        if p.engine in ("catalyst", "event_macro") and p.expiry and \
-                p.expiry.isoformat() < today:
-            # 0-DTE is legitimate during session hours; only the PAST is refused
-            print(f"  {YELLOW}SKIP{RESET} {p.underlying}: expired-by-design "
-                  f"entry ({p.expiry})")
-            row["refused_by"] = ["control:expired_contract"]
-            row["reason"] = f"contract expired on {p.expiry}"
-            continue
-
-        # The gap continuation is capped at N entries per window. Its usage is
-        # a projection of durable logical submissions, not a second counter in
-        # position metadata; the latter can lag a broker response or be written
-        # twice after a retry.
-        if p.engine == "event_macro" and p.structure == "single_long":
-            gap_total = project_gap_usage(
-                journal_view, trading_date, "event_macro:single_long")
-            gap_max = int(manifest.get("strategies", "event_macro",
-                                       "gap_max_entries_total", default=2))
-            if gap_total >= gap_max:
-                print(f"  {YELLOW}SKIP{RESET} {p.underlying} {p.structure}: "
-                      f"window gap entries {gap_total}/{gap_max} used")
-                row["refused_by"] = ["control:gap_entry_limit"]
-                row["reason"] = f"window gap entries {gap_total}/{gap_max} used"
-                continue
-
-        # Pretrade gates run BEFORE either cap reserves, because both reserve
-        # on success and neither refunds. A gate refusal after a reservation
-        # leaks it: `day` is written to disk, so a refused proposal used to
-        # burn its max loss out of the daily cap for the rest of the session
-        # without ever taking a cent of real risk. Observed 2026-08-27, when
-        # competition_window refused two NVDA candidates and day_state still
-        # recorded new_risk_dollars=4715 against 0 submissions. Reserving only
-        # once the proposal is cleared to submit, and handing both back if
-        # the submit itself raises, keeps "reserved" and "actually at risk"
-        # the same set.
-        pre = {}
-        for g in checks.GATES:
-            if g.phase != "pretrade":
-                continue
-            pre[g.name] = g.check(checks.EvalContext(
-                manifest=manifest, now_utc=now_utc, account=state.account,
-                is_paper_session=True, clock=state.clock,
-                positions=state.positions, ledger_positions=ledger,
-                option_quote_age_seconds=state.chain_ages.get(p.underlying),
-                underlying_bar_age_seconds=_underlying_bar_age(state),
-                decision_log_writable=_decisions_writable(), proposal=p))
-        refused = [n for n, r in pre.items() if not r.ok
-                   and severity_of(checks.GATES, n) == "BLOCKING"]
-        if refused:
+    # ── 4. admission, WAL reservation, pretrade gates, submit ─────────────
+    # Entry evaluation begins after exits refresh the broker and ledger views.
+    # The typed subject supplies one shared fact set to every selected proposal;
+    # `submit_entries` returns outcomes rather than emitting its own output.
+    entry_evaluator = GateEvaluator(root=ROOT)
+    entry_cycle_subject = entry_evaluator.cycle_subject(
+        state=state, manifest=manifest, ledger_positions=ledger,
+        journal_view=journal_view,
+    )
+    entry_result = submit_entries(
+        candidates=candidates, chosen=chosen, decisions=decisions,
+        state=state, manifest=manifest, executor=executor, portfolio=portfolio,
+        day=day, journal=journal, journal_view=journal_view,
+        trading_date=trading_date, cycle_id=cycle_id,
+        at_risk_cap=at_risk_cap, exposure_cap=exposure_cap,
+        entry_evaluator=entry_evaluator,
+        entry_cycle_subject=entry_cycle_subject,
+    )
+    for event in entry_result.events:
+        p = event.proposal
+        if event.kind == "submitted":
+            print(f"  {GREEN}OK{RESET} {event.detail}")
+        elif event.kind == "submission_uncertain":
+            print(f"  {RED}SUBMIT UNCERTAIN{RESET}: {event.detail}")
+        elif event.kind == "gate_refused":
+            refused = ", ".join(decisions[event.index]["refused_by"])
             print(f"  {YELLOW}REFUSED{RESET} {p.underlying} {p.structure}: "
-                  f"{', '.join(refused)}")
-            row["refused_by"] = [f"gate:{name}" for name in refused]
-            row["reason"] = f"pretrade refused: {', '.join(refused)}"
-            continue
-
-        # The WAL, not DayState +=, owns reservations. Re-project before every
-        # candidate so a prior submission in this same loop spends headroom.
-        journal_view = journal.replay()
-        project_day_risk(day, journal_view, trading_date)
-        refused_budget = entry_budget_refusal(
-            portfolio, day, p.max_loss_dollars,
-            at_risk_cap=at_risk_cap, exposure_cap=exposure_cap)
-        if refused_budget == "portfolio":
+                  f"{refused}")
+        else:
             print(f"  {YELLOW}SKIP{RESET} {p.underlying} {p.structure}: "
-                      f"portfolio at-risk cap reached "
-                      f"(${portfolio.max_loss_total:,.0f}/${at_risk_cap:,.0f})")
-            row["refused_by"] = ["control:portfolio_risk_budget"]
-            row["reason"] = "portfolio at-risk cap reached"
-            continue
-        if refused_budget == "daily":
-            print(f"  {YELLOW}SKIP{RESET} {p.underlying} {p.structure}: daily "
-                  f"exposure cap reached")
-            row["refused_by"] = ["control:daily_exposure_budget"]
-            row["reason"] = "daily exposure cap reached"
-            continue
+                  f"{event.detail}")
 
-        fire_keys = ((fire_key(p.engine, p.underlying, today),)
-                     if fire_once else ())
-        gap_counters = (("event_macro:single_long", 1),) if (
-            p.engine == "event_macro" and p.structure == "single_long") else ()
-        reservation = make_reservation(
-            proposal=p, manifest=manifest,
-            account_id=str(state.account.account_number),
-            trading_date=trading_date, cycle_id=cycle_id,
-            fire_keys=fire_keys, gap_counters=gap_counters)
-        row["authorized"] = True
-        row["client_order_id"] = reservation.client_order_id
-        try:
-            order = dispatch_entry(
-                journal, reservation,
-                lambda client_id: executor.submit(
-                    p, client_order_id=client_id))
-        except Exception as exc:                            # noqa: BLE001
-            # The request may have reached Alpaca. Leave DISPATCHING held and
-            # stop every later entry in this cycle; startup reconciliation will
-            # resolve it by the predeclared client order id.
-            journal_view = journal.replay()
-            project_day_risk(day, journal_view, trading_date)
-            mark_submission_uncertain(row, exc)
-            print(f"  {RED}SUBMIT UNCERTAIN{RESET}: {exc}")
-            submission_uncertain = True
-            mark_remaining_aborted(
-                decisions, list(chosen[chosen_position + 1:]))
-            break
-        print(f"  {GREEN}OK{RESET} {order.id}")
-        row["submitted"] = True
-        row.update(broker_order_facts(order))
-        row["reason"] = c.label
-        portfolio.max_loss_total += p.max_loss_dollars
-        journal_view = journal.replay()
-        project_day_risk(day, journal_view, trading_date)
-
+    entered_at = now_utc.strftime("%H%M%S")
+    for entry in entry_result.submissions:
+        p = entry.proposal
         cfg = manifest.get("strategies", p.engine)
-        gid = group_key(p.engine, p.underlying,
-                        p.expiry.isoformat() if p.expiry else "", entered_at)
-        record_group(p, entered_at)
+        gid = STRUCTURES.record_entry(p, entered_at)
         if p.structure in ("credit_vertical", "iron_condor"):
             tp, sl = float(cfg.get("take_profit_fraction", 0.5)), \
                 float(cfg.get("stop_loss_multiple", 2.0))
         else:
             tp, sl = float(cfg.get("take_profit_fraction", 0.5)), \
                 float(cfg.get("stop_loss_fraction", 0.5))
-        patch_group_tp_sl(gid, tp, sl)
-
-        submitted += 1
+        STRUCTURES.set_exit_thresholds(gid, take_profit=tp, stop_loss=sl)
 
     atomic_write(DAY_PATH, day.as_dict())
     mirror_from_broker(data.positions())
     publish_snapshot(manifest=manifest, state=state, results=results,
                      blockers=blockers, decisions=decisions, regime=regime,
                      day=day, decision_updates=decision_updates)
-    print(f"\nsubmitted {submitted} proposal(s) this cycle")
-    return 1 if submission_uncertain else 0
+    print(f"\nsubmitted {len(entry_result.submissions)} proposal(s) this cycle")
+    return 1 if entry_result.uncertain else 0
 
 
 def main() -> int:

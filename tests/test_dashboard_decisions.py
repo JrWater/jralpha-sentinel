@@ -1,7 +1,8 @@
 """The public dashboard renders the new decision facts, not `accepted`."""
 from __future__ import annotations
 
-from dashboard.decision_view import classify_decision, summarize_decisions
+from dashboard.decision_view import (classify_decision, proposer_summary,
+                                     summarize_decisions)
 
 
 def test_summary_counts_submission_and_refusal_as_distinct_facts():
@@ -68,3 +69,15 @@ def test_partial_fill_is_not_claimed_as_fully_filled():
 
     assert view.icon == "📤"
     assert view.label == "submitted · partially_filled"
+
+
+def test_proposer_summary_distinguishes_model_use_from_fallback():
+    assert proposer_summary({"proposer": {
+        "decision_mode": "llm", "provider": "deepseek",
+        "model": "deepseek-v4-flash", "fallback_reason": None,
+    }}) == "LLM · deepseek / deepseek-v4-flash"
+
+    assert proposer_summary({"proposer": {
+        "decision_mode": "deterministic_fallback", "provider": "deepseek",
+        "model": "deepseek-v4-flash", "fallback_reason": "model_error",
+    }}) == "deterministic fallback · model_error"

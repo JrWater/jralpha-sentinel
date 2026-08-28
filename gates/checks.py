@@ -10,35 +10,11 @@ production.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
 
+from gates.evaluation import CycleSubject, EvalContext, ProposalSubject
 from gates.registry import Gate, GateResult, validate
-
-
-@dataclass
-class EvalContext:
-    """Everything the gates are allowed to look at.
-
-    Populated by the runner from the broker session and the local ledger.
-    Absent values stay None and the gates fail closed on them — "we could not
-    determine it" is treated as "not safe", never as "probably fine".
-    """
-    manifest: Any
-    now_utc: datetime
-    account: Any = None                 # Alpaca TradingAccount
-    is_paper_session: bool | None = None
-    clock: Any = None                   # Alpaca Clock
-    positions: list = field(default_factory=list)
-    ledger_positions: list | None = None
-    option_quote_age_seconds: float | None = None
-    underlying_bar_age_seconds: float | None = None
-    decision_log_writable: bool | None = None
-    git_head: str | None = None
-    git_dirty: bool | None = None
-    proposal: Any = None                # set for pretrade gates
-    unresolved_dispatch_count: int | None = None
 
 
 def _f(value) -> float | None:
@@ -149,17 +125,26 @@ def check_equity_floor(ctx: EvalContext) -> GateResult:
     return GateResult(True, f"equity {equity:,.2f} >= floor {floor:,.2f}")
 
 
-def check_market_session(ctx: EvalContext) -> GateResult:
+def check_market_open(ctx: EvalContext) -> GateResult:
     if ctx.clock is None:
         return GateResult(False, "no market clock")
     if not getattr(ctx.clock, "is_open", False):
+        return GateResult(False, "market closed")
+    return GateResult(True, "market open")
+
+
+def check_entry_window(ctx: EvalContext) -> GateResult:
+    """The entry time for one proposal; event_macro has a declared exception."""
+    if ctx.proposal is None:
+        return GateResult(False, "no proposal")
+    if ctx.clock is None or not getattr(ctx.clock, "is_open", False):
         return GateResult(False, "market closed")
     from zoneinfo import ZoneInfo
     tz = ZoneInfo(ctx.manifest.get("session", "timezone"))
     local = ctx.now_utc.astimezone(tz).time()
     open_after = ctx.manifest.get("session", "no_new_exposure_before")
     close_before = ctx.manifest.get("session", "no_new_exposure_after")
-    if ctx.proposal is not None and             getattr(ctx.proposal, "engine", "") == "event_macro":
+    if getattr(ctx.proposal, "engine", "") == "event_macro":
         # the declared exception: the 0-DTE NFP gap continuation trades the
         # 09:30-09:50 window on the report morning (then hard-flattens)
         open_after = ctx.manifest.get("strategies", "event_macro",
@@ -199,7 +184,7 @@ def check_underlying_data(ctx: EvalContext) -> GateResult:
     """Fresh bars matter only while the market is open.
 
     After the close the feed legitimately stops producing intraday bars and
-    quote timestamps stop; the market_session gate already forbids entries
+    quote timestamps stop; the market_open gate already forbids entries
     then, so this gate reports PASS with a note instead of a misleading
     "feed stopped" red that the operator would learn to ignore.
     """
@@ -223,7 +208,7 @@ def check_option_chain_data(ctx: EvalContext) -> GateResult:
     ignore it. The threshold is delay + tolerance: past that, the feed has
     stopped, which is a different fact entirely. After the close (clock not
     open) the feed is legitimately silent, so the gate steps aside - entries
-    are already forbidden by market_session.
+    are already forbidden by market_open.
     """
     clock_open = getattr(getattr(ctx, "clock", None), "is_open", None)
     if clock_open is False:
@@ -357,81 +342,85 @@ def check_buying_power(ctx: EvalContext) -> GateResult:
 
 
 GATES = (
-    Gate("manifest_identity", check_manifest_identity, "preflight",
+    Gate("manifest_identity", check_manifest_identity, CycleSubject,
          "BLOCKING", "Release Integrity",
          "Parameters must come from one machine-verifiable authority; a run "
          "whose manifest will not load has no defined semantics."),
-    Gate("broker_session", check_broker_session, "preflight",
+    Gate("broker_session", check_broker_session, CycleSubject,
          "BLOCKING", "Entry Authority",
          "No session, no authority. Also catches broker-side trading blocks "
          "before we spend a decision cycle on a book we cannot touch."),
-    Gate("account_identity", check_account_identity, "preflight",
+    Gate("account_identity", check_account_identity, CycleSubject,
          "BLOCKING", "Entry Authority",
          "Order authority is bound to one named account in paper mode. A key "
          "swapped in the environment must not inherit this policy's permit."),
-    Gate("competition_window", check_competition_window, "pretrade",
+    Gate("competition_window", check_competition_window, ProposalSubject,
          "BLOCKING", "Entry Authority",
          "The submitted account must start at exactly $100,000. A development "
          "trade placed on it before kickoff destroys that silently, and nobody "
          "finds out until a judge reads the balance."),
-    Gate("options_level", check_options_level, "preflight",
+    Gate("options_level", check_options_level, CycleSubject,
          "BLOCKING", "Entry Authority",
          "A spread submitted to a level-2 account fails at the broker after we "
          "have already committed to one side of it."),
-    Gate("equity_floor", check_equity_floor, "preflight",
+    Gate("equity_floor", check_equity_floor, CycleSubject,
          "BLOCKING", "Entry Authority",
          "The Entry Maintenance trip: below the floor the agent stops creating "
          "exposure while exits and reconciliation stay fully operational."),
-    Gate("market_session", check_market_session, "preflight",
+    Gate("market_open", check_market_open, CycleSubject,
+        "BLOCKING", "Process Health",
+         "A closed market cannot accept a new options entry, so there is no "
+         "reason to construct candidates while the session is closed."),
+    Gate("entry_window", check_entry_window, ProposalSubject,
          "BLOCKING", "Process Health",
-         "Entries are forbidden in the opening and closing 30 minutes, where a "
-         "delayed chain is least representative of what will actually fill."),
-    Gate("underlying_data", check_underlying_data, "preflight",
+         "Entries are forbidden in the opening and closing windows, except "
+         "the manifest-declared event_macro gap entry window."),
+    Gate("underlying_data", check_underlying_data, CycleSubject,
          "BLOCKING", "Data Readiness",
          "The directional signal reads underlying bars; stale bars produce a "
          "confident signal about a market that has moved on."),
-    Gate("option_chain_data", check_option_chain_data, "preflight",
+    Gate("option_chain_data", check_option_chain_data, CycleSubject,
          "BLOCKING", "Data Readiness",
          "Distinguishes 'delayed as designed' from 'feed stopped'. Only the "
          "second one is a reason not to trade, and only this gate can tell."),
-    Gate("position_reconcile", check_position_reconcile, "preflight",
+    Gate("position_reconcile", check_position_reconcile, CycleSubject,
          "BLOCKING", "Process Health",
          "If the ledger and the broker disagree we do not know our exposure, "
          "and every downstream risk cap is computed off a number we cannot "
          "confirm."),
-    Gate("decision_log", check_decision_log, "preflight",
+    Gate("decision_log", check_decision_log, CycleSubject,
          "BLOCKING", "Delivery Health",
          "If reporting is broken, a failure happens and nobody finds out. That "
          "is the one failure mode that hides all the others."),
-    Gate("unresolved_dispatches", check_unresolved_dispatches, "preflight",
+    Gate("unresolved_dispatches", check_unresolved_dispatches, CycleSubject,
          "BLOCKING", "Entry Authority",
          "A dispatched order with no broker answer may already be live. New "
          "exposure stays forbidden until reconciliation resolves it by its "
          "predeclared client order id."),
-    Gate("release_integrity", check_release_integrity, "preflight",
+    Gate("release_integrity", check_release_integrity, CycleSubject,
          "ATTENTION", "Release Integrity",
          "Running code should be verified code. ATTENTION rather than BLOCKING "
          "because editing between cycles is the normal mode during an active "
          "build; the dirty state is stamped into every decision record."),
 
-    Gate("order_shape_declared", check_order_shape_declared, "pretrade",
+    Gate("order_shape_declared", check_order_shape_declared, ProposalSubject,
          "BLOCKING", "Release Integrity",
          "One declaration both builds an order and validates it, so an "
          "undeclared shape is refused before submission rather than discovered "
          "after. 'market' is deliberately never declared."),
-    Gate("symbol_declared", check_symbol_declared, "pretrade",
+    Gate("symbol_declared", check_symbol_declared, ProposalSubject,
          "BLOCKING", "Entry Authority",
          "The universe is a policy decision, not a model decision. An LLM that "
          "invents a ticker gets refused, not filled."),
-    Gate("position_caps", check_position_caps, "pretrade",
+    Gate("position_caps", check_position_caps, ProposalSubject,
          "BLOCKING", "Entry Authority",
          "Concentration limits are the difference between a diversified theta "
          "book and one gap-risk bet wearing twelve costumes."),
-    Gate("per_trade_risk", check_per_trade_risk, "pretrade",
+    Gate("per_trade_risk", check_per_trade_risk, ProposalSubject,
          "BLOCKING", "Entry Authority",
          "Caps are fractions of declared starting equity, so a drawdown "
          "shrinks absolute risk instead of merely rescaling it."),
-    Gate("buying_power", check_buying_power, "pretrade",
+    Gate("buying_power", check_buying_power, ProposalSubject,
          "BLOCKING", "Entry Authority",
          "A rejected order still consumes a decision cycle, and in a five-day "
          "competition cycles are the scarce resource."),

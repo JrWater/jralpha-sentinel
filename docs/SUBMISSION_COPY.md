@@ -14,7 +14,7 @@ Sentinel: The Gates Decide
 ## Short Description / Summary (max 255 chars — this is 250)
 
 ```
-An autonomous options trading agent where the LLM only proposes trades — 16 deterministic gates decide. Built on Alpaca's Trading API, MCP server, and CLI, with a credential-free public dashboard showing every gate result and every refused proposal.
+An autonomous options trading agent where the LLM only proposes trades — deterministic safety gates decide. Built on Alpaca's Trading API, MCP server, and CLI, with a credential-free public dashboard showing every gate result and every refused proposal.
 ```
 
 ## Long Description (min 100 words — this is 331, word-count verified)
@@ -26,7 +26,7 @@ candidates from four quant vectors — Trend, Catalyst, Event, and
 Volatility — and writes a structured proposal. It holds no Alpaca
 credentials and no order-submission tool. It cannot place a trade.
 
-Sixteen deterministic gates across five dimensions decide instead. An
+Deterministic safety gates across five dimensions decide instead. An
 unregistered gate defaults to BLOCKING, never to a softer answer. A
 durable safety permit binds every decision to the exact git commit and
 policy hash that produced it, and expires in 90 minutes. The executor
@@ -73,7 +73,7 @@ Pull these from elsewhere at actual submission time, not from this file:
 - **Application URL** — https://jralpha-sentinel.streamlit.app
 - **GitHub repo** — https://github.com/JrWater/jralpha-sentinel
 - **Cover image** / **Slide presentation** / **Video presentation** — see
-  `media/cover.png`, `media/slides.pdf`, `sentinel-video/out/sentinel_demo.mp4`.
+  `media/cover.png`, `media/slides.pdf`, `media/sentinel_demo.mp4`.
 - **Social post links (up to 5)** — drafts in `docs/SOCIAL_POSTS.md`, not
   yet posted; the plan's schedule starts these on kickoff day (8/28), not
   before.

@@ -204,13 +204,13 @@ def main() -> int:
             results, gates, manifest_sha=manifest_sha,
             path=paths["permit"])
 
-    def decisions_writable():
+    def decisions_writable(_root=None):
         paths["decisions"].parent.mkdir(parents=True, exist_ok=True)
         paths["decisions"].touch(exist_ok=True)
         return True
 
     snapshot_mod.SNAPSHOT = paths["snapshot"]
-    rc.META_PATH = paths["meta"]
+    rc.STRUCTURES = ledger_mod.StructureLedger(paths["meta"])
     rc.DAY_PATH = paths["day"]
     rc.SUBMISSION_WAL_PATH = paths["wal"]
     rc.CYCLE_LOCK_PATH = paths["lock"]
@@ -229,8 +229,8 @@ def main() -> int:
         stack.enter_context(mock.patch.object(rc, "append_decision",
                                               append_decision))
         stack.enter_context(mock.patch.object(rc, "write_permit", write_permit))
-        stack.enter_context(mock.patch.object(rc, "_decisions_writable",
-                                              decisions_writable))
+        stack.enter_context(mock.patch(
+            "gates.evaluation._decisions_writable", decisions_writable))
         stack.enter_context(mock.patch("agent.executor.append_decision",
                                       append_decision))
         if args.require_fill:

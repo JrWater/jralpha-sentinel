@@ -96,9 +96,9 @@
   <h1 class="big">Sentinel</h1>
   <div class="tagline"><b>The model proposes. The gates decide.</b><br/>An autonomous options trading agent whose language model cannot place an order — it can only propose one.</div>
   <div class="flow">
-    <div class="node n1"><div class="ic">◆</div><div class="t1">Claude</div><div class="t2">reads the ranked candidates, writes the thesis</div></div>
+    <div class="node n1"><div class="ic">◆</div><div class="t1">DeepSeek</div><div class="t2">reads the ranked candidates, writes the thesis</div></div>
     <div class="arrow">→</div>
-    <div class="node n2"><div class="ic">▦</div><div class="t1">16 gates</div><div class="t2">deterministic, fail-closed, 5 dimensions</div></div>
+    <div class="node n2"><div class="ic">▦</div><div class="t1">Safety gates</div><div class="t2">deterministic, fail-closed, 5 dimensions</div></div>
     <div class="arrow">→</div>
     <div class="node n3"><div class="ic">▶</div><div class="t1">Alpaca</div><div class="t2">limit-only execution, paper account</div></div>
   </div>
@@ -113,7 +113,7 @@
   <div class="tagline">It's being <b>confidently</b> wrong — at 3× the intended size, in a symbol it invented, using an order type nobody authorized. Most agent submissions this week will give the model a broker tool and let it call it. Sentinel does the opposite.</div>
   <div class="stack" style="margin-top:0.55in">
     <div class="row"><div class="tag" style="color:#7fa3ff">The usual shape</div><div class="body">LLM holds broker credentials → LLM calls <code>place_order()</code> directly → whatever the model decided is now live.</div></div>
-    <div class="row"><div class="tag" style="color:#4fd189">Sentinel's shape</div><div class="body">LLM emits a <b style="color:#fff">structured proposal</b> — symbol, structure, stated max loss — with <b style="color:#fff">no broker credentials and no submission tool</b>. Sixteen deterministic gates decide whether it becomes an order. The model cannot argue with them, route around them, or be prompted out of them.</div></div>
+    <div class="row"><div class="tag" style="color:#4fd189">Sentinel's shape</div><div class="body">LLM emits a <b style="color:#fff">structured proposal</b> — symbol, structure, stated max loss — with <b style="color:#fff">no broker credentials and no submission tool</b>. Deterministic safety gates decide whether it becomes an order. The model cannot argue with them, route around them, or be prompted out of them.</div></div>
   </div>
   <div class="pageno">2 / 9</div>
 </section>
@@ -124,8 +124,8 @@
   <div class="kicker">Architecture</div>
   <h2>Decision, verification, and execution are three different pieces of code.</h2>
   <div class="stack" style="margin-top:0.5in">
-    <div class="row"><div class="tag" style="color:#7fa3ff"><code>agent/proposer.py</code></div><div class="body">Claude receives ranked candidates from the quant engine, portfolio state and regime — selects ≤3, ranks them, writes the thesis. With no model available, the agent falls back to engine ranking. <b style="color:#fff">A brain, never a finger.</b></div></div>
-    <div class="row"><div class="tag" style="color:#ef6b6b"><code>gates/checks.py</code></div><div class="body">16 gates across Entry Authority, Data Readiness, Process Health, Release Integrity, Delivery Health. Every gate answers one question: <i>it is red — why should the agent not open new exposure right now?</i> Unregistered = BLOCKING, never a softer default.</div></div>
+    <div class="row"><div class="tag" style="color:#7fa3ff"><code>agent/proposer.py</code></div><div class="body">DeepSeek receives ranked candidates from the quant engine, portfolio state and regime — selects ≤3, ranks them, writes the thesis. With no model available, the agent falls back to engine ranking. <b style="color:#fff">A brain, never a finger.</b></div></div>
+    <div class="row"><div class="tag" style="color:#ef6b6b"><code>gates/checks.py</code></div><div class="body">Deterministic gates span Entry Authority, Data Readiness, Process Health, Release Integrity, Delivery Health. Every gate answers one question: <i>it is red — why should the agent not open new exposure right now?</i> Unregistered = BLOCKING, never a softer default.</div></div>
     <div class="row"><div class="tag" style="color:#ffcf70"><code>gates/safety_gate.py</code></div><div class="body">A durable, fail-closed permit: bound to the exact git commit and manifest SHA that produced it, expires in 90 minutes. Every failure path in this module returns refusal — there is no exception handler whose fallback is "allow".</div></div>
     <div class="row"><div class="tag" style="color:#4fd189"><code>agent/executor.py</code></div><div class="body">Only accepts a proposal that (a) passed every pretrade gate and (b) matches an <code>order_shape</code> declared in the manifest. No shape declares <code>type: "market"</code> — a market order on a 15-min delayed feed is structurally impossible to emit.</div></div>
   </div>

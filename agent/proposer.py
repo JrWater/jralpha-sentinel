@@ -19,22 +19,34 @@ import json
 import os
 import re
 from dataclasses import asdict
+from typing import Callable, NamedTuple
+from urllib.request import Request, urlopen
 
 MAX_ATTEMPTS = 2
 
 
-def _load_key() -> str | None:
-    return (os.environ.get("ANTHROPIC_API_KEY")
-            or _from_env_file())
+class SelectionResult(NamedTuple):
+    """A selection together with evidence of how it was produced."""
+    indices: tuple[int, ...]
+    decision_mode: str
+    provider: str
+    model: str
+    fallback_reason: str | None
 
 
-def _from_env_file() -> str | None:
+def _load_key(provider: str) -> str | None:
+    name = ("DEEPSEEK_API_KEY" if provider == "deepseek"
+            else "ANTHROPIC_API_KEY")
+    return os.environ.get(name) or _from_env_file(name)
+
+
+def _from_env_file(name: str) -> str | None:
     from pathlib import Path
     for env_path in (Path.cwd() / ".env", Path.home() / ".openclaw" / ".env"):
         try:
             for line in env_path.read_text().splitlines():
                 line = line.strip()
-                if line.startswith("ANTHROPIC_API_KEY="):
+                if line.startswith(f"{name}="):
                     return line.partition("=")[2].strip().strip('"').strip("'")
         except OSError:
             continue
@@ -86,30 +98,79 @@ def _user_prompt(regime, portfolio, candidates) -> str:
     }, indent=1)
 
 
+def _deepseek_call(*, api_key: str, model: str, system: str, user: str,
+                   **_unused) -> str:
+    payload = json.dumps({
+        "model": model,
+        "messages": [
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
+        ],
+        "response_format": {"type": "json_object"},
+        "thinking": {"type": "disabled"},
+        "max_tokens": 800,
+        "stream": False,
+    }).encode()
+    request = Request(
+        "https://api.deepseek.com/chat/completions", data=payload,
+        headers={"Authorization": f"Bearer {api_key}",
+                 "Content-Type": "application/json"}, method="POST")
+    with urlopen(request, timeout=30) as response:  # noqa: S310
+        body = json.loads(response.read())
+    return body["choices"][0]["message"]["content"]
+
+
 def select(candidates, *, regime=None, portfolio=None, manifest=None,
-           max_sel=None) -> list[int]:
+           max_sel=None, api_key=None,
+           model_call: Callable[..., str] | None = None) -> SelectionResult:
     """Return candidate indices to trade, ranked best-first.
 
     Falls back to the engine ranking when the model is unavailable or its
     answer is unparseable — the fallback is a refusal to gamble on a bad
     answer, never an automatic submission of everything.
     """
+    provider = (manifest.get("agent", "provider", default="anthropic")
+                if manifest else "anthropic")
+    model = (manifest.get("agent", "model") if manifest
+             else "claude-sonnet-4-5")
     if not candidates:
-        return []
+        return SelectionResult((), "deterministic_fallback", provider, model,
+                               "no_candidates")
     max_sel = max_sel or int(manifest.get("agent", "max_proposals_per_cycle")) \
         if manifest else 3
     max_sel = max_sel or 3
 
-    key = _load_key()
+    key = api_key or _load_key(provider)
     if not key:
-        return list(range(min(max_sel, len(candidates))))
+        return SelectionResult(
+            tuple(range(min(max_sel, len(candidates)))),
+            "deterministic_fallback", provider, model, "missing_api_key")
+
+    if provider == "deepseek":
+        call = model_call or _deepseek_call
+        for _ in range(MAX_ATTEMPTS):
+            try:
+                text = call(
+                    provider=provider, api_key=key, model=model,
+                    system=_system_prompt(),
+                    user=_user_prompt(regime, portfolio, candidates),
+                    response_format={"type": "json_object"})
+                indices = tuple(_validated(_parse(text), candidates, max_sel))
+                return SelectionResult(indices, "llm", provider, model, None)
+            except Exception:  # noqa: BLE001
+                continue
+        return SelectionResult(
+            tuple(range(min(max_sel, len(candidates)))),
+            "deterministic_fallback", provider, model, "model_error")
 
     try:
         import anthropic
     except ImportError:
-        return list(range(min(max_sel, len(candidates))))
+        return SelectionResult(
+            tuple(range(min(max_sel, len(candidates)))),
+            "deterministic_fallback", provider, model,
+            "provider_sdk_unavailable")
 
-    model = (manifest.get("agent", "model") if manifest else "claude-sonnet-4-5")
     client = anthropic.Anthropic(api_key=key)
 
     for _ in range(MAX_ATTEMPTS):
@@ -123,10 +184,14 @@ def select(candidates, *, regime=None, portfolio=None, manifest=None,
             )
             text = "".join(b.text for b in resp.content if getattr(b, "type", "") == "text")
             parsed = _parse(text)
-            return _validated(parsed, candidates, max_sel)
+            return SelectionResult(tuple(_validated(parsed, candidates,
+                                                     max_sel)),
+                                   "llm", provider, model, None)
         except Exception:                                    # noqa: BLE001
             continue
-    return list(range(min(max_sel, len(candidates))))
+    return SelectionResult(tuple(range(min(max_sel, len(candidates)))),
+                           "deterministic_fallback", provider, model,
+                           "model_error")
 
 
 def _parse(text: str) -> dict:

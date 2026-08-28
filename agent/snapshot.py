@@ -31,6 +31,8 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
+from gates.evaluation import phase_for
+
 ROOT = Path(__file__).resolve().parents[1]
 
 # Deliberately under docs/ and NOT gitignored: this file is a deliverable, and
@@ -133,7 +135,9 @@ def build(*, manifest, account, clock, gate_results, gates, permit_status: str,
             "dimension": gate.dimension if gate else "unknown",
             # An unregistered gate is BLOCKING, never a softer default.
             "severity": gate.severity if gate else "BLOCKING",
-            "phase": gate.phase if gate else "unknown",
+            # Gate scope is derived from the accepted subject type; no gate
+            # carries an independently editable phase string.
+            "phase": phase_for(gate.accepts) if gate else "unknown",
             "ok": bool(result.ok),
             "detail": result.detail,
             "rationale": gate.rationale if gate else "",

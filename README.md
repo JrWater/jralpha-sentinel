@@ -13,16 +13,16 @@ The usual shape of an LLM trading agent is: give the model a broker tool, let it
 Sentinel splits those apart.
 
 ```
-Claude ──> Proposal (structured, inert)
+DeepSeek ──> Proposal (structured, inert)
               │
               ▼
-        16 gates, 5 dimensions, deterministic code
+        deterministic safety gates, 5 dimensions
               │  BLOCKING / ATTENTION / INFO
               ▼
         Executor ──> Alpaca Trading API
 ```
 
-The model has no broker credentials and no submission tool. It emits a proposal — a symbol, a structure, a stated maximum loss. Sixteen deterministic gates then decide whether that proposal is allowed to become an order. The model cannot argue with them, route around them, or be prompted out of them.
+The model has no broker credentials and no submission tool. It emits a proposal — a symbol, a structure, a stated maximum loss. Deterministic safety gates then decide whether that proposal is allowed to become an order. The model cannot argue with them, route around them, or be prompted out of them.
 
 This matters because the failure mode of an LLM trader is not that it is wrong. It is that it is *confidently* wrong at 3× normal size, in a symbol it invented, using an order type nobody authorized. Every one of those is a gate here, and every one of them is refused at the boundary rather than discovered in the fill report.
 
@@ -91,7 +91,7 @@ the pre-declared 0-DTE gap continuation (09:30–09:50 ET, ≤2 entries).
 
 ```bash
 uv venv --python 3.11 .venv
-uv pip install --python .venv/bin/python alpaca-py streamlit pytest anthropic
+uv pip install --python .venv/bin/python alpaca-py streamlit pytest
 cp .env.example .env      # fill in the competition account's keys
 .venv/bin/python scripts/verify_account.py --compare-legacy
 .venv/bin/python -m pytest tests/ -q

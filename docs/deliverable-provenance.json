@@ -1,0 +1,50 @@
+{
+  "artifacts": {
+    "media/sentinel_demo.mp4": {
+      "inputs": {
+        "sentinel-video/assets/align/01_title.json": "31fffeb5c0fc45b9a79db99922714555ed59e2665ba37cf28cd691942a146ecb",
+        "sentinel-video/assets/align/02_problem.json": "3c106963a7cb8e25d35500906f292b8e972e691a662a312b3276a33f97fddb4a",
+        "sentinel-video/assets/align/03_architecture.json": "41e9d2f42ccc51ae41ee886f9416b5f2de39c447dc94c7b49ce25811a3305689",
+        "sentinel-video/assets/align/04_ai_logic.json": "519307907fea368fb310cbe53600cf8c85cb8ddef9dd2fba93786cb7451942ae",
+        "sentinel-video/assets/align/05_risk_gates.json": "eeca5105ed61aebc6c44528b4a7eec003224118da24f8b8f919a51c9850202ed",
+        "sentinel-video/assets/align/06_infra.json": "6fa161f4086b5a5164bbb71eb4a8185ea5bb41eceffd83d95a90f976fc52c50d",
+        "sentinel-video/assets/align/07_dashboard.json": "85dc34047a00f02f363e146c4bf36d73a55deaa530ec530bbfe60d94d3602318",
+        "sentinel-video/assets/align/08_code.json": "926cfc24d88aa4dc05f36bbee7680b2ace9759150ba7ca3efa5210dd22d9e29c",
+        "sentinel-video/assets/align/09_results.json": "cf938c5efdfb60a4234d58d6c1d5b35a7d2ba68ad03ceef8e411aeaaecc34bca",
+        "sentinel-video/assets/align/10_closing.json": "65235950d11f7ecd200186525411fc4ff19076a932c21eae99a29d2734054ae4",
+        "sentinel-video/assets/audio/01_title.mp3": "594a9d0e583c2f345860ad4c18720747fc4676040a71d6f890712a54c1a3ff58",
+        "sentinel-video/assets/audio/02_problem.mp3": "d463c7e59fd131bc26a3b92e5d3130d6f0ec6e47b65634e54e36d9686e74efa1",
+        "sentinel-video/assets/audio/03_architecture.mp3": "df54fc711bc7d0b95754976eb3e2d311b8e5be01770fc6b5a8371f226116d90e",
+        "sentinel-video/assets/audio/04_ai_logic.mp3": "c4b11752fa71d01f2a256c2bd0e0441fa26267d9e201ada6ff343d572b34f221",
+        "sentinel-video/assets/audio/05_risk_gates.mp3": "2c8df1659bd16c302d4e834f2398a31c63062b1d345ad80f745da3f10e313ad7",
+        "sentinel-video/assets/audio/06_infra.mp3": "17ee2ea16332259d2790229419b8015c59469cb3057eb187fb0f0c7a3b060242",
+        "sentinel-video/assets/audio/07_dashboard.mp3": "bd8a1bcd8b1af1db49de56f018ac66f563bfe2c84ec77ed4a0c580ab8ba045b5",
+        "sentinel-video/assets/audio/08_code.mp3": "5314fc4bbb9273eb67ff3af7da6f5e9e800b792ffee0254ae600a87ad11b2d84",
+        "sentinel-video/assets/audio/09_results.mp3": "388e770d81f59189ae22a904d58d3a5f6097a36501d01756b4e1f9e18ad5130b",
+        "sentinel-video/assets/audio/10_closing.mp3": "37eb32b9369aeea3e6b9c8935a433e81e2caee6705763590285953c6d2ead39d",
+        "sentinel-video/assets/code_screenshot.png": "2e180c055055796a56d688c041f6b597ff29ee0d0b8e2fe3c4c8b7183d43c4a1",
+        "sentinel-video/assets/dash_f1_hero.png": "51534f36a5f05c715332f8c513abaf186980ec71c6132a7ce25a4332e3dc54c2",
+        "sentinel-video/assets/dash_f2_gates.png": "c22ed799533eb6889a88056cc7bafca2af4b4e7a2964e1b78b5753a873fb5c08",
+        "sentinel-video/assets/dash_f3_decisions.png": "02110586b27cb589a9601847f36078c4ce6f0fbf2614f6c38b9c98b9a9d4cf04",
+        "sentinel-video/assets/fonts/Caveat-700-latin.woff2": "891951df5e8b5b0f0bc760d31375405e795c666b5add70437de12d4a6482b33f",
+        "sentinel-video/compositions/scene-01.html": "f2d60887dd640cb201890801a57ed38f8c7b94b83fd9debfa79673d4ba61c421",
+        "sentinel-video/compositions/scene-02.html": "255cfae7c55a5f522c09b377744425040a7309c71750cc33bc2ae1a3c5922d1b",
+        "sentinel-video/compositions/scene-03.html": "e24691a00f8915f5a375750a0d2d7e2fb427a220ef3cd2f935f8273bfb5aaf3f",
+        "sentinel-video/compositions/scene-04.html": "d474e18d6f47b69e1c1ee633065641a94112e1bf15f5874003bb711fa7522e3b",
+        "sentinel-video/compositions/scene-05.html": "17852f71c395b759808f0be26e23f6197fd8ba55cd2e5550cd4ddc3ad36c0f7b",
+        "sentinel-video/compositions/scene-06.html": "207a610b7b6bbd5cbb5d8783fb8b5c05f75ddda5df71c2cef5ac8034b877a324",
+        "sentinel-video/compositions/scene-07.html": "f1d3e6059f0f5a838a850ac8f0bdb86fb6a8ec24a40aceec5155b2ff03b09ad5",
+        "sentinel-video/compositions/scene-08.html": "0c6520aee95355c077079d88e6a22a38e17fc00b4fc4c33ae98f023ac18795b4",
+        "sentinel-video/compositions/scene-09.html": "f173d27353d3115858691ee0fb33d28c9e82d6e5ff1a2d18cb5b9b2c4aaa6ba1",
+        "sentinel-video/compositions/scene-10.html": "e11f8428b5ce0202364082dee424f68ffe9dabeeaa1eb8747aa227cddc5bd94e",
+        "sentinel-video/hyperframes.json": "ad5dadeef78a520800a9e5cdd27a92ff5ac37f11b6a07f611b6b52b9f8c79a17",
+        "sentinel-video/index.html": "e1731a06426abad59f17a7f3c26266839edb9f6dbbe20742476072be0f8bcaa0",
+        "sentinel-video/narration.json": "c554f629ac100524ce4e4d1f194e4c8e64cf5ac26386fda9cd3606cd280e6b7f",
+        "sentinel-video/package.json": "69b85b980c36c7729efd0a3086da6ba96896ee0f36ea0f167b3ba9642792cb6f",
+        "sentinel-video/tools/timeline.py": "8508802b8fea77bff1f517792005e1fac945275505c33b30b3afd3953898acfc"
+      },
+      "sha256": "851eab66de2004f4814ecd1026dbf74f689c66734c21047e83e92c405a64f337"
+    }
+  },
+  "schema_version": 1
+}

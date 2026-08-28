@@ -148,7 +148,7 @@ book. Floors follow the evidence: hard cap $12,000, at-risk 40%, daily
 exposure 30%, kill -12%, Entry Maintenance $70,000 (last-bullet logic: the
 $12k LULU bet is exactly the bet you do NOT skip when hurt).
 
-## v3.0 ALL-IN (owner directive, 2026-08-26)
+## v3.0 ALL-IN (owner directive, 2026-08-26) <!-- deliverable-check: historical -->
 
 v2.4 optimized *expected value within conservative caps*. The owner's
 directive for v3.0 is different and simpler: **maximize the probability of a
@@ -179,7 +179,7 @@ profile, per the owner's explicit instruction. Defined-risk structures only
 remain in force: no naked shorts, no market orders — the one-page write-up
 remains true, because the gates still exist and still decide.
 
-## Backtest (model-based simulation, 2026-08-26, v2.4 correction)
+## Backtest (model-based simulation, 2026-08-26, v2.4 correction) <!-- deliverable-check: historical -->
 
 `scripts/backtest_strategy.py` replays the Trend Vector as the engine trades
 it: regime gate, score threshold, pullback filter, top-3 ranking, position

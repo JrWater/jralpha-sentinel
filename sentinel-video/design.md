@@ -40,7 +40,7 @@ annotations. Crisp typography and real evidence carry every factual claim.
   restate an existing claim but never introduce a new metric.
 - Ambient paper marks should evolve throughout a held shot. Scene 01 is a
   miniature visual explanation: orbiting robot, a note about unattended
-  operation, then a hand-drawn callout around the sixteen gates.
+  operation, then a hand-drawn callout around the deterministic gate matrix.
 - The small Sentinel robot appears only at the opening and close. It represents
   unattended operation, not the language model itself.
 

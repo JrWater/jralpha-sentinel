@@ -83,7 +83,7 @@ any watched state file moves.
 ## Reproducing the checks
 
 ```bash
-.venv/bin/python -m pytest tests/ -q          # 114 tests
+.venv/bin/python -m pytest tests/ -q          # full automated suite
 .venv/bin/python scripts/check_deliverables.py # docs vs manifest
 .venv/bin/python scripts/verify_account.py     # account vs the rules
 .venv/bin/python scripts/dress_rehearsal.py    # full chain, nothing sent

@@ -20,6 +20,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from gates import checks, safety_gate                        # noqa: E402
+from gates.evaluation import CycleSubject                    # noqa: E402
 from gates.registry import (DIMENSIONS, Gate, GateResult,     # noqa: E402
                             blockers, severity_of, validate)
 from policy.loader import load as load_manifest               # noqa: E402
@@ -43,24 +44,24 @@ def test_missing_field_is_an_import_time_error():
 def test_typo_in_severity_is_rejected():
     """'BLOCKNIG' is exactly as dangerous as omitting severity."""
     with pytest.raises(ValueError, match="severity"):
-        validate([Gate("typo", ok_check, "preflight", "BLOCKNIG",
+        validate([Gate("typo", ok_check, CycleSubject, "BLOCKNIG",
                        "Process Health", "r")])
 
 
 def test_typo_in_dimension_cannot_grow_a_sixth_dimension():
     with pytest.raises(ValueError, match="dimension"):
-        validate([Gate("typo", ok_check, "preflight", "BLOCKING",
+        validate([Gate("typo", ok_check, CycleSubject, "BLOCKING",
                        "Proces Health", "r")])
 
 
 def test_rationale_is_mandatory():
     with pytest.raises(ValueError, match="rationale"):
-        validate([Gate("bare", ok_check, "preflight", "BLOCKING",
+        validate([Gate("bare", ok_check, CycleSubject, "BLOCKING",
                        "Process Health", "   ")])
 
 
 def test_duplicate_names_rejected():
-    g = Gate("dup", ok_check, "preflight", "INFO", "Process Health", "r")
+    g = Gate("dup", ok_check, CycleSubject, "INFO", "Process Health", "r")
     with pytest.raises(ValueError, match="duplicate"):
         validate([g, g])
 
@@ -292,7 +293,7 @@ def test_unresolved_dispatch_is_a_registered_blocking_entry_gate():
     gate = next(g for g in checks.GATES
                 if g.name == "unresolved_dispatches")
 
-    assert gate.phase == "preflight"
+    assert gate.accepts is CycleSubject
     assert gate.severity == "BLOCKING"
     assert gate.dimension == "Entry Authority"
 
@@ -369,11 +370,12 @@ def test_entry_window_excludes_the_open_and_the_close(manifest):
     def at(hour, minute):
         # New York is UTC-4 in late August
         return _ctx(manifest,
-                    now_utc=datetime(2026, 8, 28, hour + 4, minute, tzinfo=UTC))
+                    now_utc=datetime(2026, 8, 28, hour + 4, minute, tzinfo=UTC),
+                    proposal=_proposal())
 
-    assert not checks.check_market_session(at(9, 45)).ok    # opening auction
-    assert checks.check_market_session(at(11, 0)).ok
-    assert not checks.check_market_session(at(15, 35)).ok   # closing 30 min
+    assert not checks.check_entry_window(at(9, 45)).ok    # opening auction
+    assert checks.check_entry_window(at(11, 0)).ok
+    assert not checks.check_entry_window(at(15, 35)).ok   # closing 30 min
 
 
 def test_event_macro_may_enter_the_nfp_gap_window(manifest):
@@ -384,13 +386,13 @@ def test_event_macro_may_enter_the_nfp_gap_window(manifest):
                     now_utc=datetime(2026, 9, 4, hour + 4, minute, tzinfo=UTC),
                     proposal=_proposal(engine=engine, legs=[1]))
 
-    assert checks.check_market_session(at(9, 35)).ok
-    assert not checks.check_market_session(at(9, 25)).ok
-    assert not checks.check_market_session(at(9, 35, "trend_directional")).ok
+    assert checks.check_entry_window(at(9, 35)).ok
+    assert not checks.check_entry_window(at(9, 25)).ok
+    assert not checks.check_entry_window(at(9, 35, "trend_directional")).ok
 
 
 def test_closed_market_blocks_entries(manifest):
-    assert not checks.check_market_session(
+    assert not checks.check_market_open(
         _ctx(manifest, clock=SimpleNamespace(is_open=False))).ok
 
 

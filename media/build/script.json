@@ -2,7 +2,7 @@
   {
     "id": "01_title",
     "visual": "cover",
-    "text": "Sentinel: an autonomous options trading agent for the Alpaca A-I Trading Agents Hackathon. It trades unattended -- no human approves anything. Inside, the language model proposes, and sixteen deterministic gates decide."
+    "text": "Sentinel: an autonomous options trading agent for the Alpaca A-I Trading Agents Hackathon. It trades unattended -- no human approves anything. Inside, the language model proposes, and deterministic gates decide."
   },
   {
     "id": "02_problem",
@@ -12,7 +12,7 @@
   {
     "id": "03_architecture",
     "visual": "slide:3",
-    "text": "Four pieces, one job each. The proposer ranks candidates and writes the thesis -- a brain, never a finger. Sixteen gates across five dimensions; an unregistered gate defaults to blocking. The permit is bound to the exact commit and policy hash, and expires in ninety minutes. And the executor accepts only a declared order shape -- none of them is a market order."
+    "text": "Four pieces, one job each. The proposer ranks candidates and writes the thesis -- a brain, never a finger. Gates across five dimensions; an unregistered gate defaults to blocking. The permit is bound to the exact commit and policy hash, and expires in ninety minutes. And the executor accepts only a declared order shape -- none of them is a market order."
   },
   {
     "id": "04_ai_logic",

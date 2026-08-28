@@ -235,7 +235,8 @@
     "_comment_final": "Submissions close 2026-09-04 15:00 UTC (11:00 ET). Alpaca paper syncs non-trading activity (expiration, assignment) only on the following day, so 09-04 positions are closed by live orders, never left to expire."
   },
   "agent": {
-    "model": "claude-opus-5",
+    "provider": "deepseek",
+    "model": "deepseek-v4-flash",
     "_comment_authority": "The model produces PROPOSALS, never orders. It has no broker credentials and no submission tool. Its output is a structured selection among engine candidates plus a written thesis; the gates then accept or refuse.",
     "max_proposals_per_cycle": 3,
     "cycle_minutes": 30,

@@ -7,6 +7,7 @@ from datetime import date, datetime, timezone
 from types import SimpleNamespace
 
 from agent.executor import Executor
+from agent.ledger import StructureLedger
 from policy.loader import Manifest, load as load_manifest
 from scripts import run_cycle
 from strategy.data import ChainContract, MarketState
@@ -64,7 +65,6 @@ def test_registered_structure_exit_is_not_resubmitted_as_orphan(
             },
         }
     }}))
-    monkeypatch.setattr(run_cycle, "META_PATH", meta_path)
     recorded = []
     monkeypatch.setattr(run_cycle, "append_decision", recorded.append)
     monkeypatch.setattr("agent.executor.append_decision", recorded.append)
@@ -86,7 +86,8 @@ def test_registered_structure_exit_is_not_resubmitted_as_orphan(
     broker = PaperBrokerBoundary("PAPER-TEST")
 
     closed = run_cycle.manage_exits(
-        state, manifest, Executor(broker, manifest, verbose=False))
+        state, manifest, Executor(broker, manifest, verbose=False),
+        structures=StructureLedger(meta_path))
 
     assert closed == 1
     assert len(broker.submitted) == 1
@@ -102,7 +103,8 @@ def test_registered_structure_exit_is_not_resubmitted_as_orphan(
     # A later snapshot with residual legs retries the registered structure as
     # one structure; it still must not degrade into two orphan orders.
     assert run_cycle.manage_exits(
-        state, manifest, Executor(broker, manifest, verbose=False)) == 1
+        state, manifest, Executor(broker, manifest, verbose=False),
+        structures=StructureLedger(meta_path)) == 1
     assert len(broker.submitted) == 2
     assert all(len(request.legs) == 2 for request in broker.submitted)
 
@@ -111,14 +113,16 @@ def test_registered_structure_exit_is_not_resubmitted_as_orphan(
     # classification, and no already-filled leg is resubmitted.
     state.positions = [state.positions[0]]
     assert run_cycle.manage_exits(
-        state, manifest, Executor(broker, manifest, verbose=False)) == 1
+        state, manifest, Executor(broker, manifest, verbose=False),
+        structures=StructureLedger(meta_path)) == 1
     assert len(broker.submitted) == 3
     assert broker.submitted[-1].symbol == short_symbol
 
     # Only broker-confirmed absence of every leg completes the audit state.
     state.positions = []
     assert run_cycle.manage_exits(
-        state, manifest, Executor(broker, manifest, verbose=False)) == 0
+        state, manifest, Executor(broker, manifest, verbose=False),
+        structures=StructureLedger(meta_path)) == 0
     confirmed = json.loads(meta_path.read_text())["groups"][
         "trend_income:NVDA:2026-09-04:100000"]
     assert confirmed["closed"] is True
@@ -136,7 +140,6 @@ def test_position_without_any_active_group_is_closed_as_an_orphan(
     symbol = "NVDA260904C00225000"
     meta_path = tmp_path / "positions_meta.json"
     meta_path.write_text('{"groups": {}}')
-    monkeypatch.setattr(run_cycle, "META_PATH", meta_path)
     recorded = []
     monkeypatch.setattr(run_cycle, "append_decision", recorded.append)
     monkeypatch.setattr("agent.executor.append_decision", recorded.append)
@@ -153,7 +156,8 @@ def test_position_without_any_active_group_is_closed_as_an_orphan(
     broker = PaperBrokerBoundary("PAPER-TEST")
 
     closed = run_cycle.manage_exits(
-        state, manifest, Executor(broker, manifest, verbose=False))
+        state, manifest, Executor(broker, manifest, verbose=False),
+        structures=StructureLedger(meta_path))
 
     assert closed == 1
     assert len(broker.submitted) == 1

@@ -37,12 +37,6 @@ from __future__ import annotations
 
 from typing import Callable, NamedTuple
 
-# Phases decide when a gate runs.
-#   preflight  before any decision is made — cheap, always runs
-#   pretrade   immediately before an order is submitted
-#   postgate   after the permit snapshot is written; observes this run's result
-PHASES = ("preflight", "pretrade", "postgate")
-
 # The only criterion for BLOCKING: **it is red, so why should the agent not
 # open new exposure?** If you cannot answer that, it does not get to zero out
 # a trading session.
@@ -71,12 +65,15 @@ class Gate(NamedTuple):
     ``check``   callable(ctx) -> GateResult. Receives the evaluation context;
                 never reads global state of its own, so tests and production
                 take the same path.
+    ``accepts`` exact subject type this gate can evaluate. The evaluator uses
+                exact matching, rather than subclass matching, so proposal
+                evaluation cannot accidentally re-run cycle gates.
     ``rationale`` why this gate exists. Required, because a gate nobody can
                 justify is a gate nobody will dare delete later.
     """
     name: str
     check: Callable
-    phase: str
+    accepts: type
     severity: str
     dimension: str
     rationale: str
@@ -99,8 +96,10 @@ def validate(gates) -> None:
         if gate.name in seen:
             raise ValueError(f"{where}: duplicate gate name")
         seen.add(gate.name)
-        if gate.phase not in PHASES:
-            raise ValueError(f"{where}: phase {gate.phase!r} not in {PHASES}")
+        from gates.evaluation import CycleSubject, ProposalSubject
+        if gate.accepts not in (CycleSubject, ProposalSubject):
+            raise ValueError(
+                f"{where}: accepts {gate.accepts!r} is not a gate subject")
         if gate.severity not in SEVERITIES:
             raise ValueError(
                 f"{where}: severity {gate.severity!r} not in {SEVERITIES}")

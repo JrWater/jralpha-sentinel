@@ -18,6 +18,16 @@ def summarize_decisions(rows: list[dict]) -> dict[str, int]:
     }
 
 
+def proposer_summary(row: dict) -> str:
+    """Human-readable evidence of whether a model actually made the choice."""
+    evidence = row.get("proposer") or {}
+    if evidence.get("decision_mode") == "llm":
+        return (f"LLM · {evidence.get('provider', 'unknown')} / "
+                f"{evidence.get('model', 'unknown')}")
+    reason = evidence.get("fallback_reason") or "unspecified"
+    return f"deterministic fallback · {reason}"
+
+
 def classify_decision(row: dict) -> DecisionView:
     scope = str(row.get("account_scope") or "unspecified")
     refused_by = list(row.get("refused_by") or ())

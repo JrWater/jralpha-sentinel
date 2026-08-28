@@ -12,6 +12,8 @@ sys.path.insert(0, str(ROOT))
 
 from agent.submission_wal import (DISPATCHING, JournalView, Risk,
                                   SubmissionState)
+from agent import entry_submission
+from agent.proposer import SelectionResult
 from scripts import run_cycle
 from strategy.daystate import DayState
 from strategy.proposal import OptionLeg, Proposal
@@ -80,7 +82,7 @@ def test_gap_usage_is_read_from_the_wal_projection():
             return Risk(committed_cents=0, held_cents=0, fire_keys=(),
                         gap_units={"event_macro:single_long": 2})
 
-    assert run_cycle.project_gap_usage(
+    assert entry_submission.project_gap_usage(
         View(), date(2026, 8, 28), "event_macro:single_long") == 2
 
 
@@ -112,6 +114,25 @@ def test_new_public_decision_has_no_accepted_alias():
         selected=True, account_scope="competition")
 
     assert "accepted" not in row
+
+
+def test_public_decision_records_how_the_proposer_actually_decided():
+    candidate = SimpleNamespace(proposal=_proposal(), label="trend")
+    evidence = SelectionResult(
+        indices=(0,), decision_mode="llm", provider="deepseek",
+        model="deepseek-v4-flash", fallback_reason=None)
+
+    row = run_cycle.new_decision_row(
+        candidate, at_utc=datetime(2026, 8, 28, 16, 0,
+                                   tzinfo=timezone.utc),
+        selected=True, account_scope="competition", proposer=evidence)
+
+    assert row["proposer"] == {
+        "decision_mode": "llm",
+        "provider": "deepseek",
+        "model": "deepseek-v4-flash",
+        "fallback_reason": None,
+    }
     assert row["selected"] is True
     assert row["authorized"] is False
     assert row["submitted"] is False
@@ -122,7 +143,8 @@ def test_new_public_decision_has_no_accepted_alias():
 def test_uncertain_submission_is_not_mislabeled_as_a_refusal():
     row = {"authorized": True, "submitted": False, "refused_by": []}
 
-    run_cycle.mark_submission_uncertain(row, TimeoutError("response lost"))
+    entry_submission._mark_submission_uncertain(
+        row, TimeoutError("response lost"))
 
     assert row["submission_uncertain"] is True
     assert row["broker_status"] == "unknown"
@@ -133,7 +155,7 @@ def test_uncertain_dispatch_aborts_remaining_selection_order_not_index_order():
     decisions = [
         {"refused_by": []}, {"refused_by": []}, {"refused_by": []}]
 
-    run_cycle.mark_remaining_aborted(decisions, [0, 1])
+    entry_submission._mark_remaining_aborted(decisions, [0, 1])
 
     assert decisions[0]["refused_by"] == [
         "control:cycle_aborted_after_uncertain_dispatch"]
@@ -146,7 +168,7 @@ def test_broker_order_facts_are_json_safe_and_status_is_normalized():
         id="broker-1", status="OrderStatus.PARTIALLY_FILLED",
         filled_qty=Decimal("0.5"), filled_avg_price=Decimal("-0.62"))
 
-    assert run_cycle.broker_order_facts(order) == {
+    assert entry_submission._broker_order_facts(order) == {
         "broker_order_id": "broker-1",
         "broker_status": "partially_filled",
         "filled_qty": 0.5,
