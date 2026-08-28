@@ -157,10 +157,55 @@ def test_the_declared_account_after_kickoff_is_allowed(manifest, monkeypatch):
     declared = manifest.get("environment", "competition_account_id")
     client = FakeClient(account_number=declared)
     ex = Executor(client, manifest, verbose=False)
-    order = ex.submit(_proposal(), now=AFTER_KICKOFF)
+    order = ex.submit(_proposal(), now=AFTER_KICKOFF,
+                      client_order_id="sentinel-happy-path")
     assert order.id == "fake-order-1"
     assert len(client.submit_calls) == 1
     assert len(recorded) == 1
+
+
+def test_an_entry_cannot_reach_the_broker_without_a_client_order_id(
+        manifest, monkeypatch):
+    monkeypatch.setattr("agent.executor.append_decision", lambda record: None)
+    declared = manifest.get("environment", "competition_account_id")
+    client = FakeClient(account_number=declared)
+    ex = Executor(client, manifest, verbose=False)
+
+    with pytest.raises(RuntimeError, match="client_order_id"):
+        ex.submit(_proposal(), now=AFTER_KICKOFF)
+
+    assert client.submit_calls == []
+
+
+def test_client_order_id_is_forwarded_to_the_broker_request(manifest,
+                                                            monkeypatch):
+    """The stable lookup key exists before dispatch and reaches Alpaca."""
+    monkeypatch.setattr("agent.executor.append_decision", lambda record: None)
+    declared = manifest.get("environment", "competition_account_id")
+    client = FakeClient(account_number=declared)
+    ex = Executor(client, manifest, verbose=False)
+
+    ex.submit(_proposal(), now=AFTER_KICKOFF,
+              client_order_id="sentinel-logical-1")
+
+    assert client.submit_calls[0].client_order_id == "sentinel-logical-1"
+
+
+def test_identical_intents_may_have_distinct_submission_ids(manifest,
+                                                            monkeypatch):
+    """Two legitimate equal orders are not collapsed into one broker key."""
+    monkeypatch.setattr("agent.executor.append_decision", lambda record: None)
+    declared = manifest.get("environment", "competition_account_id")
+    client = FakeClient(account_number=declared)
+    ex = Executor(client, manifest, verbose=False)
+
+    ex.submit(_proposal(), now=AFTER_KICKOFF,
+              client_order_id="sentinel-attempt-1")
+    ex.submit(_proposal(), now=AFTER_KICKOFF,
+              client_order_id="sentinel-attempt-2")
+
+    assert [request.client_order_id for request in client.submit_calls] == [
+        "sentinel-attempt-1", "sentinel-attempt-2"]
 
 
 def test_undeclared_shape_is_still_refused_after_authority_clears(manifest):

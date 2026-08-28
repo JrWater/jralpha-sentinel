@@ -13,6 +13,7 @@ logs/
 # the composition by `npm run render` / `hyperframes snapshot`.
 sentinel-video/out/
 sentinel-video/.snapshots*/
+sentinel-video/snapshots/
 sentinel-video/.thumbnails/
 sentinel-video/.s04chk/
 sentinel-video/.snapcap/

@@ -275,6 +275,28 @@ def test_ledger_disagreement_blocks_new_exposure(manifest):
     assert not checks.check_position_reconcile(ctx).ok
 
 
+def test_unresolved_dispatch_blocks_new_exposure(manifest):
+    result = checks.check_unresolved_dispatches(
+        _ctx(manifest, unresolved_dispatch_count=1))
+
+    assert not result.ok
+    assert "DISPATCHING" in result.detail
+
+
+def test_no_unresolved_dispatch_allows_entry_evaluation(manifest):
+    assert checks.check_unresolved_dispatches(
+        _ctx(manifest, unresolved_dispatch_count=0)).ok
+
+
+def test_unresolved_dispatch_is_a_registered_blocking_entry_gate():
+    gate = next(g for g in checks.GATES
+                if g.name == "unresolved_dispatches")
+
+    assert gate.phase == "preflight"
+    assert gate.severity == "BLOCKING"
+    assert gate.dimension == "Entry Authority"
+
+
 # ── the proposal gates ───────────────────────────────────────────────────────
 
 def _proposal(**kw):

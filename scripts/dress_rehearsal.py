@@ -42,8 +42,10 @@ from __future__ import annotations
 import hashlib
 import json
 import sys
+import tempfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from types import SimpleNamespace
 from unittest import mock
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -51,7 +53,7 @@ sys.path.insert(0, str(ROOT))
 
 WATCHED = ["state/day_state.json", "state/entry_permit.json",
            "state/ledger.json", "state/decisions.jsonl", "docs/snapshot.json",
-           "state/positions_meta.json"]
+           "state/positions_meta.json", "state/submission_wal.jsonl"]
 
 
 def fingerprint() -> dict:
@@ -76,7 +78,9 @@ class RecordingClient:
 
     def submit_order(self, request):
         self.orders.append(request)
-        return mock.Mock(id=f"REHEARSAL-{len(self.orders)}")
+        return SimpleNamespace(
+            id=f"REHEARSAL-{len(self.orders)}", status="accepted",
+            filled_qty=0, filled_avg_price=None)
 
     def cancel_order_by_id(self, order_id):
         """Capture cleanup intent; a rehearsal must never mutate the broker."""
@@ -120,7 +124,12 @@ def main() -> int:
         recorders.append(rec)
         return real_executor(rec, mf, **kw)
 
-    with mock.patch.object(rc, "load_manifest", lambda *a, **k: rehearsal_manifest), \
+    rehearsal_state = tempfile.TemporaryDirectory(
+        prefix="jralpha-sentinel-rehearsal-")
+    with rehearsal_state, \
+         mock.patch.object(rc, "SUBMISSION_WAL_PATH",
+                           Path(rehearsal_state.name) / "submission_wal.jsonl"), \
+         mock.patch.object(rc, "load_manifest", lambda *a, **k: rehearsal_manifest), \
          mock.patch.object(rc, "Executor", executor_factory), \
          mock.patch.object(rc, "write_permit"), \
          mock.patch.object(rc, "atomic_write"), \

@@ -38,6 +38,7 @@ class EvalContext:
     git_head: str | None = None
     git_dirty: bool | None = None
     proposal: Any = None                # set for pretrade gates
+    unresolved_dispatch_count: int | None = None
 
 
 def _f(value) -> float | None:
@@ -171,6 +172,27 @@ def check_market_session(ctx: EvalContext) -> GateResult:
     if (local.hour, local.minute) >= (hh, mm):
         return GateResult(False, f"{local:%H:%M} after entry window {close_before}")
     return GateResult(True, f"{local:%H:%M} inside entry window")
+
+
+def check_unresolved_dispatches(ctx: EvalContext) -> GateResult:
+    """An order we dispatched but never got an answer about is still ours.
+
+    A timeout or a dropped connection is not evidence that Alpaca refused the
+    order — it may hold it. Until the reconciler resolves the journalled
+    dispatch by its client order id, the reservation stays held and no new
+    exposure may open on top of a risk picture we know is incomplete.
+
+    Fails closed on None: "we could not read the journal" is treated as "there
+    may be an open dispatch", never as "there is none".
+    """
+    count = ctx.unresolved_dispatch_count
+    if count is None:
+        return GateResult(False, "submission journal unreadable")
+    if count:
+        return GateResult(
+            False, f"{count} unresolved DISPATCHING record(s) — reconcile "
+                   f"before opening new exposure")
+    return GateResult(True, "no unresolved DISPATCHING records")
 
 
 def check_underlying_data(ctx: EvalContext) -> GateResult:
@@ -381,6 +403,11 @@ GATES = (
          "BLOCKING", "Delivery Health",
          "If reporting is broken, a failure happens and nobody finds out. That "
          "is the one failure mode that hides all the others."),
+    Gate("unresolved_dispatches", check_unresolved_dispatches, "preflight",
+         "BLOCKING", "Entry Authority",
+         "A dispatched order with no broker answer may already be live. New "
+         "exposure stays forbidden until reconciliation resolves it by its "
+         "predeclared client order id."),
     Gate("release_integrity", check_release_integrity, "preflight",
          "ATTENTION", "Release Integrity",
          "Running code should be verified code. ATTENTION rather than BLOCKING "

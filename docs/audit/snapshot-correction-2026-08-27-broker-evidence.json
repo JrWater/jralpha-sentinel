@@ -1,0 +1,37 @@
+{
+  "_meta": {
+    "query_after_utc": "2026-08-27T15:30:00+00:00",
+    "query_until_utc": "2026-08-27T19:30:00+00:00",
+    "query_status": "all",
+    "competition_positions_at_verification": 0,
+    "legacy_test_positions_at_verification": 0,
+    "method": "Alpaca TradingClient.get_orders and get_all_positions; read-only"
+  },
+  "competition": [],
+  "legacy_test": [
+    {
+      "id": "41710862-7c35-40a3-9114-6d9b9b06076d",
+      "status": "canceled",
+      "submitted_at": "2026-08-27T15:37:02.189661+00:00",
+      "filled_at": null,
+      "filled_qty": "0",
+      "filled_avg_price": null
+    },
+    {
+      "id": "b2d336d0-8677-495b-8ecb-6d6aaddba38b",
+      "status": "filled",
+      "submitted_at": "2026-08-27T15:59:24.545092+00:00",
+      "filled_at": "2026-08-27T15:59:24.623739+00:00",
+      "filled_qty": "1",
+      "filled_avg_price": "-0.63"
+    },
+    {
+      "id": "eec6088f-e188-4995-ba8b-846d16490c7c",
+      "status": "filled",
+      "submitted_at": "2026-08-27T15:59:26.698214+00:00",
+      "filled_at": "2026-08-27T15:59:26.733825+00:00",
+      "filled_qty": "1",
+      "filled_avg_price": "0.66"
+    }
+  ]
+}

@@ -26,6 +26,7 @@ never dropped from the tail.
 """
 from __future__ import annotations
 
+import copy
 import json
 from datetime import datetime, timezone
 from pathlib import Path
@@ -38,7 +39,7 @@ SNAPSHOT = ROOT / "docs" / "snapshot.json"
 
 MAX_EQUITY_POINTS = 500
 MAX_DECISIONS = 120
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 def _f(value, default=0.0) -> float:
@@ -79,9 +80,38 @@ def _read_previous() -> dict:
         return {}
 
 
+class DecisionSchemaError(ValueError):
+    """A decision record carries the retired `accepted` field.
+
+    `accepted` was written before the pretrade gates ran, so it meant "the
+    proposer picked this and preflight was clean" while reading, in public, as
+    "the gates let this trade through". On 2026-08-27 it conflated one real
+    isolated legacy-paper submission with fourteen competition-account
+    proposals that pretrade refused — the public record could not distinguish
+    opposite outcomes.
+
+    Four separate facts replace it: `selected`, `authorized`, `submitted` (the
+    broker accepted the request) and the reconciled fill. Refusing the old
+    field here, on both new records and history carried forward, is what stops
+    the retired meaning from being republished by accumulation.
+    """
+
+
+def _refuse_legacy_accepted(rows) -> None:
+    for row in rows:
+        if "accepted" in row:
+            raise DecisionSchemaError(
+                "decision record carries the retired `accepted` field "
+                f"({row.get('engine', '?')} {row.get('underlying', '?')} at "
+                f"{row.get('at', '?')}); use selected / authorized / "
+                f"submitted / filled instead. Correct existing history with "
+                f"scripts/correct_snapshot_decisions.py.")
+
+
 def build(*, manifest, account, clock, gate_results, gates, permit_status: str,
           blockers, positions: list, decisions: list, git_head: str | None,
           git_dirty: bool | None, regime=None, day_state: dict | None = None,
+          decision_updates: dict[str, dict] | None = None,
           now_utc: datetime | None = None) -> dict:
     """Assemble the snapshot. Pure: callers decide when to write it."""
     now = now_utc or datetime.now(timezone.utc)
@@ -110,10 +140,16 @@ def build(*, manifest, account, clock, gate_results, gates, permit_status: str,
         })
     gate_rows.sort(key=lambda r: (r["dimension"], r["name"]))
 
-    tail = list(previous.get("decisions", [])) + list(decisions)
-    refused = [d for d in tail if not d.get("accepted")]
+    tail = copy.deepcopy(
+        list(previous.get("decisions", [])) + list(decisions))
+    for row in tail:
+        client_id = row.get("client_order_id")
+        if client_id and client_id in (decision_updates or {}):
+            row.update(decision_updates[client_id])
+    _refuse_legacy_accepted(tail)
+    refused = [d for d in tail if d.get("refused_by")]
     kept = tail[-MAX_DECISIONS:]
-    # Never let a run of accepted proposals push every refusal out of the tail:
+    # Never let a run of submitted proposals push every refusal out of the tail:
     # the refusals are the evidence that the gates do anything at all.
     for row in refused[-20:]:
         if row not in kept:
@@ -162,7 +198,11 @@ def build(*, manifest, account, clock, gate_results, gates, permit_status: str,
     }
 
 
-def write(payload: dict, path: Path = SNAPSHOT) -> Path:
+def write(payload: dict, path: Path | None = None) -> Path:
+    # Resolve at call time: the isolated paper-cycle harness replaces the
+    # module path after import. A default bound at function definition time
+    # silently wrote its test decision into the public production snapshot.
+    path = path or SNAPSHOT
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
     return path

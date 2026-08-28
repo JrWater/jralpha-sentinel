@@ -1,0 +1,17 @@
+[
+  {"accepted": true, "at": "2026-08-27T15:59:12.903086+00:00", "conviction": 0.96, "engine": "trend_income", "max_loss_dollars": 499.0, "reason": "trend", "structure": "credit_vertical", "underlying": "NVDA"},
+  {"accepted": true, "at": "2026-08-27T16:00:02.821607+00:00", "conviction": 0.957, "engine": "trend_directional", "max_loss_dollars": 1980.0, "reason": "trend", "structure": "debit_vertical", "underlying": "NVDA"},
+  {"accepted": true, "at": "2026-08-27T16:00:02.821607+00:00", "conviction": 0.957, "engine": "trend_single", "max_loss_dollars": 2940.0, "reason": "trend-single", "structure": "single_long", "underlying": "NVDA"},
+  {"accepted": true, "at": "2026-08-27T16:30:05.702393+00:00", "conviction": 0.974, "engine": "trend_income", "max_loss_dollars": 1804.0, "reason": "trend", "structure": "credit_vertical", "underlying": "NVDA"},
+  {"accepted": true, "at": "2026-08-27T16:30:05.702393+00:00", "conviction": 0.974, "engine": "trend_single", "max_loss_dollars": 2910.0, "reason": "trend-single", "structure": "single_long", "underlying": "NVDA"},
+  {"accepted": true, "at": "2026-08-27T17:00:02.783708+00:00", "conviction": 0.977, "engine": "trend_income", "max_loss_dollars": 1672.0, "reason": "trend", "structure": "credit_vertical", "underlying": "NVDA"},
+  {"accepted": true, "at": "2026-08-27T17:00:02.783708+00:00", "conviction": 0.977, "engine": "trend_single", "max_loss_dollars": 2990.0, "reason": "trend-single", "structure": "single_long", "underlying": "NVDA"},
+  {"accepted": true, "at": "2026-08-27T17:30:03.328718+00:00", "conviction": 0.976, "engine": "trend_income", "max_loss_dollars": 1664.0, "reason": "trend", "structure": "credit_vertical", "underlying": "NVDA"},
+  {"accepted": true, "at": "2026-08-27T17:30:03.328718+00:00", "conviction": 0.976, "engine": "trend_single", "max_loss_dollars": 2940.0, "reason": "trend-single", "structure": "single_long", "underlying": "NVDA"},
+  {"accepted": true, "at": "2026-08-27T18:00:03.271885+00:00", "conviction": 0.973, "engine": "trend_income", "max_loss_dollars": 1804.0, "reason": "trend", "structure": "credit_vertical", "underlying": "NVDA"},
+  {"accepted": true, "at": "2026-08-27T18:00:03.271885+00:00", "conviction": 0.973, "engine": "trend_single", "max_loss_dollars": 2976.0, "reason": "trend-single", "structure": "single_long", "underlying": "NVDA"},
+  {"accepted": true, "at": "2026-08-27T18:30:02.946438+00:00", "conviction": 0.957, "engine": "trend_directional", "max_loss_dollars": 1932.0, "reason": "trend", "structure": "debit_vertical", "underlying": "NVDA"},
+  {"accepted": true, "at": "2026-08-27T18:30:02.946438+00:00", "conviction": 0.957, "engine": "trend_single", "max_loss_dollars": 2882.0, "reason": "trend-single", "structure": "single_long", "underlying": "NVDA"},
+  {"accepted": true, "at": "2026-08-27T19:05:02.679973+00:00", "conviction": 0.955, "engine": "trend_income", "max_loss_dollars": 1664.0, "reason": "trend", "structure": "credit_vertical", "underlying": "NVDA"},
+  {"accepted": true, "at": "2026-08-27T19:05:02.679973+00:00", "conviction": 0.955, "engine": "trend_single", "max_loss_dollars": 2928.0, "reason": "trend-single", "structure": "single_long", "underlying": "NVDA"}
+]

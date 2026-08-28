@@ -11,66 +11,323 @@
     "starting_equity": 100000.0
   },
   "code": {
-    "git_head": "d8043dee7f1d8740ff352d46296bed2cab697b2b",
+    "git_head": "e0b6e4b7327061ac488e59df0453a13b3471c2ad",
     "worktree_dirty": true
   },
   "day": {
     "date": "2026-08-27",
     "fired_once": [],
     "killed": false,
-    "new_risk_dollars": 9193.0,
+    "new_risk_dollars": 0.0,
     "scale": 1.0,
     "start_equity": 100000.0
   },
   "decisions": [
     {
-      "accepted": true,
+      "account_scope": "legacy_test",
       "at": "2026-08-27T15:59:12.903086+00:00",
+      "authorized": true,
+      "broker_filled_at": "2026-08-27T15:59:24.623739+00:00",
+      "broker_order_id": "b2d336d0-8677-495b-8ecb-6d6aaddba38b",
+      "broker_status": "filled",
+      "broker_submitted_at": "2026-08-27T15:59:24.545092+00:00",
+      "close_broker_status": "filled",
+      "closed_by_order_id": "eec6088f-e188-4995-ba8b-846d16490c7c",
       "conviction": 0.96,
+      "correction": {
+        "code": "LEGACY_ACCEPTED_REAL_SUBMISSION",
+        "reason": "The old `accepted` field also captured an isolated legacy-paper test. Reclassified from the test journal and broker order history as a filled entry followed by a filled system-managed exit."
+      },
       "engine": "trend_income",
+      "filled_avg_price": "-0.63",
+      "filled_qty": "1",
+      "lifecycle_status": "closed",
       "max_loss_dollars": 499.0,
       "reason": "trend",
+      "refused_by": [],
+      "selected": true,
       "structure": "credit_vertical",
+      "submitted": true,
       "underlying": "NVDA"
     },
     {
-      "accepted": true,
+      "account_scope": "competition",
       "at": "2026-08-27T16:00:02.821607+00:00",
+      "authorized": false,
       "conviction": 0.957,
+      "correction": {
+        "code": "LEGACY_ACCEPTED_BEFORE_PRETRADE",
+        "reason": "The snapshot was published before the pretrade gates ran, so `accepted` could not observe a pretrade refusal. Reclassified from cycle evidence; the broker held no orders in this window."
+      },
       "engine": "trend_directional",
       "max_loss_dollars": 1980.0,
       "reason": "trend",
+      "refused_by": [
+        "gate:competition_window"
+      ],
+      "selected": true,
       "structure": "debit_vertical",
+      "submitted": false,
       "underlying": "NVDA"
     },
     {
-      "accepted": true,
+      "account_scope": "competition",
       "at": "2026-08-27T16:00:02.821607+00:00",
+      "authorized": false,
       "conviction": 0.957,
+      "correction": {
+        "code": "LEGACY_ACCEPTED_BEFORE_PRETRADE",
+        "reason": "The snapshot was published before the pretrade gates ran, so `accepted` could not observe a pretrade refusal. Reclassified from cycle evidence; the broker held no orders in this window."
+      },
       "engine": "trend_single",
       "max_loss_dollars": 2940.0,
       "reason": "trend-single",
+      "refused_by": [
+        "gate:competition_window"
+      ],
+      "selected": true,
       "structure": "single_long",
+      "submitted": false,
       "underlying": "NVDA"
     },
     {
-      "accepted": true,
+      "account_scope": "competition",
       "at": "2026-08-27T16:30:05.702393+00:00",
+      "authorized": false,
       "conviction": 0.974,
+      "correction": {
+        "code": "LEGACY_ACCEPTED_BEFORE_PRETRADE",
+        "reason": "The snapshot was published before the pretrade gates ran, so `accepted` could not observe a pretrade refusal. Reclassified from cycle evidence; the broker held no orders in this window."
+      },
       "engine": "trend_income",
       "max_loss_dollars": 1804.0,
       "reason": "trend",
+      "refused_by": [
+        "gate:competition_window"
+      ],
+      "selected": true,
       "structure": "credit_vertical",
+      "submitted": false,
       "underlying": "NVDA"
     },
     {
-      "accepted": true,
+      "account_scope": "competition",
       "at": "2026-08-27T16:30:05.702393+00:00",
+      "authorized": false,
       "conviction": 0.974,
+      "correction": {
+        "code": "LEGACY_ACCEPTED_BEFORE_PRETRADE",
+        "reason": "The snapshot was published before the pretrade gates ran, so `accepted` could not observe a pretrade refusal. Reclassified from cycle evidence; the broker held no orders in this window."
+      },
       "engine": "trend_single",
       "max_loss_dollars": 2910.0,
       "reason": "trend-single",
+      "refused_by": [
+        "gate:competition_window"
+      ],
+      "selected": true,
       "structure": "single_long",
+      "submitted": false,
+      "underlying": "NVDA"
+    },
+    {
+      "account_scope": "competition",
+      "at": "2026-08-27T17:00:02.783708+00:00",
+      "authorized": false,
+      "conviction": 0.977,
+      "correction": {
+        "code": "LEGACY_ACCEPTED_BEFORE_PRETRADE",
+        "reason": "The snapshot was published before the pretrade gates ran, so `accepted` could not observe a pretrade refusal. Reclassified from cycle evidence; the broker held no orders in this window."
+      },
+      "engine": "trend_income",
+      "max_loss_dollars": 1672.0,
+      "reason": "trend",
+      "refused_by": [
+        "gate:competition_window"
+      ],
+      "selected": true,
+      "structure": "credit_vertical",
+      "submitted": false,
+      "underlying": "NVDA"
+    },
+    {
+      "account_scope": "competition",
+      "at": "2026-08-27T17:00:02.783708+00:00",
+      "authorized": false,
+      "conviction": 0.977,
+      "correction": {
+        "code": "LEGACY_ACCEPTED_BEFORE_PRETRADE",
+        "reason": "The snapshot was published before the pretrade gates ran, so `accepted` could not observe a pretrade refusal. Reclassified from cycle evidence; the broker held no orders in this window."
+      },
+      "engine": "trend_single",
+      "max_loss_dollars": 2990.0,
+      "reason": "trend-single",
+      "refused_by": [
+        "gate:competition_window"
+      ],
+      "selected": true,
+      "structure": "single_long",
+      "submitted": false,
+      "underlying": "NVDA"
+    },
+    {
+      "account_scope": "competition",
+      "at": "2026-08-27T17:30:03.328718+00:00",
+      "authorized": false,
+      "conviction": 0.976,
+      "correction": {
+        "code": "LEGACY_ACCEPTED_BEFORE_PRETRADE",
+        "reason": "The snapshot was published before the pretrade gates ran, so `accepted` could not observe a pretrade refusal. Reclassified from cycle evidence; the broker held no orders in this window."
+      },
+      "engine": "trend_income",
+      "max_loss_dollars": 1664.0,
+      "reason": "trend",
+      "refused_by": [
+        "gate:competition_window"
+      ],
+      "selected": true,
+      "structure": "credit_vertical",
+      "submitted": false,
+      "underlying": "NVDA"
+    },
+    {
+      "account_scope": "competition",
+      "at": "2026-08-27T17:30:03.328718+00:00",
+      "authorized": false,
+      "conviction": 0.976,
+      "correction": {
+        "code": "LEGACY_ACCEPTED_BEFORE_PRETRADE",
+        "reason": "The snapshot was published before the pretrade gates ran, so `accepted` could not observe a pretrade refusal. Reclassified from cycle evidence; the broker held no orders in this window."
+      },
+      "engine": "trend_single",
+      "max_loss_dollars": 2940.0,
+      "reason": "trend-single",
+      "refused_by": [
+        "gate:competition_window"
+      ],
+      "selected": true,
+      "structure": "single_long",
+      "submitted": false,
+      "underlying": "NVDA"
+    },
+    {
+      "account_scope": "competition",
+      "at": "2026-08-27T18:00:03.271885+00:00",
+      "authorized": false,
+      "conviction": 0.973,
+      "correction": {
+        "code": "LEGACY_ACCEPTED_BEFORE_PRETRADE",
+        "reason": "The snapshot was published before the pretrade gates ran, so `accepted` could not observe a pretrade refusal. Reclassified from cycle evidence; the broker held no orders in this window."
+      },
+      "engine": "trend_income",
+      "max_loss_dollars": 1804.0,
+      "reason": "trend",
+      "refused_by": [
+        "gate:competition_window"
+      ],
+      "selected": true,
+      "structure": "credit_vertical",
+      "submitted": false,
+      "underlying": "NVDA"
+    },
+    {
+      "account_scope": "competition",
+      "at": "2026-08-27T18:00:03.271885+00:00",
+      "authorized": false,
+      "conviction": 0.973,
+      "correction": {
+        "code": "LEGACY_ACCEPTED_BEFORE_PRETRADE",
+        "reason": "The snapshot was published before the pretrade gates ran, so `accepted` could not observe a pretrade refusal. Reclassified from cycle evidence; the broker held no orders in this window."
+      },
+      "engine": "trend_single",
+      "max_loss_dollars": 2976.0,
+      "reason": "trend-single",
+      "refused_by": [
+        "gate:competition_window"
+      ],
+      "selected": true,
+      "structure": "single_long",
+      "submitted": false,
+      "underlying": "NVDA"
+    },
+    {
+      "account_scope": "competition",
+      "at": "2026-08-27T18:30:02.946438+00:00",
+      "authorized": false,
+      "conviction": 0.957,
+      "correction": {
+        "code": "LEGACY_ACCEPTED_BEFORE_PRETRADE",
+        "reason": "The snapshot was published before the pretrade gates ran, so `accepted` could not observe a pretrade refusal. Reclassified from cycle evidence; the broker held no orders in this window."
+      },
+      "engine": "trend_directional",
+      "max_loss_dollars": 1932.0,
+      "reason": "trend",
+      "refused_by": [
+        "gate:competition_window"
+      ],
+      "selected": true,
+      "structure": "debit_vertical",
+      "submitted": false,
+      "underlying": "NVDA"
+    },
+    {
+      "account_scope": "competition",
+      "at": "2026-08-27T18:30:02.946438+00:00",
+      "authorized": false,
+      "conviction": 0.957,
+      "correction": {
+        "code": "LEGACY_ACCEPTED_BEFORE_PRETRADE",
+        "reason": "The snapshot was published before the pretrade gates ran, so `accepted` could not observe a pretrade refusal. Reclassified from cycle evidence; the broker held no orders in this window."
+      },
+      "engine": "trend_single",
+      "max_loss_dollars": 2882.0,
+      "reason": "trend-single",
+      "refused_by": [
+        "gate:competition_window"
+      ],
+      "selected": true,
+      "structure": "single_long",
+      "submitted": false,
+      "underlying": "NVDA"
+    },
+    {
+      "account_scope": "competition",
+      "at": "2026-08-27T19:05:02.679973+00:00",
+      "authorized": false,
+      "conviction": 0.955,
+      "correction": {
+        "code": "LEGACY_ACCEPTED_BEFORE_PRETRADE",
+        "reason": "The snapshot was published before the pretrade gates ran, so `accepted` could not observe a pretrade refusal. Reclassified from cycle evidence; the broker held no orders in this window."
+      },
+      "engine": "trend_income",
+      "max_loss_dollars": 1664.0,
+      "reason": "trend",
+      "refused_by": [
+        "gate:competition_window"
+      ],
+      "selected": true,
+      "structure": "credit_vertical",
+      "submitted": false,
+      "underlying": "NVDA"
+    },
+    {
+      "account_scope": "competition",
+      "at": "2026-08-27T19:05:02.679973+00:00",
+      "authorized": false,
+      "conviction": 0.955,
+      "correction": {
+        "code": "LEGACY_ACCEPTED_BEFORE_PRETRADE",
+        "reason": "The snapshot was published before the pretrade gates ran, so `accepted` could not observe a pretrade refusal. Reclassified from cycle evidence; the broker held no orders in this window."
+      },
+      "engine": "trend_single",
+      "max_loss_dollars": 2928.0,
+      "reason": "trend-single",
+      "refused_by": [
+        "gate:competition_window"
+      ],
+      "selected": true,
+      "structure": "single_long",
+      "submitted": false,
       "underlying": "NVDA"
     }
   ],
@@ -86,6 +343,26 @@
     {
       "equity": 100000.0,
       "t": "2026-08-27T16:30:05.702393+00:00"
+    },
+    {
+      "equity": 100000.0,
+      "t": "2026-08-27T17:00:02.783708+00:00"
+    },
+    {
+      "equity": 100000.0,
+      "t": "2026-08-27T17:30:03.328718+00:00"
+    },
+    {
+      "equity": 100000.0,
+      "t": "2026-08-27T18:00:03.271885+00:00"
+    },
+    {
+      "equity": 100000.0,
+      "t": "2026-08-27T18:30:02.946438+00:00"
+    },
+    {
+      "equity": 100000.0,
+      "t": "2026-08-27T19:05:02.679973+00:00"
     }
   ],
   "gates": [
@@ -153,7 +430,7 @@
       "severity": "BLOCKING"
     },
     {
-      "detail": "12:30 inside entry window",
+      "detail": "15:05 inside entry window",
       "dimension": "Process Health",
       "name": "market_session",
       "ok": true,
@@ -180,7 +457,7 @@
       "severity": "BLOCKING"
     },
     {
-      "detail": "worktree dirty at d8043dee7f1d",
+      "detail": "worktree dirty at e0b6e4b73270",
       "dimension": "Release Integrity",
       "name": "release_integrity",
       "ok": false,
@@ -189,7 +466,7 @@
       "severity": "ATTENTION"
     }
   ],
-  "generated_at_utc": "2026-08-27T16:30:05.702393+00:00",
+  "generated_at_utc": "2026-08-27T19:05:02.679973+00:00",
   "market": {
     "is_open": true
   },
@@ -208,7 +485,7 @@
   "regime": {
     "confidence": 0.9,
     "mode": "risk_on",
-    "reason": "SPY above EMA50 (+2.12%), RSI 59, breadth +1"
+    "reason": "SPY above EMA50 (+2.01%), RSI 58, breadth +1"
   },
-  "schema_version": 1
+  "schema_version": 2
 }

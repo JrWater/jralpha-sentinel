@@ -12,6 +12,7 @@ class BrokerMutationTrap:
 
 def test_rehearsal_watches_the_real_position_metadata_path():
     assert "state/positions_meta.json" in rehearsal.WATCHED
+    assert "state/submission_wal.jsonl" in rehearsal.WATCHED
     assert "state/meta.json" not in rehearsal.WATCHED
 
 

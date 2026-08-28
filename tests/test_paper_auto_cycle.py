@@ -81,6 +81,8 @@ def test_test_state_paths_never_overlap_production_state():
     assert paths["base"].is_relative_to("/private/tmp")
     assert paths["ledger"] != ROOT / "state" / "ledger.json"
     assert paths["decisions"] != ROOT / "state" / "decisions.jsonl"
+    assert paths["wal"] != ROOT / "state" / "submission_wal.jsonl"
+    assert paths["lock"] != ROOT / "state" / "cycle.lock"
 
 
 def test_fill_mode_uses_one_engine_candidate_and_stays_inside_cap():

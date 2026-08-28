@@ -8,10 +8,9 @@ equality test on `final_trading_date`, and the crontab is `* * 1-5` with no
 end date — so from the next weekday after the final date the agent would have
 resumed opening positions on the very account the judges are reading.
 
-This guard is deliberately NOT a gate: the sixteen BLOCKING gates are a fixed
-set the submission names, and a scheduling bound is not an operational
-dimension of a trade. It sits in front of the cycle instead, and takes its
-date from the manifest so there is no second copy to drift.
+This guard is deliberately NOT a gate: a scheduling bound is not an
+operational dimension of a trade. It sits in front of the cycle instead, and
+takes its date from the manifest so there is no second copy to drift.
 
 Past the final date it hands off with `--exits-only` rather than refusing to
 run. Suppressing NEW exposure is the entire requirement; refusing the cycle

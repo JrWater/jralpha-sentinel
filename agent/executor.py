@@ -97,8 +97,16 @@ class Executor:
 
     # ── submission ───────────────────────────────────────────────────────────
     def submit(self, proposal: Proposal, closing: bool = False, *,
-              now: datetime | None = None):
-        """Submit a proposal as a DAY limit order. Returns the order or raises."""
+              now: datetime | None = None, client_order_id: str | None = None):
+        """Submit a proposal as a DAY limit order. Returns the order or raises.
+
+        `client_order_id` is chosen and journalled *before* this call, so a
+        response that never arrives can still be resolved: the reconciler asks
+        the broker for this exact key rather than guessing from symbol,
+        quantity and timestamp. It names one authorised attempt, not the order
+        content — two legitimate identical entries carry different keys and so
+        are not collapsed into one at the broker.
+        """
         self._refuse_unless_authorized(now=now)
         shape = self.manifest.find_shape(
             order_class=proposal.order_class, type=proposal.type,
@@ -109,6 +117,10 @@ class Executor:
                 f"{proposal.order_class}/{proposal.type}/"
                 f"{proposal.time_in_force}/{len(proposal.legs)}leg — "
                 f"this indicates a code bug, not a market decision")
+        if not closing and not client_order_id:
+            raise RuntimeError(
+                "refused: entry submission requires a pre-journalled "
+                "client_order_id")
 
         limit = proposal.limit_price
         if limit == 0:
@@ -135,6 +147,7 @@ class Executor:
                 order_class=OrderClass.SIMPLE,
                 time_in_force=TimeInForce.DAY,
                 limit_price=limit,
+                client_order_id=client_order_id,
             ))
         else:
             legs = [OptionLegRequest(
@@ -148,6 +161,7 @@ class Executor:
                 order_class=OrderClass.MLEG,
                 time_in_force=TimeInForce.DAY,
                 limit_price=limit,
+                client_order_id=client_order_id,
                 legs=legs,
             ))
         self._log(f"  SUBMITTED {order.id} {proposal.structure} "
@@ -156,6 +170,7 @@ class Executor:
             "kind": "order_submitted",
             "at_utc": datetime.now(timezone.utc).isoformat(),
             "order_id": str(order.id),
+            "client_order_id": client_order_id,
             "structure": proposal.structure,
             "underlying": proposal.underlying,
             "engine": proposal.engine,

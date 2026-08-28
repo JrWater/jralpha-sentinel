@@ -15,6 +15,8 @@ from pathlib import Path
 
 import streamlit as st
 
+from decision_view import classify_decision, summarize_decisions
+
 ROOT = Path(__file__).resolve().parents[1]
 SNAPSHOT = ROOT / "docs" / "snapshot.json"
 
@@ -148,18 +150,21 @@ decisions = list(reversed(snap.get("decisions", [])))
 if not decisions:
     st.write("_No proposals recorded yet._")
 else:
-    refused = sum(1 for d in decisions if not d.get("accepted"))
-    st.caption(f"{len(decisions)} recorded · **{refused} refused** by a gate")
+    summary = summarize_decisions(decisions)
+    st.caption(
+        f"{summary['recorded']} recorded · "
+        f"**{summary['submitted']} submitted** · "
+        f"**{summary['refused']} refused**")
     for d in decisions[:40]:
-        ok = d.get("accepted")
-        icon = "✅" if ok else "⛔"
-        head = (f"{icon} `{d.get('engine', '?')}` "
+        view = classify_decision(d)
+        head = (f"{view.icon} `{d.get('engine', '?')}` "
                 f"**{d.get('underlying', '?')}** {d.get('structure', '')}")
         detail = d.get("reason") or d.get("detail") or ""
         risk = d.get("max_loss_dollars")
         line = head
         if risk:
             line += f" · max loss ${float(risk):,.0f}"
+        line += f" · **{view.label}** · `{view.account_scope}`"
         st.markdown(line)
         if detail:
             st.caption(f"&nbsp;&nbsp;&nbsp;&nbsp;{detail}")

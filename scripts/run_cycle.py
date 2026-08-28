@@ -19,18 +19,26 @@ v2.1 changes from v2.0:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import sys
+import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from agent.executor import Executor
+from agent.cycle_lock import CycleAlreadyRunning, cycle_lock
 from agent.ledger import (atomic_write, append_decision, ledger_positions,
                           mirror_from_broker)
 from agent.proposer import select as llm_select
+from agent.submission_wal import (JournalView, Reservation, SubmissionJournal,
+                                  dispatch_entry, make_client_order_id,
+                                  reconcile_unresolved,
+                                  refresh_committed_orders)
 from gates import checks
 from gates.registry import severity_of
 from gates.safety_gate import write_permit
@@ -52,6 +60,158 @@ GREEN, RED, YELLOW, DIM, RESET = (
 
 META_PATH = ROOT / "state" / "positions_meta.json"
 DAY_PATH = ROOT / "state" / "day_state.json"
+SUBMISSION_WAL_PATH = ROOT / "state" / "submission_wal.jsonl"
+CYCLE_LOCK_PATH = ROOT / "state" / "cycle.lock"
+PUBLIC_ACCOUNT_SCOPE = "competition"
+
+
+def proposal_fingerprint(proposal: Proposal) -> str:
+    """Canonical identity of the entry content used by this release.
+
+    This is intentionally narrower than the future ``EntryIntent`` module:
+    the competition safety patch needs a stable audit identity now, while the
+    one-object wire translation is deferred to the post-competition rewrite.
+    Every field that currently changes the order or its declared risk is in
+    the canonical payload.
+    """
+    payload = {
+        "engine": proposal.engine,
+        "underlying": proposal.underlying,
+        "direction": proposal.direction,
+        "structure": proposal.structure,
+        "expiry": proposal.expiry.isoformat() if proposal.expiry else None,
+        "order_class": proposal.order_class,
+        "type": proposal.type,
+        "time_in_force": proposal.time_in_force,
+        "limit_price": proposal.limit_price,
+        "max_loss_dollars": proposal.max_loss_dollars,
+        "legs": [{
+            "symbol": leg.symbol,
+            "side": leg.side,
+            "quantity": leg.quantity,
+        } for leg in proposal.legs],
+    }
+    encoded = json.dumps(payload, sort_keys=True,
+                         separators=(",", ":")).encode()
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def unresolved_dispatch_count(view: JournalView) -> int | None:
+    """Gate input from the journal; corruption is unknown, never zero."""
+    if not view.integrity_ok:
+        return None
+    return len(view.unresolved_dispatches)
+
+
+def project_day_risk(day, view: JournalView, trading_date) -> None:
+    """Make the mutable day-state number a projection, not an accumulator."""
+    risk = view.risk_for(trading_date)
+    day.new_risk_dollars = (risk.committed_cents + risk.held_cents) / 100.0
+    day.fired_once = list(risk.fire_keys)
+
+
+def project_gap_usage(view: JournalView, trading_date, key: str) -> int:
+    """Read one window counter from the same durable submission truth."""
+    return int(view.risk_for(trading_date).gap_units.get(key, 0))
+
+
+def entry_budget_refusal(portfolio: PortfolioState, day, dollars: float,
+                         *, at_risk_cap: float,
+                         exposure_cap: float) -> str | None:
+    """Pure capacity check; the WAL owns the reservation that follows."""
+    if portfolio.max_loss_total + dollars > at_risk_cap:
+        return "portfolio"
+    if day.new_risk_dollars + dollars > exposure_cap:
+        return "daily"
+    return None
+
+
+def make_reservation(*, proposal: Proposal, manifest, account_id: str,
+                     trading_date, cycle_id: str,
+                     logical_submission_id: str | None = None,
+                     fire_keys: tuple[str, ...] = (),
+                     gap_counters: tuple[tuple[str, int], ...] = ()) -> Reservation:
+    """Bind one logical attempt to its content, account and risk claims."""
+    logical_id = logical_submission_id or uuid.uuid4().hex
+    fingerprint = proposal_fingerprint(proposal)
+    client_id = make_client_order_id(
+        manifest_sha=manifest.sha, intent_fingerprint=fingerprint,
+        logical_submission_id=logical_id)
+    head, _dirty = _code_identity()
+    return Reservation(
+        logical_submission_id=logical_id,
+        client_order_id=client_id,
+        account_id=account_id,
+        trading_date_et=trading_date,
+        cycle_id=cycle_id,
+        intent_fingerprint=fingerprint,
+        manifest_sha=manifest.sha,
+        git_head=head or "UNKNOWN",
+        max_loss_cents=int(round(proposal.max_loss_dollars * 100)),
+        fire_keys=fire_keys,
+        gap_counters=gap_counters,
+    )
+
+
+def new_decision_row(candidate, *, at_utc: datetime,
+                     selected: bool, account_scope: str) -> dict:
+    """Public facts for one candidate; the retired `accepted` cannot appear."""
+    proposal = candidate.proposal
+    return {
+        "at": at_utc.isoformat(),
+        "engine": proposal.engine,
+        "underlying": proposal.underlying,
+        "structure": proposal.structure,
+        "max_loss_dollars": proposal.max_loss_dollars,
+        "conviction": proposal.conviction,
+        "selected": bool(selected),
+        "authorized": False,
+        "submitted": False,
+        "account_scope": account_scope,
+        "refused_by": [],
+        "reason": candidate.label,
+    }
+
+
+def mark_submission_uncertain(row: dict, exc: Exception) -> None:
+    """Record uncertainty without falsely claiming a broker refusal."""
+    row["submission_uncertain"] = True
+    row["broker_status"] = "unknown"
+    row["reason"] = f"submission unresolved: {type(exc).__name__}"
+
+
+def mark_remaining_aborted(decisions: list[dict], indices: list[int]) -> None:
+    """Mark candidates not evaluated after an uncertain broker dispatch."""
+    for index in indices:
+        row = decisions[index]
+        if row["refused_by"]:
+            continue
+        row["refused_by"] = [
+            "control:cycle_aborted_after_uncertain_dispatch"]
+        row["reason"] = "not evaluated after an unresolved dispatch"
+
+
+def broker_order_facts(order) -> dict:
+    """JSON-safe immediate broker observation for the public decision row."""
+    status = str(getattr(order, "status", "") or "")
+    if "." in status:
+        status = status.rsplit(".", 1)[-1]
+    filled_qty = getattr(order, "filled_qty", 0) or 0
+    filled_avg = getattr(order, "filled_avg_price", None)
+    try:
+        filled_qty = float(filled_qty)
+    except (TypeError, ValueError):
+        filled_qty = 0.0
+    try:
+        filled_avg = float(filled_avg) if filled_avg is not None else None
+    except (TypeError, ValueError):
+        filled_avg = None
+    return {
+        "broker_order_id": str(order.id),
+        "broker_status": status.lower(),
+        "filled_qty": filled_qty,
+        "filled_avg_price": filled_avg,
+    }
 
 
 def build_state(data: AlpacaData, manifest, symbols: list[str]) -> MarketState:
@@ -100,7 +260,7 @@ def _code_identity() -> tuple:
 
 
 def publish_snapshot(*, manifest, state, results, blockers, decisions,
-                     regime=None, day=None) -> None:
+                     regime=None, day=None, decision_updates=None) -> None:
     """Write the credential-free page the judges read. Never fatal.
 
     A dashboard that cannot render must not be able to stop the agent from
@@ -116,6 +276,7 @@ def publish_snapshot(*, manifest, state, results, blockers, decisions,
             blockers=blockers, positions=state.positions,
             decisions=decisions, git_head=head, git_dirty=dirty,
             regime=regime, day_state=(day.as_dict() if day else None),
+            decision_updates=decision_updates,
             now_utc=state.now_utc)
         snap_mod.write(payload)
     except Exception as exc:                                  # noqa: BLE001
@@ -123,8 +284,11 @@ def publish_snapshot(*, manifest, state, results, blockers, decisions,
               f"{type(exc).__name__}: {exc}")
 
 
-def run_preflight(state: MarketState, manifest, ledger) -> dict:
+def run_preflight(state: MarketState, manifest, ledger,
+                  journal_view: JournalView | None = None) -> dict:
     head, dirty = _code_identity()
+    journal_view = journal_view or SubmissionJournal(
+        SUBMISSION_WAL_PATH).replay()
     ctx = checks.EvalContext(
         manifest=manifest, now_utc=state.now_utc, account=state.account,
         is_paper_session=True, clock=state.clock, positions=state.positions,
@@ -133,6 +297,7 @@ def run_preflight(state: MarketState, manifest, ledger) -> dict:
         underlying_bar_age_seconds=_underlying_bar_age(state),
         decision_log_writable=_decisions_writable(),
         git_head=head, git_dirty=dirty,
+        unresolved_dispatch_count=unresolved_dispatch_count(journal_view),
     )
     results = {}
     for gate in checks.GATES:
@@ -442,7 +607,7 @@ def _underlying(sym: str) -> str:
 
 # ── the cycle ────────────────────────────────────────────────────────────────
 
-def main() -> int:
+def _run_cycle() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--no-llm", action="store_true")
@@ -463,13 +628,21 @@ def main() -> int:
     symbols = sorted(set(manifest.declared_symbols()))
     state = build_state(data, manifest, symbols)
     now_utc = state.now_utc
+    timezone_name = str(manifest.get("session", "timezone"))
+    trading_date = now_utc.astimezone(ZoneInfo(timezone_name)).date()
+    cycle_id = uuid.uuid4().hex
+    journal = SubmissionJournal(SUBMISSION_WAL_PATH)
+    journal_view = (journal.replay() if args.dry_run else
+                    reconcile_unresolved(journal, data.trading))
+    decision_updates = ({} if args.dry_run else
+                        refresh_committed_orders(journal, data.trading))
     print(f"{DIM}manifest {manifest.identity}{RESET}")
     print(f"{DIM}account  {state.account.account_number}  equity "
           f"${state.equity:,.2f}  market "
           f"{'OPEN' if state.clock.is_open else 'CLOSED'}{RESET}")
 
     # ── 0. day-state gates (daily exposure cap, kill switch, scale) ─────────
-    today = now_utc.date().isoformat()
+    today = trading_date.isoformat()
     try:
         raw_day = json.loads(DAY_PATH.read_text())
     except (OSError, json.JSONDecodeError):
@@ -477,6 +650,7 @@ def main() -> int:
     day = load_or_reset(raw_day, today=today, equity_now=state.equity,
                         scale_fraction=float(manifest.get(
                             "risk_caps", "drawdown_scale_fraction")))
+    project_day_risk(day, journal_view, trading_date)
     killed = check_kill(day, state.equity,
                         float(manifest.get("risk_caps",
                                            "daily_loss_kill_fraction")))
@@ -491,7 +665,7 @@ def main() -> int:
     # ── 1. preflight gates ──────────────────────────────────────────────────
     mirror_from_broker(data.positions())
     ledger = ledger_positions()
-    results = run_preflight(state, manifest, ledger)
+    results = run_preflight(state, manifest, ledger, journal_view)
     print("\npreflight gates")
     print_gates(results)
     blockers = [n for n, r in results.items()
@@ -527,6 +701,9 @@ def main() -> int:
     if blockers and not args.dry_run:
         print(f"\n{RED}PERMIT REFUSED{RESET}: {', '.join(blockers)} — no new "
               f"exposure this cycle.")
+        publish_snapshot(manifest=manifest, state=state, results=results,
+                         blockers=blockers, decisions=[], day=day,
+                         decision_updates=decision_updates)
         return 1
 
     # ── 3. engine candidates ────────────────────────────────────────────────
@@ -537,8 +714,7 @@ def main() -> int:
                                 for s, bars in state.bars.items()})
     regime = classify(spy_closes, qqq_closes, [breadth])
 
-    from zoneinfo import ZoneInfo
-    now_et = now_utc.astimezone(ZoneInfo("America/New_York"))
+    now_et = now_utc.astimezone(ZoneInfo(timezone_name))
     for sym in symbols:
         closes = [b.close for b in state.bars.get(sym, [])]
         highs = [b.high for b in state.bars.get(sym, [])]
@@ -596,29 +772,33 @@ def main() -> int:
                       manifest=manifest))
     print(f"\nproposer chose candidates: {chosen}")
 
-    # Every candidate the engines produced, with what happened to it. A refused
-    # proposal is the evidence that the gates do anything at all, so refusals
-    # are recorded exactly as carefully as fills — see agent/snapshot.py.
-    why_none = ("daily kill switch" if killed else
-                (f"permit refused: {', '.join(blockers)}" if blockers else
-                 "not selected by the proposer"))
-    decisions = [{
-        "at": now_utc.isoformat(),
-        "engine": c.proposal.engine,
-        "underlying": c.proposal.underlying,
-        "structure": c.proposal.structure,
-        "max_loss_dollars": c.proposal.max_loss_dollars,
-        "conviction": c.proposal.conviction,
-        "accepted": (i in chosen) and not (blockers or killed or args.dry_run),
-        "reason": (c.label if (i in chosen) and
-                   not (blockers or killed or args.dry_run) else why_none),
-    } for i, c in enumerate(candidates)]
-
-    publish_snapshot(manifest=manifest, state=state, results=results,
-                     blockers=blockers, decisions=decisions, regime=regime,
-                     day=day)
+    # These rows are updated by the admission/submission loop below, then
+    # published once the final outcome is known. Publishing here used to label
+    # a proposer selection as `accepted` before the pretrade gates had run.
+    decisions = [new_decision_row(
+        c, at_utc=now_utc, selected=(i in chosen),
+        account_scope=PUBLIC_ACCOUNT_SCOPE)
+                 for i, c in enumerate(candidates)]
+    if blockers:
+        for row in decisions:
+            row["refused_by"] = [f"gate:{name}" for name in blockers]
+            row["reason"] = f"cycle not ready: {', '.join(blockers)}"
+    elif killed:
+        for row in decisions:
+            row["refused_by"] = ["control:daily_kill"]
+            row["reason"] = "daily kill switch"
+    elif args.dry_run:
+        for row in decisions:
+            row["reason"] = "dry run; proposer and submission not invoked"
+    else:
+        for i, row in enumerate(decisions):
+            if i not in chosen:
+                row["reason"] = "not selected by the proposer"
 
     if args.dry_run:
+        publish_snapshot(manifest=manifest, state=state, results=results,
+                         blockers=blockers, decisions=decisions, regime=regime,
+                         day=day, decision_updates=decision_updates)
         print(f"\n{DIM}dry run — nothing was sent.{RESET}")
         return 0
     if blockers or killed or not chosen:
@@ -626,14 +806,19 @@ def main() -> int:
             "permit refused" if blockers else "no selection")
         print(f"\n{DIM}{why} — nothing was sent.{RESET}")
         atomic_write(DAY_PATH, day.as_dict())
+        publish_snapshot(manifest=manifest, state=state, results=results,
+                         blockers=blockers, decisions=decisions, regime=regime,
+                         day=day, decision_updates=decision_updates)
         return 0
 
     # ── 4. fire-once guards, exposure cap, pretrade gates, submit ───────────
     entered_at = now_utc.strftime("%H%M%S")
     submitted = 0
-    for idx in chosen:
+    submission_uncertain = False
+    for chosen_position, idx in enumerate(chosen):
         c = candidates[idx]
         p = c.proposal
+        row = decisions[idx]
 
         fire_once = p.engine in ("catalyst", "event_macro", "vol_income")
         if p.engine == "event_macro" and p.structure == "single_long":
@@ -647,34 +832,32 @@ def main() -> int:
             if fired(day, key):
                 print(f"  {YELLOW}SKIP (already fired today){RESET} "
                       f"{p.underlying} {p.structure}")
+                row["refused_by"] = ["control:fire_once"]
+                row["reason"] = "already fired today"
                 continue
         if p.engine in ("catalyst", "event_macro") and p.expiry and \
                 p.expiry.isoformat() < today:
             # 0-DTE is legitimate during session hours; only the PAST is refused
             print(f"  {YELLOW}SKIP{RESET} {p.underlying}: expired-by-design "
                   f"entry ({p.expiry})")
+            row["refused_by"] = ["control:expired_contract"]
+            row["reason"] = f"contract expired on {p.expiry}"
             continue
 
-        # v3.1.1: the gap continuation is capped at N entries per WINDOW
-        # (not per day). The 90%-win evidence is NFP-specific, so the rule
-        # is: kickoff day may fire one, NFP morning fires the rest. Counted
-        # from the persistent group meta, open or closed.
+        # The gap continuation is capped at N entries per window. Its usage is
+        # a projection of durable logical submissions, not a second counter in
+        # position metadata; the latter can lag a broker response or be written
+        # twice after a retry.
         if p.engine == "event_macro" and p.structure == "single_long":
-            # load_meta() rather than the cycle-level `meta`: record_group()
-            # reloads and saves the file itself, so the copy taken at the top
-            # of the cycle does not see entries this same cycle just made.
-            # Only one gap candidate is produced per cycle today, so the
-            # stale read is not reachable — but that is a property of the
-            # engine, not of this guard, and the guard should not depend on it.
-            gap_total = sum(
-                1 for g in load_meta().get("groups", {}).values()
-                if g.get("engine") == "event_macro"
-                and g.get("structure") == "single_long")
+            gap_total = project_gap_usage(
+                journal_view, trading_date, "event_macro:single_long")
             gap_max = int(manifest.get("strategies", "event_macro",
                                        "gap_max_entries_total", default=2))
             if gap_total >= gap_max:
                 print(f"  {YELLOW}SKIP{RESET} {p.underlying} {p.structure}: "
                       f"window gap entries {gap_total}/{gap_max} used")
+                row["refused_by"] = ["control:gap_entry_limit"]
+                row["reason"] = f"window gap entries {gap_total}/{gap_max} used"
                 continue
 
         # Pretrade gates run BEFORE either cap reserves, because both reserve
@@ -703,31 +886,66 @@ def main() -> int:
         if refused:
             print(f"  {YELLOW}REFUSED{RESET} {p.underlying} {p.structure}: "
                   f"{', '.join(refused)}")
+            row["refused_by"] = [f"gate:{name}" for name in refused]
+            row["reason"] = f"pretrade refused: {', '.join(refused)}"
             continue
 
-        refused_budget = reserve_entry_risk(
+        # The WAL, not DayState +=, owns reservations. Re-project before every
+        # candidate so a prior submission in this same loop spends headroom.
+        journal_view = journal.replay()
+        project_day_risk(day, journal_view, trading_date)
+        refused_budget = entry_budget_refusal(
             portfolio, day, p.max_loss_dollars,
             at_risk_cap=at_risk_cap, exposure_cap=exposure_cap)
         if refused_budget == "portfolio":
             print(f"  {YELLOW}SKIP{RESET} {p.underlying} {p.structure}: "
-                  f"portfolio at-risk cap reached "
-                  f"(${portfolio.max_loss_total:,.0f}/${at_risk_cap:,.0f})")
+                      f"portfolio at-risk cap reached "
+                      f"(${portfolio.max_loss_total:,.0f}/${at_risk_cap:,.0f})")
+            row["refused_by"] = ["control:portfolio_risk_budget"]
+            row["reason"] = "portfolio at-risk cap reached"
             continue
         if refused_budget == "daily":
             print(f"  {YELLOW}SKIP{RESET} {p.underlying} {p.structure}: daily "
                   f"exposure cap reached")
+            row["refused_by"] = ["control:daily_exposure_budget"]
+            row["reason"] = "daily exposure cap reached"
             continue
 
+        fire_keys = ((fire_key(p.engine, p.underlying, today),)
+                     if fire_once else ())
+        gap_counters = (("event_macro:single_long", 1),) if (
+            p.engine == "event_macro" and p.structure == "single_long") else ()
+        reservation = make_reservation(
+            proposal=p, manifest=manifest,
+            account_id=str(state.account.account_number),
+            trading_date=trading_date, cycle_id=cycle_id,
+            fire_keys=fire_keys, gap_counters=gap_counters)
+        row["authorized"] = True
+        row["client_order_id"] = reservation.client_order_id
         try:
-            order = executor.submit(p)
+            order = dispatch_entry(
+                journal, reservation,
+                lambda client_id: executor.submit(
+                    p, client_order_id=client_id))
         except Exception as exc:                            # noqa: BLE001
-            # Nothing was sent, so nothing is at risk: hand both reservations
-            # back. Holding them would suppress later entries for the rest of
-            # the session over a trade that never opened.
-            release_entry_risk(portfolio, day, p.max_loss_dollars)
-            print(f"  {RED}SUBMIT FAILED{RESET}: {exc}")
-            continue
+            # The request may have reached Alpaca. Leave DISPATCHING held and
+            # stop every later entry in this cycle; startup reconciliation will
+            # resolve it by the predeclared client order id.
+            journal_view = journal.replay()
+            project_day_risk(day, journal_view, trading_date)
+            mark_submission_uncertain(row, exc)
+            print(f"  {RED}SUBMIT UNCERTAIN{RESET}: {exc}")
+            submission_uncertain = True
+            mark_remaining_aborted(
+                decisions, list(chosen[chosen_position + 1:]))
+            break
         print(f"  {GREEN}OK{RESET} {order.id}")
+        row["submitted"] = True
+        row.update(broker_order_facts(order))
+        row["reason"] = c.label
+        portfolio.max_loss_total += p.max_loss_dollars
+        journal_view = journal.replay()
+        project_day_risk(day, journal_view, trading_date)
 
         cfg = manifest.get("strategies", p.engine)
         gid = group_key(p.engine, p.underlying,
@@ -741,14 +959,25 @@ def main() -> int:
                 float(cfg.get("stop_loss_fraction", 0.5))
         patch_group_tp_sl(gid, tp, sl)
 
-        if fire_once:
-            mark_fired(day, fire_key(p.engine, p.underlying, today))
         submitted += 1
 
     atomic_write(DAY_PATH, day.as_dict())
     mirror_from_broker(data.positions())
+    publish_snapshot(manifest=manifest, state=state, results=results,
+                     blockers=blockers, decisions=decisions, regime=regime,
+                     day=day, decision_updates=decision_updates)
     print(f"\nsubmitted {submitted} proposal(s) this cycle")
-    return 0
+    return 1 if submission_uncertain else 0
+
+
+def main() -> int:
+    """The one ownership boundary shared by every cycle entry point."""
+    try:
+        with cycle_lock(CYCLE_LOCK_PATH, blocking=False):
+            return _run_cycle()
+    except CycleAlreadyRunning as exc:
+        print(f"{YELLOW}CYCLE REFUSED{RESET}: {exc}")
+        return 0
 
 
 if __name__ == "__main__":

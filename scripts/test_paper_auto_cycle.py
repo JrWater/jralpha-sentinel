@@ -127,6 +127,11 @@ def _test_paths(run_id: str) -> dict[str, Path]:
         "decisions": base / "decisions.jsonl",
         "meta": base / "positions_meta.json",
         "snapshot": base / "snapshot.json",
+        # The journal and the cycle lock are isolated for the same reason the
+        # ledger is: a rehearsal must never hold production's lock, and must
+        # never leave a DISPATCHING record that would block the live cycle.
+        "wal": base / "submission_wal.jsonl",
+        "lock": base / "cycle.lock",
     }
 
 
@@ -207,6 +212,9 @@ def main() -> int:
     snapshot_mod.SNAPSHOT = paths["snapshot"]
     rc.META_PATH = paths["meta"]
     rc.DAY_PATH = paths["day"]
+    rc.SUBMISSION_WAL_PATH = paths["wal"]
+    rc.CYCLE_LOCK_PATH = paths["lock"]
+    rc.PUBLIC_ACCOUNT_SCOPE = "legacy_test"
 
     print(f"test account: {account.account_number}")
     print(f"isolated state: {paths['base']}")
