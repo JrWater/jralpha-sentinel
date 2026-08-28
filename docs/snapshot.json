@@ -11,11 +11,11 @@
     "starting_equity": 100000.0
   },
   "code": {
-    "git_head": "e0b6e4b7327061ac488e59df0453a13b3471c2ad",
-    "worktree_dirty": true
+    "git_head": "84d8d4a8dd8b4ba7e61deee1ea68624b4098c849",
+    "worktree_dirty": false
   },
   "day": {
-    "date": "2026-08-27",
+    "date": "2026-08-28",
     "fired_once": [],
     "killed": false,
     "new_risk_dollars": 0.0,
@@ -329,6 +329,38 @@
       "structure": "single_long",
       "submitted": false,
       "underlying": "NVDA"
+    },
+    {
+      "account_scope": "competition",
+      "at": "2026-08-28T06:39:46.281052+00:00",
+      "authorized": false,
+      "conviction": 0.973,
+      "engine": "trend_directional",
+      "max_loss_dollars": 1978.0,
+      "reason": "cycle not ready: market_open",
+      "refused_by": [
+        "gate:market_open"
+      ],
+      "selected": false,
+      "structure": "debit_vertical",
+      "submitted": false,
+      "underlying": "NVDA"
+    },
+    {
+      "account_scope": "competition",
+      "at": "2026-08-28T06:39:46.281052+00:00",
+      "authorized": false,
+      "conviction": 0.973,
+      "engine": "trend_single",
+      "max_loss_dollars": 2976.0,
+      "reason": "cycle not ready: market_open",
+      "refused_by": [
+        "gate:market_open"
+      ],
+      "selected": false,
+      "structure": "single_long",
+      "submitted": false,
+      "underlying": "NVDA"
     }
   ],
   "equity_history": [
@@ -363,11 +395,15 @@
     {
       "equity": 100000.0,
       "t": "2026-08-27T19:05:02.679973+00:00"
+    },
+    {
+      "equity": 100000.0,
+      "t": "2026-08-28T06:39:46.281052+00:00"
     }
   ],
   "gates": [
     {
-      "detail": "option quotes 1s old (feed delay is 900s)",
+      "detail": "market closed; quote freshness n/a",
       "dimension": "Data Readiness",
       "name": "option_chain_data",
       "ok": true,
@@ -376,7 +412,7 @@
       "severity": "BLOCKING"
     },
     {
-      "detail": "underlying bars 0s old",
+      "detail": "market closed; intraday freshness n/a",
       "dimension": "Data Readiness",
       "name": "underlying_data",
       "ok": true,
@@ -430,12 +466,21 @@
       "severity": "BLOCKING"
     },
     {
-      "detail": "15:05 inside entry window",
-      "dimension": "Process Health",
-      "name": "market_session",
+      "detail": "no unresolved DISPATCHING records",
+      "dimension": "Entry Authority",
+      "name": "unresolved_dispatches",
       "ok": true,
       "phase": "preflight",
-      "rationale": "Entries are forbidden in the opening and closing 30 minutes, where a delayed chain is least representative of what will actually fill.",
+      "rationale": "A dispatched order with no broker answer may already be live. New exposure stays forbidden until reconciliation resolves it by its predeclared client order id.",
+      "severity": "BLOCKING"
+    },
+    {
+      "detail": "market closed",
+      "dimension": "Process Health",
+      "name": "market_open",
+      "ok": false,
+      "phase": "preflight",
+      "rationale": "A closed market cannot accept a new options entry, so there is no reason to construct candidates while the session is closed.",
       "severity": "BLOCKING"
     },
     {
@@ -448,7 +493,7 @@
       "severity": "BLOCKING"
     },
     {
-      "detail": "SENTINEL-OPTIONS-V2@3.1.1+7abea0021831",
+      "detail": "SENTINEL-OPTIONS-V2@3.1.1+fd5a866191c2",
       "dimension": "Release Integrity",
       "name": "manifest_identity",
       "ok": true,
@@ -457,35 +502,37 @@
       "severity": "BLOCKING"
     },
     {
-      "detail": "worktree dirty at e0b6e4b73270",
+      "detail": "clean at 84d8d4a8dd8b",
       "dimension": "Release Integrity",
       "name": "release_integrity",
-      "ok": false,
+      "ok": true,
       "phase": "preflight",
       "rationale": "Running code should be verified code. ATTENTION rather than BLOCKING because editing between cycles is the normal mode during an active build; the dirty state is stamped into every decision record.",
       "severity": "ATTENTION"
     }
   ],
-  "generated_at_utc": "2026-08-27T19:05:02.679973+00:00",
+  "generated_at_utc": "2026-08-28T06:39:46.281052+00:00",
   "market": {
-    "is_open": true
+    "is_open": false
   },
   "permit": {
-    "blocking_gates": [],
-    "entry_maintenance": false,
-    "status": "READY"
+    "blocking_gates": [
+      "market_open"
+    ],
+    "entry_maintenance": true,
+    "status": "BLOCKED"
   },
   "policy": {
-    "identity": "SENTINEL-OPTIONS-V2@3.1.1+7abea0021831",
+    "identity": "SENTINEL-OPTIONS-V2@3.1.1+fd5a866191c2",
     "policy_id": "SENTINEL-OPTIONS-V2",
-    "sha": "7abea0021831a4bb3935d47d87938abf7157b05b503948c2e0604307093e0d32",
+    "sha": "fd5a866191c2328afbb099b0f259450b839a22f96fdfc079408c77d7dc9432c0",
     "version": "3.1.1"
   },
   "positions": [],
   "regime": {
     "confidence": 0.9,
     "mode": "risk_on",
-    "reason": "SPY above EMA50 (+2.01%), RSI 58, breadth +1"
+    "reason": "SPY above EMA50 (+2.16%), RSI 59, breadth +1"
   },
   "schema_version": 2
 }
