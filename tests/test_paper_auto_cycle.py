@@ -68,6 +68,7 @@ def test_test_manifest_isolated_and_capped_to_one_proposal():
 
     assert raw["environment"]["competition_account_id"] == "PRODUCTION"
     assert manifest.get("environment", "competition_account_id") == "LEGACY"
+    assert manifest.competition_requires_options_component is False
     assert manifest.get("agent", "max_proposals_per_cycle") == 1
     assert manifest.get("risk_caps", "at_risk_cap_fraction") == 0.005
     assert manifest.get(

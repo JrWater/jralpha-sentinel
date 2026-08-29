@@ -85,6 +85,10 @@ def build_test_manifest(raw: dict, *, account_id: str, now_utc: datetime,
     from policy.loader import Manifest
 
     cooked = deepcopy(raw)
+    # This is an isolated legacy-account test policy, not a competition
+    # policy.  State that explicitly so the production eligibility invariant
+    # cannot be weakened just to make a minimal test fixture load.
+    cooked["competition"] = {"requires_options_component": False}
     starting = float(cooked["environment"]["required_starting_equity"])
     cap_fraction = max_risk_dollars / starting
     cooked["environment"]["competition_account_id"] = account_id

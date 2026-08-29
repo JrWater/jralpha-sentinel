@@ -304,11 +304,13 @@ def check_order_shape_declared(ctx: EvalContext) -> GateResult:
     p = ctx.proposal
     if p is None:
         return GateResult(False, "no proposal")
-    shape = ctx.manifest.find_shape(
+    shape = ctx.manifest.find_shape_for_strategy(
+        p.engine,
         order_class=p.order_class, type=p.type,
         time_in_force=p.time_in_force, legs=len(p.legs))
     if shape is None:
-        return GateResult(False, f"undeclared shape: {p.order_class}/{p.type}/"
+        return GateResult(False, f"undeclared shape for strategy {p.engine}: "
+                                 f"{p.order_class}/{p.type}/"
                                  f"{p.time_in_force}/{len(p.legs)}leg")
     return GateResult(True, f"shape {shape.id}")
 

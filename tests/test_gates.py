@@ -335,7 +335,7 @@ def test_pending_entry_reconciliation_is_a_registered_blocking_gate():
 # ── the proposal gates ───────────────────────────────────────────────────────
 
 def _proposal(**kw):
-    base = dict(underlying="SPY", order_class="mleg", type="limit",
+    base = dict(engine="trend_directional", underlying="SPY", order_class="mleg", type="limit",
                 time_in_force="day", legs=[1, 2], max_loss_dollars=400.0)
     base.update(kw)
     return SimpleNamespace(**base)
@@ -361,7 +361,15 @@ def test_gtc_is_refused_because_it_is_not_declared(manifest):
 def test_four_leg_condor_is_declared_and_accepted(manifest):
     """V2 declares 1-, 2- and 4-leg shapes (condors are part of the plan)."""
     assert checks.check_order_shape_declared(
-        _ctx(manifest, proposal=_proposal(legs=[1, 2, 3, 4]))).ok
+        _ctx(manifest, proposal=_proposal(
+            engine="vol_income", legs=[1, 2, 3, 4]))).ok
+
+
+def test_globally_declared_shape_is_refused_when_not_bound_to_strategy(manifest):
+    r = checks.check_order_shape_declared(
+        _ctx(manifest, proposal=_proposal(engine="vol_income")))
+
+    assert not r.ok and "undeclared shape for strategy vol_income" in r.detail
 
 
 def test_three_leg_shape_is_still_refused(manifest):

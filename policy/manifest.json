@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "policy_id": "SENTINEL-OPTIONS-V2",
-  "version": "3.1.1",
+  "version": "3.1.2",
   "_comment_authority": "This manifest is the ONLY authority for strategy parameters. Code reads values from here; it never restates them. Prose documents describe this file, they do not define a competing source of truth. Every semantic change creates a new version rather than rewriting history.",
   "environment": {
     "broker": "ALPACA",
@@ -12,6 +12,10 @@
     "required_starting_equity": 100000.0,
     "required_options_level": 3,
     "_comment_level": "Level 3 (multi-leg) is auto-approved on Alpaca paper accounts. The gate asserts it rather than assuming it."
+  },
+  "competition": {
+    "requires_options_component": true,
+    "_comment_options_component": "The competition requires every strategy to incorporate options. Eligibility is derived from each strategy's declared order-shape IDs, not a self-reported asset label. This is not an Alpaca-wide asset ban: mixed-asset execution needs its own approved design and executable order shapes before it can be added; a standalone non-options strategy is not eligible here."
   },
   "data": {
     "options_feed": "indicative",
@@ -50,6 +54,7 @@
   "strategies": {
     "trend_directional": {
       "enabled": true,
+      "execution_shape_ids": ["mleg_2_leg_limit_day"],
       "engine_label": "Trend Vector",
       "risk_budget_fraction": 0.25,
       "structures": [
@@ -74,6 +79,7 @@
     },
     "trend_income": {
       "enabled": true,
+      "execution_shape_ids": ["mleg_2_leg_limit_day"],
       "engine_label": "Trend Vector (income mode)",
       "risk_budget_fraction": 0.2,
       "structures": [
@@ -97,6 +103,7 @@
     },
     "catalyst": {
       "enabled": true,
+      "execution_shape_ids": ["mleg_2_leg_limit_day"],
       "engine_label": "Catalyst Vector",
       "risk_budget_fraction": 0.25,
       "structures": [
@@ -121,6 +128,7 @@
     },
     "event_macro": {
       "enabled": true,
+      "execution_shape_ids": ["single_leg_limit_day", "mleg_2_leg_limit_day"],
       "entry_open_override": "09:30",
       "engine_label": "Event Vector",
       "risk_budget_fraction": 0.15,
@@ -144,6 +152,7 @@
     },
     "vol_income": {
       "enabled": true,
+      "execution_shape_ids": ["mleg_4_leg_limit_day"],
       "engine_label": "Vol Vector",
       "risk_budget_fraction": 0.15,
       "structures": [
@@ -163,6 +172,7 @@
     },
     "trend_single": {
       "enabled": false,
+      "execution_shape_ids": ["single_leg_limit_day"],
       "engine_label": "Trend Vector (conviction single-leg)",
       "risk_budget_fraction": 0.1,
       "structures": [

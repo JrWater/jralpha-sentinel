@@ -72,6 +72,52 @@ class Manifest:
                           if not k.startswith("_comment")})
             for shape in raw["order_shapes"]
         )
+        self._shapes_by_id = {shape.id: shape for shape in self.order_shapes}
+        if len(self._shapes_by_id) != len(self.order_shapes):
+            raise ValueError("manifest order shape ids must be unique")
+        competition = raw.get("competition")
+        if not isinstance(competition, dict):
+            raise ValueError("manifest competition policy must be a mapping")
+        required = competition.get("requires_options_component")
+        if not isinstance(required, bool):
+            raise ValueError(
+                "manifest competition.requires_options_component must be boolean")
+        self.competition_requires_options_component = required
+        if required:
+            self._validate_options_composition()
+
+    def _validate_options_composition(self) -> None:
+        """Refuse a competition strategy that has no declared option component.
+
+        This is deliberately narrower than an Alpaca asset-class restriction.
+        A future mixed strategy may declare equities, ETFs, or crypto alongside
+        ``us_option``.  A standalone non-options strategy needs a fresh
+        competition-eligibility decision before it can enter this manifest.
+        """
+        for name, config in self.get("strategies").items():
+            if name.startswith("_comment"):
+                continue
+            if not isinstance(config, dict):
+                raise ValueError(f"strategy {name} must be a mapping")
+            shape_ids = config.get("execution_shape_ids")
+            if not isinstance(shape_ids, list) or not shape_ids or not all(
+                    isinstance(shape_id, str) for shape_id in shape_ids):
+                raise ValueError(
+                    f"strategy {name} must declare execution_shape_ids")
+            unknown = sorted(set(shape_ids) - set(self._shapes_by_id))
+            if unknown:
+                raise ValueError(
+                    f"strategy {name} declares unknown order shape(s): "
+                    f"{', '.join(unknown)}")
+            if "us_option" not in self.strategy_execution_asset_classes(name):
+                raise ValueError(
+                    f"competition strategy {name} must incorporate us_option")
+
+    def strategy_execution_asset_classes(self, name: str) -> frozenset[str]:
+        """Asset classes reachable by one strategy's declared wire shapes."""
+        shape_ids = self.get("strategies", name, "execution_shape_ids")
+        return frozenset(self._shapes_by_id[shape_id].asset_class
+                         for shape_id in shape_ids)
 
     @property
     def identity(self) -> str:
@@ -105,6 +151,25 @@ class Manifest:
                              time_in_force=time_in_force, legs=legs):
                 return shape
         return None
+
+    def find_shape_for_strategy(self, strategy: str, *, order_class: str,
+                                type: str, time_in_force: str,
+                                legs: int) -> OrderShape | None:
+        """Return a declared wire shape only when this strategy owns it.
+
+        ``order_shapes`` is the global vocabulary.  A strategy's
+        ``execution_shape_ids`` is its capability subset.  Entries must cross
+        both checks, so declaring a safe option shape for eligibility cannot
+        authorize a different strategy to emit an unrelated global shape.
+        """
+        config = self.get("strategies").get(strategy)
+        if not isinstance(config, dict):
+            return None
+        shape = self.find_shape(order_class=order_class, type=type,
+                                time_in_force=time_in_force, legs=legs)
+        if shape is None or shape.id not in config["execution_shape_ids"]:
+            return None
+        return shape
 
 
 def load(path: Path = MANIFEST_PATH) -> Manifest:

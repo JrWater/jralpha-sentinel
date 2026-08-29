@@ -63,7 +63,7 @@ def manifest():
 
 def _proposal(**kw) -> Proposal:
     base = dict(
-        engine="test", underlying="SPY", direction="long",
+        engine="trend_single", underlying="SPY", direction="long",
         structure="single_long", expiry=date(2026, 8, 28), dte=0,
         legs=[OptionLeg(symbol="SPY260828C00600000", side="buy", quantity=1,
                         strike=600.0, contract_type="call",
@@ -223,6 +223,34 @@ def test_undeclared_shape_is_still_refused_after_authority_clears(manifest):
     with pytest.raises(RuntimeError, match="undeclared shape"):
         ex.submit(_proposal(legs=three_legs, limit_price=1.0), now=AFTER_KICKOFF)
     assert client.submit_calls == []
+
+
+def test_declared_shape_must_be_bound_to_the_proposal_strategy(manifest):
+    """A global simple shape cannot become an income-engine entry by accident."""
+    declared = manifest.get("environment", "competition_account_id")
+    client = FakeClient(account_number=declared)
+    ex = Executor(client, manifest, verbose=False)
+
+    with pytest.raises(RuntimeError, match="undeclared shape for strategy trend_income"):
+        ex.submit(_proposal(engine="trend_income"), now=AFTER_KICKOFF,
+                  client_order_id="unbound-shape")
+
+    assert client.submit_calls == []
+
+
+def test_close_uses_global_declared_shape_for_safety_maintenance(manifest,
+                                                                  monkeypatch):
+    """An orphan exit must not need an entry strategy capability."""
+    monkeypatch.setattr("agent.executor.append_decision", lambda record: None)
+    declared = manifest.get("environment", "competition_account_id")
+    client = FakeClient(account_number=declared)
+    ex = Executor(client, manifest, verbose=False)
+
+    order = ex.submit(_proposal(engine="exit"), closing=True,
+                      now=AFTER_KICKOFF)
+
+    assert order.id == "fake-order-1"
+    assert len(client.submit_calls) == 1
 
 
 def test_open_order_cleanup_uses_the_sdk_filter_object(manifest):
