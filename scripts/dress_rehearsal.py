@@ -51,7 +51,10 @@ from unittest import mock
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-WATCHED = ["state/day_state.json", "state/entry_permit.json",
+from agent.ledger import StructureLedger, ledger_positions, mirror_from_broker
+from gates.evaluation import _decisions_writable as _real_decisions_writable
+
+WATCHED = ["state/day_state.json", "state/entry_permit.json", "state/cycle.lock",
            "state/ledger.json", "state/decisions.jsonl", "docs/snapshot.json",
            "state/positions_meta.json", "state/submission_wal.jsonl"]
 
@@ -63,6 +66,26 @@ def fingerprint() -> dict:
         out[rel] = (hashlib.sha256(p.read_bytes()).hexdigest()[:16]
                     if p.exists() else "<absent>")
     return out
+
+
+def rehearsal_structures(state_dir: Path) -> StructureLedger:
+    """Return the structure-ledger adapter isolated with the rehearsal state."""
+    return StructureLedger(state_dir / "positions_meta.json")
+
+
+def rehearsal_cycle_lock(state_dir: Path) -> Path:
+    """Keep cycle ownership inside the same temporary rehearsal state."""
+    return state_dir / "cycle.lock"
+
+
+def rehearsal_ledger_path(state_dir: Path) -> Path:
+    """Keep the broker-mirror projection beside the other temporary state."""
+    return state_dir / "ledger.json"
+
+
+def rehearsal_decision_log_writable(state_dir: Path) -> bool:
+    """Exercise the decision-log gate against temporary rehearsal state."""
+    return _real_decisions_writable(state_dir)
 
 
 class RecordingClient:
@@ -126,19 +149,36 @@ def main() -> int:
 
     rehearsal_state = tempfile.TemporaryDirectory(
         prefix="jralpha-sentinel-rehearsal-")
-    with rehearsal_state, \
+    with rehearsal_state:
+        rehearsal_dir = Path(rehearsal_state.name)
+        rehearsal_ledger = rehearsal_ledger_path(rehearsal_dir)
+
+        def mirror_rehearsal(positions):
+            return mirror_from_broker(positions, path=rehearsal_ledger)
+
+        def read_rehearsal_ledger():
+            return ledger_positions(path=rehearsal_ledger)
+
+        with \
          mock.patch.object(rc, "SUBMISSION_WAL_PATH",
-                           Path(rehearsal_state.name) / "submission_wal.jsonl"), \
+                           rehearsal_dir / "submission_wal.jsonl"), \
          mock.patch.object(rc, "load_manifest", lambda *a, **k: rehearsal_manifest), \
          mock.patch.object(rc, "Executor", executor_factory), \
+         mock.patch.object(rc, "STRUCTURES", rehearsal_structures(
+             rehearsal_dir)), \
+         mock.patch.object(rc, "CYCLE_LOCK_PATH", rehearsal_cycle_lock(
+             rehearsal_dir)), \
          mock.patch.object(rc, "write_permit"), \
          mock.patch.object(rc, "atomic_write"), \
          mock.patch.object(rc, "append_decision"), \
-         mock.patch.object(rc, "mirror_from_broker"), \
+         mock.patch.object(rc, "mirror_from_broker", mirror_rehearsal), \
+         mock.patch.object(rc, "ledger_positions", read_rehearsal_ledger), \
+         mock.patch("gates.evaluation._decisions_writable",
+                    lambda _root: rehearsal_decision_log_writable(rehearsal_dir)), \
          mock.patch("agent.executor.append_decision"), \
          mock.patch("agent.snapshot.write"):
-        sys.argv = ["run_cycle.py"] + sys.argv[1:]
-        code = rc.main()
+            sys.argv = ["run_cycle.py"] + sys.argv[1:]
+            code = rc.main()
 
     sent = [o for r in recorders for o in r.orders]
     canceled = [o for r in recorders for o in r.cancellations]
