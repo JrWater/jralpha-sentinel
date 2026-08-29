@@ -73,6 +73,23 @@
   .row .body { font-size:14.5px; color:#b6c0d0; line-height:1.48; }
   .row .body code { color:#8fd6ff; font-family: 'SF Mono', Menlo, monospace; font-size:13.5px; }
 
+  .arch-before { position:relative; margin-top:0.30in; display:flex; align-items:center; gap:16px;
+    padding:13px 17px; border:1px dashed rgba(239,107,107,.56); border-radius:12px;
+    background:rgba(239,107,107,.055); color:#aeb7c6; font-size:14px; line-height:1.35; }
+  .arch-before b { color:#ef6b6b; font-family:'SF Mono', Menlo, monospace; letter-spacing:.10em; font-size:12px; }
+  .arch-after { position:relative; margin-top:0.22in; color:#4fd189; font-family:'SF Mono', Menlo, monospace;
+    font-size:12px; letter-spacing:.11em; text-transform:uppercase; }
+  .arch-flow { position:relative; display:flex; align-items:stretch; gap:11px; margin-top:0.16in; }
+  .arch-node { flex:1; padding:17px 14px 15px; background:rgba(255,255,255,.035); border:1px solid rgba(255,255,255,.12); border-radius:13px; }
+  .arch-node .path { font:700 11px/1.2 'SF Mono', Menlo, monospace; color:#7fa3ff; }
+  .arch-node .name { margin-top:9px; font-size:18px; color:#fff; font-weight:800; }
+  .arch-node .desc { margin-top:8px; color:#aab5c5; font-size:12.5px; line-height:1.36; }
+  .arch-arrow { align-self:center; color:#61708b; font-size:18px; }
+  .arch-evidence { position:relative; display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:0.18in; }
+  .arch-evidence div { padding:11px 15px; border:1px solid rgba(255,255,255,.12); border-radius:10px; background:rgba(255,255,255,.025); }
+  .arch-evidence b { display:block; color:#ffcf70; font:700 11px/1.15 'SF Mono', Menlo, monospace; letter-spacing:.07em; }
+  .arch-evidence span { display:block; margin-top:5px; color:#9eabba; font-size:12.5px; line-height:1.35; }
+
   .shot { position:relative; margin-top:0.3in; border-radius:14px; overflow:hidden; height:3.15in;
     border:1px solid rgba(255,255,255,0.12); box-shadow:0 30px 80px rgba(0,0,0,0.5); }
   .shot img { display:block; width:100%; height:100%; object-fit:cover; object-position: top; }
@@ -122,12 +139,21 @@
 <section class="slide">
   <div class="grid"></div>
   <div class="kicker">Architecture</div>
-  <h2>Decision, verification, and execution are three different pieces of code.</h2>
-  <div class="stack" style="margin-top:0.5in">
-    <div class="row"><div class="tag" style="color:#7fa3ff"><code>agent/proposer.py</code></div><div class="body">DeepSeek receives ranked candidates from the quant engine, portfolio state and regime — selects ≤3, ranks them, writes the thesis. With no model available, the agent falls back to engine ranking. <b style="color:#fff">A brain, never a finger.</b></div></div>
-    <div class="row"><div class="tag" style="color:#ef6b6b"><code>gates/checks.py</code></div><div class="body">Deterministic gates span Entry Authority, Data Readiness, Process Health, Release Integrity, Delivery Health. Every gate answers one question: <i>it is red — why should the agent not open new exposure right now?</i> Unregistered = BLOCKING, never a softer default.</div></div>
-    <div class="row"><div class="tag" style="color:#ffcf70"><code>gates/safety_gate.py</code></div><div class="body">A durable, fail-closed permit: bound to the exact git commit and manifest SHA that produced it, expires in 90 minutes. Every failure path in this module returns refusal — there is no exception handler whose fallback is "allow".</div></div>
-    <div class="row"><div class="tag" style="color:#4fd189"><code>agent/executor.py</code></div><div class="body">Only accepts a proposal that (a) passed every pretrade gate and (b) matches an <code>order_shape</code> declared in the manifest. No shape declares <code>type: "market"</code> — a market order on a 15-min delayed feed is structurally impossible to emit.</div></div>
+  <h2>One guarded path. Named owners for each decision and side effect.</h2>
+  <div class="arch-before"><b>BEFORE</b><span><code>run_cycle</code> hand-built separate gate contexts and an inline entry-submission loop.</span></div>
+  <div class="arch-after">After · explicit seams, one guarded path</div>
+  <div class="arch-flow">
+    <div class="arch-node"><div class="path">agent/proposer.py</div><div class="name">Proposer</div><div class="desc">DeepSeek ranks candidates and writes a thesis. It has no order-submission tool.</div></div>
+    <div class="arch-arrow">→</div>
+    <div class="arch-node"><div class="path" style="color:#ffcf70">gates/evaluation.py</div><div class="name">Gate Evaluator</div><div class="desc">Typed cycle and proposal subjects keep readiness distinct from entry authorization.</div></div>
+    <div class="arch-arrow">→</div>
+    <div class="arch-node"><div class="path" style="color:#ef6b6b">agent/entry_submission.py</div><div class="name">Entry Admission</div><div class="desc">Pre-journalled client IDs make the submission path recoverable and auditable.</div></div>
+    <div class="arch-arrow">→</div>
+    <div class="arch-node"><div class="path" style="color:#4fd189">agent/executor.py</div><div class="name">Executor</div><div class="desc">Only declared DAY limit order shapes reach Alpaca — never a market order.</div></div>
+  </div>
+  <div class="arch-evidence">
+    <div><b>SAFETY PERMIT</b><span>Bound to the exact commit and manifest hash; fails closed when stale or mismatched.</span></div>
+    <div><b>STRUCTURE LEDGER</b><span>Submitted orders become durable position records beside the broker mirror.</span></div>
   </div>
   <div class="pageno">3 / 9</div>
 </section>
@@ -154,11 +180,11 @@
   <div class="kicker">Risk Gates — Enforced In Code, None Advisory</div>
   <h2>Every position is defined-risk. No naked shorts. No market orders.</h2>
   <div class="dims">
-    <div class="dim"><div class="n">4</div><div class="l">Entry Authority</div><div class="q">Is this account, this mode, allowed to trade?</div></div>
-    <div class="dim"><div class="n">2</div><div class="l">Data Readiness</div><div class="q">Is every input actually present?</div></div>
-    <div class="dim"><div class="n">1</div><div class="l">Delivery Health</div><div class="q">If it breaks, does anyone find out?</div></div>
-    <div class="dim"><div class="n">1</div><div class="l">Release Integrity</div><div class="q">Is running code the code that was verified?</div></div>
-    <div class="dim"><div class="n">2</div><div class="l">Process Health</div><div class="q">Did the machinery obey its contract?</div></div>
+    <div class="dim"><div class="l">Entry Authority</div><div class="q">Is this account, this mode, allowed to trade?</div></div>
+    <div class="dim"><div class="l">Data Readiness</div><div class="q">Is every input actually present?</div></div>
+    <div class="dim"><div class="l">Delivery Health</div><div class="q">If it breaks, does anyone find out?</div></div>
+    <div class="dim"><div class="l">Release Integrity</div><div class="q">Is running code the code that was verified?</div></div>
+    <div class="dim"><div class="l">Process Health</div><div class="q">Did the machinery obey its contract?</div></div>
   </div>
   <div class="caps">
     <div class="cap"><div class="n">$12,000</div><div class="l">hard per-trade max loss (12% of $100k, tournament-calibrated from event studies; fraction of starting equity — a drawdown shrinks absolute risk, never rescales it)</div></div>

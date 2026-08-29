@@ -4,7 +4,11 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
 
 from scripts.check_deliverables import (
     CANONICAL_BINARIES,
@@ -12,9 +16,6 @@ from scripts.check_deliverables import (
     discover_binary_inputs,
     sha256,
 )
-
-ROOT = Path(__file__).resolve().parents[1]
-
 
 def write_provenance(*, root: Path = ROOT,
                      artifacts: tuple[str, ...] = CANONICAL_BINARIES) -> dict:
@@ -44,9 +45,13 @@ def write_provenance(*, root: Path = ROOT,
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("artifacts", nargs="*", choices=CANONICAL_BINARIES)
+    parser.add_argument("artifacts", nargs="*")
     args = parser.parse_args()
-    document = write_provenance(artifacts=tuple(args.artifacts) or CANONICAL_BINARIES)
+    artifacts = tuple(args.artifacts) or CANONICAL_BINARIES
+    invalid = sorted(set(artifacts) - set(CANONICAL_BINARIES))
+    if invalid:
+        parser.error("unknown canonical artifact(s): " + ", ".join(invalid))
+    document = write_provenance(artifacts=artifacts)
     print(f"Wrote {PROVENANCE_PATH} for {len(document['artifacts'])} artifact(s).")
     return 0
 

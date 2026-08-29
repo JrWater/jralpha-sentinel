@@ -10,6 +10,27 @@
     <template>
       <style>
         #root { position: absolute; inset: 0; }
+        .s03-before {
+          display: flex; align-items: center; gap: 18px; margin-top: 46px;
+          padding: 17px 23px; border: 2px dashed rgba(255,123,114,.48);
+          border-radius: 18px 14px 20px 15px; background: rgba(255,123,114,.075);
+          color: var(--muted); font-size: 20px; line-height: 1.3; opacity: 0;
+        }
+        .s03-before b { color: var(--red); font: 800 15px/1 "SF Mono", Menlo, monospace; letter-spacing: .13em; }
+        .s03-after {
+          margin-top: 31px; color: var(--green); font: 800 16px/1 "SF Mono", Menlo, monospace;
+          letter-spacing: .14em; text-transform: uppercase; opacity: 0;
+        }
+        .s03-flow { display: flex; align-items: stretch; gap: 17px; margin-top: 19px; }
+        .s03-box { flex: 1; min-height: 286px; padding: 29px 25px 24px; opacity: 0; }
+        .s03-box .path { font-size: 14px; color: var(--blue); }
+        .s03-box .name { font-size: 28px; font-weight: 800; margin-top: 12px; color: var(--text); }
+        .s03-box .copy { font-size: 17px; color: var(--muted); margin-top: 14px; line-height: 1.42; }
+        .s03-arrow { width: 30px; align-self: center; height: 3px; background: var(--border); transform-origin: left; }
+        .s03-evidence { display: flex; align-items: stretch; gap: 18px; margin-top: 20px; opacity: 0; }
+        .s03-evidence > div { flex: 1; padding: 15px 20px; border: 2px solid rgba(245,239,228,.16); border-radius: 13px 10px 15px 11px; background: rgba(245,239,228,.035); }
+        .s03-evidence b { display: block; font: 800 14px/1.1 "SF Mono", Menlo, monospace; letter-spacing: .07em; color: var(--amber); }
+        .s03-evidence span { display: block; margin-top: 8px; color: var(--muted); font-size: 16px; line-height: 1.3; }
       </style>
 
       <div data-hf-id="hf-jj4o" id="root" data-composition-id="scene-s03" data-width="1920" data-height="1080">
@@ -28,32 +49,34 @@
         <div data-hf-id="hf-up1o" class="cap" id="cap-s03-11">none of them is a market order.</div>
         <div data-hf-id="hf-fvl0" class="wrap">
           <span data-hf-id="hf-3u4l" class="kicker">Architecture</span>
-          <div data-hf-id="hf-oip8" class="h1" id="s03-h1">Four pieces of code. Four jobs.</div>
+          <div data-hf-id="hf-oip8" class="h1" id="s03-h1">One guarded path. Named owners.</div>
 
-          <div data-hf-id="hf-m8f6" style="display: flex; gap: 28px; margin-top: 74px; align-items: stretch;">
-            <div data-hf-id="hf-ivuy" class="pipe-box card" data-i="0" data-step="01" style="flex: 1; padding: 30px; opacity: 0;">
-              <div data-hf-id="hf-7s3c" class="mono" style="color: var(--blue); font-size: 15px;">agent/proposer.py</div>
-              <div data-hf-id="hf-y5w8" style="font-size: 25px; font-weight: 700; margin-top: 10px;">Proposer</div>
-              <div data-hf-id="hf-p8io" style="font-size: 16px; color: var(--muted); margin-top: 12px; line-height: 1.5;">Reads ranked candidates, writes the thesis. A brain, never a finger.</div>
+          <div class="s03-before" id="s03-before"><b>BEFORE</b><span>run_cycle assembled two gate contexts and an inline submission loop.</span></div>
+          <div class="s03-after" id="s03-after">After · decisions and side effects have explicit seams</div>
+          <div class="s03-flow">
+            <div class="s03-box pipe-box card" data-step="01" id="s03-box-0">
+              <div class="mono path">agent/proposer.py</div><div class="name">Proposer</div>
+              <div class="copy">DeepSeek ranks candidates and writes a thesis — a brain, never a finger.</div>
             </div>
-            <div data-hf-id="hf-qn7v" class="pipe-arrow" data-i="0" style="width: 44px; align-self: center; height: 3px; background: var(--border); transform: scaleX(0); transform-origin: left;"></div>
-            <div data-hf-id="hf-hqju" class="pipe-box card" data-i="1" data-step="02" style="flex: 1; padding: 30px; opacity: 0;">
-              <div data-hf-id="hf-wdyn" class="mono" style="color: var(--amber); font-size: 15px;">gates/registry.py</div>
-              <div data-hf-id="hf-35zv" style="font-size: 25px; font-weight: 700; margin-top: 10px;">Safety Gates</div>
-              <div data-hf-id="hf-5qf1" style="font-size: 16px; color: var(--muted); margin-top: 12px; line-height: 1.5;">5 dimensions. Unregistered defaults to BLOCKING, never a softer answer.</div>
+            <div class="s03-arrow" id="s03-arrow-0"></div>
+            <div class="s03-box pipe-box card" data-step="02" id="s03-box-1">
+              <div class="mono path" style="color:var(--amber)">gates/evaluation.py</div><div class="name">Gate Evaluator</div>
+              <div class="copy">Typed cycle and proposal subjects keep readiness and entry authority distinct.</div>
             </div>
-            <div data-hf-id="hf-7roc" class="pipe-arrow" data-i="1" style="width: 44px; align-self: center; height: 3px; background: var(--border); transform: scaleX(0); transform-origin: left;"></div>
-            <div data-hf-id="hf-miry" class="pipe-box card" data-i="2" data-step="03" style="flex: 1; padding: 30px; opacity: 0;">
-              <div data-hf-id="hf-urmk" class="mono" style="color: var(--red); font-size: 15px;">gates/safety_gate.py</div>
-              <div data-hf-id="hf-w7e5" style="font-size: 25px; font-weight: 700; margin-top: 10px;">Safety Gate</div>
-              <div data-hf-id="hf-38hy" style="font-size: 16px; color: var(--muted); margin-top: 12px; line-height: 1.5;">Bound to the exact commit + policy hash. Expires in 90 minutes.</div>
+            <div class="s03-arrow" id="s03-arrow-1"></div>
+            <div class="s03-box pipe-box card" data-step="03" id="s03-box-2">
+              <div class="mono path" style="color:var(--red)">agent/entry_submission.py</div><div class="name">Entry Admission</div>
+              <div class="copy">A pre-journalled client order ID makes submission and recovery auditable.</div>
             </div>
-            <div data-hf-id="hf-ndxd" class="pipe-arrow" data-i="2" style="width: 44px; align-self: center; height: 3px; background: var(--border); transform: scaleX(0); transform-origin: left;"></div>
-            <div data-hf-id="hf-4223" class="pipe-box card" data-i="3" data-step="04" style="flex: 1; padding: 30px; opacity: 0; border-color: rgba(79,209,137,.3);">
-              <div data-hf-id="hf-6jro" class="mono" style="color: var(--green); font-size: 15px;">agent/executor.py</div>
-              <div data-hf-id="hf-lmjx" style="font-size: 25px; font-weight: 700; margin-top: 10px;">Executor</div>
-              <div data-hf-id="hf-jodl" style="font-size: 16px; color: var(--muted); margin-top: 12px; line-height: 1.5;">Accepts only a declared order shape. No shape declares a market order.</div>
+            <div class="s03-arrow" id="s03-arrow-2"></div>
+            <div class="s03-box pipe-box card" data-step="04" id="s03-box-3" style="border-color:rgba(114,216,155,.34)">
+              <div class="mono path" style="color:var(--green)">agent/executor.py</div><div class="name">Executor</div>
+              <div class="copy">Only declared DAY limit order shapes reach Alpaca — never a market order.</div>
             </div>
+          </div>
+          <div class="s03-evidence" id="s03-evidence">
+            <div><b>SAFETY PERMIT</b><span>commit + manifest hash, fail-closed, 90-minute freshness</span></div>
+            <div><b>STRUCTURE LEDGER</b><span>submitted orders become durable position records beside the broker mirror</span></div>
           </div>
         </div>
       </div>
@@ -67,13 +90,13 @@
           const tl = gsap.timeline({ paused: true });
 
           tl.fromTo("#s03-h1", { opacity: 0, y: 26 }, { opacity: 1, y: 0, duration: 0.7, ease: EASE }, S(0.1));
-          const pipeBoxes = gsap.utils.toArray(".pipe-box");
-          const pipeArrows = gsap.utils.toArray(".pipe-arrow");
-          pipeBoxes.forEach((el, i) => {
-            const t = S(2.0 + i * 6.8);
-            tl.fromTo(el, { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.6, ease: EASE }, t);
-            if (pipeArrows[i]) tl.fromTo(pipeArrows[i], { scaleX: 0 }, { scaleX: 1, duration: 0.4, ease: EASE }, t + 0.55);
+          tl.fromTo("#s03-before", { opacity: 0, x: -36 }, { opacity: 1, x: 0, duration: 0.55, ease: EASE }, S(0.85));
+          tl.fromTo("#s03-after", { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.45, ease: EASE }, S(1.65));
+          [2.1, 8.1, 13.2, 19.7].forEach((t, i) => {
+            tl.fromTo(`#s03-box-${i}`, { opacity: 0, y: 34 }, { opacity: 1, y: 0, duration: 0.58, ease: EASE }, S(t));
+            if (i < 3) tl.fromTo(`#s03-arrow-${i}`, { scaleX: 0 }, { scaleX: 1, duration: 0.34, ease: EASE }, S(t + 0.52));
           });
+          tl.fromTo("#s03-evidence", { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.55, ease: EASE }, S(18.2));
 
 
           // <<< GENERATED captions -- edit narration.json, then `npm run timing`
