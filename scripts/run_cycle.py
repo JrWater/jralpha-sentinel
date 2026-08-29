@@ -35,6 +35,7 @@ from agent.entry_submission import (project_day_risk, proposal_fingerprint,
                                     submit_entries)
 from agent.ledger import (StructureLedger, atomic_write, append_decision,
                           ledger_positions, mirror_from_broker)
+from agent.position_lifecycle import PositionLifecycle
 from agent.proposer import SelectionResult, select as llm_select
 from agent.submission_wal import (JournalView, SubmissionJournal,
                                   reconcile_unresolved,
@@ -45,12 +46,9 @@ from gates.registry import severity_of
 from gates.safety_gate import write_permit
 from policy.loader import load as load_manifest
 from scripts.verify_account import creds, load_env
-from strategy.data import AlpacaData, MarketState, parse_contract
+from strategy.data import AlpacaData, MarketState
 from strategy.daystate import check_kill, load_or_reset, record_risk, release_risk
 from strategy.engine import EngineContext, run as run_engines
-from strategy.exits import (GroupView, build_close_proposal, decide_exit,
-                            pnl_of)
-from strategy.proposal import OptionLeg, Proposal
 from strategy.regime import classify, universe_breadth
 from strategy.signals import score_symbol
 from strategy.sizing import PortfolioState, record_open_risk, release_open_risk
@@ -155,13 +153,18 @@ def publish_snapshot(*, manifest, state, results, blockers, decisions,
 
 
 def run_preflight(state: MarketState, manifest, ledger,
-                  journal_view: JournalView | None = None) -> dict:
+                  journal_view: JournalView | None = None,
+                  *, structures: StructureLedger | None = None) -> dict:
     journal_view = journal_view or SubmissionJournal(
         SUBMISSION_WAL_PATH).replay()
     evaluator = GateEvaluator(root=ROOT)
     subject = evaluator.cycle_subject(
         state=state, manifest=manifest, ledger_positions=ledger,
         journal_view=journal_view,
+        unresolved_structure_close_count=(
+            structures or STRUCTURES).unresolved_structure_close_count(),
+        unresolved_entry_reconciliation_count=(
+            structures or STRUCTURES).unresolved_entry_reconciliation_count(),
     )
     return evaluator.evaluate(subject)
 
@@ -208,174 +211,13 @@ def release_entry_risk(portfolio: PortfolioState, day, dollars: float) -> None:
 
 def manage_exits(state: MarketState, manifest, executor: Executor,
                  *, structures: StructureLedger | None = None) -> int:
-    """Structure-level exits. Legs of one structure close as one order.
+    """Delegate structure exits to their lifecycle module.
 
-    Marked on the STRUCTURE net (all legs together), so a debit spread's
-    losing long leg can never be closed alone while its short leg survives
-    naked. Every close is a DAY limit at the touch - no market orders exist
-    in this policy.
+    Kept here as the cycle's compatibility seam; all lifecycle semantics live
+    in :class:`agent.position_lifecycle.PositionLifecycle`.
     """
-    from zoneinfo import ZoneInfo
-    now_et = state.now_utc.astimezone(ZoneInfo("America/New_York"))
-    final_date = str(manifest.get("session", "final_trading_date"))
-    flatten_at = str(manifest.get("session", "flatten_all_at"))
-
-    structures = structures or STRUCTURES
-    meta = structures.load()
-    groups = meta.get("groups", {})
-    broker = {p.symbol: p for p in state.positions}
-    exit_orders_submitted = 0
-    meta_changed = False
-    # Freeze ownership against this broker snapshot.  A close submission
-    # below moves its group to close_pending, while the positions in `state`
-    # remain the pre-submission snapshot.  Ownership must remain stable for
-    # this invocation so those legs cannot also enter the orphan pass.  A
-    # later cycle rebuilds the set from broker-confirmed state.
-    managed_symbols = {
-        sym
-        for group in groups.values()
-        if not group.get("closed")
-        for sym in (group.get("legs") or {})
-    }
-
-    for gid, g in groups.items():
-        if g.get("closed"):
-            continue
-        legs = g.get("legs", {})
-        open_legs = {sym: info for sym, info in legs.items()
-                     if sym in broker and int(float(broker[sym].qty)) != 0}
-        if not open_legs:
-            if g.get("close_pending"):
-                g["close_pending"] = False
-                g["closed"] = True
-                append_decision({"kind": "structure_close_confirmed",
-                                 "group": gid,
-                                 "order_id": g.get("close_order_id", "")})
-                meta_changed = True
-            continue
-
-        prices = {}
-        touch = {}
-        for sym, info in open_legs.items():
-            pos = broker[sym]
-            price = float(getattr(pos, "current_price", 0.0) or 0.0)
-            contract = _contract(state, sym)
-            if price <= 0 and contract is not None:
-                price = contract.bid if info["side"] == "buy" else contract.ask
-            if price is None or price <= 0:
-                continue
-            signed = price * (1.0 if info["side"] == "buy" else -1.0)
-            prices[sym] = signed
-            t = None
-            if contract is not None:
-                t = contract.bid if info["side"] == "buy" else contract.ask
-            touch[sym] = t if t else price
-
-        if not prices:
-            continue
-
-        net = sum(prices.values())
-        entry_net = float(g.get("entry_net", 0.0))
-        qty0 = int(list(open_legs.values())[0]["qty"])
-        pnl_contract = pnl_of(entry_net, net)
-        pnl = pnl_contract * abs(qty0)
-        gv = GroupView(
-            group_id=gid, engine=g.get("engine", ""),
-            underlying=g.get("underlying", ""), expiry=g.get("expiry", ""),
-            kind=g.get("kind", "debit"),
-            entry_net=entry_net,
-            ref_amount=float(g.get("ref_amount", 0.0) or 0.0),
-            take_profit_fraction=float(g.get("take_profit_fraction", 0.0)),
-            stop_loss_fraction=float(g.get("stop_loss_fraction", 0.0)),
-            event_exit_date=g.get("event_exit_date", ""),
-            event_exit_time=g.get("event_exit_time", ""),
-            legs=[(sym, info["side"], int(info["qty"]))
-                  for sym, info in open_legs.items()],
-        )
-        reason = decide_exit(gv, pnl_contract, now_et=now_et,
-                             final_date=final_date, flatten_at=flatten_at)
-        if not reason:
-            continue
-
-        if g.get("take_profit_fraction", 0.0) <= 0:
-            # unset tp/sl (should not happen) - only event/flatten closes
-            if "event" not in reason and "flatten" not in reason and \
-                    "time-stop" not in reason:
-                continue
-
-        close = build_close_proposal(gv, touch)
-        if not close.legs:
-            continue
-        try:
-            order = executor.submit(close, closing=True)
-            append_decision({"kind": "structure_close_submitted",
-                             "group": gid, "reason": reason,
-                             "pnl": round(pnl, 2),
-                             "order_id": str(order.id)})
-            g["close_pending"] = True
-            g["close_order_id"] = str(order.id)
-            g["close_reason"] = reason
-            meta_changed = True
-            exit_orders_submitted += 1
-            print(f"  {GREEN}EXIT{RESET} {gid} {reason} (pnl ${pnl:,.0f}) "
-                  f"net {close.limit_price:.2f}")
-        except Exception as exc:                            # noqa: BLE001
-            print(f"  {RED}EXIT FAILED{RESET} {gid}: {exc}")
-
-    # orphan positions (no meta) close at the touch as singles - defensive
-    # only; the agent never creates structures outside the meta.
-    for pos in state.positions:
-        sym = pos.symbol
-        if sym in managed_symbols:
-            continue
-        contract = _contract(state, sym)
-        if contract is None:
-            continue
-        qty = int(float(pos.qty))
-        if qty == 0:
-            continue
-        price = contract.bid if qty > 0 else contract.ask
-        if price is None or price <= 0:
-            continue
-        close = Proposal(engine="exit", underlying=_underlying(sym),
-                         direction="neutral", structure="single_close",
-                         legs=[OptionLeg(symbol=sym,
-                                         side="sell" if qty > 0 else "buy",
-                                         quantity=abs(qty),
-                                         strike=contract.strike,
-                                         contract_type=contract.contract_type,
-                                         expiration=contract.expiration,
-                                         ref_bid=contract.bid or 0.0,
-                                         ref_ask=contract.ask or 0.0)],
-                         limit_price=price, max_loss_dollars=0.0,
-                         thesis="orphan close", reason="ORPHAN")
-        try:
-            order = executor.submit(close, closing=True)
-            append_decision({"kind": "orphan_closed", "symbol": sym,
-                             "order_id": str(order.id)})
-            exit_orders_submitted += 1
-            print(f"  {GREEN}EXIT{RESET} orphan {sym} @ {price:.2f}")
-        except Exception as exc:                            # noqa: BLE001
-            print(f"  {RED}EXIT FAILED{RESET} orphan {sym}: {exc}")
-
-    if meta_changed:
-        structures.save(meta)
-    return exit_orders_submitted
-
-
-def _contract(state: MarketState, sym: str):
-    parsed = parse_contract(sym)
-    if not parsed:
-        return None
-    for c in state.chains.get(parsed[0], []):
-        if c.symbol == sym:
-            return c
-    return None
-
-
-def _underlying(sym: str) -> str:
-    parsed = parse_contract(sym)
-    return parsed[0] if parsed else sym[:4]
+    return PositionLifecycle(record_decision=append_decision).manage(
+        state, manifest, executor, structures=structures or STRUCTURES)
 
 
 # ── the cycle ────────────────────────────────────────────────────────────────
@@ -435,17 +277,9 @@ def _run_cycle() -> int:
                    * float(manifest.get("environment",
                                         "required_starting_equity")))
 
-    # ── 1. preflight gates ──────────────────────────────────────────────────
+    # ── 1. establish the broker/ledger view used by risk-reducing exits ────
     mirror_from_broker(data.positions())
     ledger = ledger_positions()
-    results = run_preflight(state, manifest, ledger, journal_view)
-    print("\npreflight gates")
-    print_gates(results)
-    blockers = [n for n, r in results.items()
-                if not r.ok and severity_of(checks.GATES, n) == "BLOCKING"]
-
-    if not args.dry_run:
-        write_permit(results, checks.GATES, manifest_sha=manifest.sha)
 
     # ── 2. exits FIRST: the book is settled before we size anything new ─────
     # Exits are risk-REDUCING, so they run even when preflight gates are red;
@@ -454,12 +288,38 @@ def _run_cycle() -> int:
     executor = Executor(data.trading, manifest)
     if not args.dry_run:
         executor.retry_open_orders_cleanup()
-        n_exits = manage_exits(state, manifest, executor)
-        if n_exits:
-            state.positions = [p for p in data.positions()
-                               if p.asset_class == "us_option"]
-            mirror_from_broker(data.positions())
-            ledger = ledger_positions()
+        # Cleanup happens before this read, so an old DAY order cancelled in
+        # this cycle is discarded now rather than blocking one extra cycle.
+        entry_reconciliation = STRUCTURES.reconcile_pending_entries(
+            data.trading.get_order_by_client_id)
+        if (entry_reconciliation.activated or entry_reconciliation.discarded
+                or entry_reconciliation.quarantined):
+            print(f"entry reconciliation: activated "
+                  f"{len(entry_reconciliation.activated)}, discarded "
+                  f"{len(entry_reconciliation.discarded)}, quarantined "
+                  f"{len(entry_reconciliation.quarantined)}")
+        manage_exits(state, manifest, executor)
+        # Rebuild the fact set even when no close was submitted: reconciliation
+        # may have quarantined a partial or unknown close.  The ensuing permit
+        # must describe the post-exit world, not the one it observed before
+        # lifecycle ownership was resolved.
+        state.positions = [p for p in data.positions()
+                           if p.asset_class == "us_option"]
+        mirror_from_broker(data.positions())
+        ledger = ledger_positions()
+
+    # ── 3. preflight gates for NEW exposure ─────────────────────────────────
+    # This deliberately happens after exits.  A partial/unknown structure
+    # close therefore turns Entry Authority red in this very cycle, while
+    # exit management above remains available even if the gate is red.
+    results = run_preflight(state, manifest, ledger, journal_view)
+    print("\npreflight gates")
+    print_gates(results)
+    blockers = [n for n, r in results.items()
+                if not r.ok and severity_of(checks.GATES, n) == "BLOCKING"]
+
+    if not args.dry_run:
+        write_permit(results, checks.GATES, manifest_sha=manifest.sha)
 
     # Past the final trading date the account must stop growing, but it must
     # not stop being managed: exits are the only way a residual position from
@@ -479,7 +339,7 @@ def _run_cycle() -> int:
                          decision_updates=decision_updates)
         return 1
 
-    # ── 3. engine candidates ────────────────────────────────────────────────
+    # ── 4. engine candidates ────────────────────────────────────────────────
     signals = {}
     spy_closes = [b.close for b in state.bars.get("SPY", [])]
     qqq_closes = [b.close for b in state.bars.get("QQQ", [])]
@@ -590,7 +450,7 @@ def _run_cycle() -> int:
                          day=day, decision_updates=decision_updates)
         return 0
 
-    # ── 4. admission, WAL reservation, pretrade gates, submit ─────────────
+    # ── 5. admission, WAL reservation, pretrade gates, submit ─────────────
     # Entry evaluation begins after exits refresh the broker and ledger views.
     # The typed subject supplies one shared fact set to every selected proposal;
     # `submit_entries` returns outcomes rather than emitting its own output.
@@ -598,7 +458,24 @@ def _run_cycle() -> int:
     entry_cycle_subject = entry_evaluator.cycle_subject(
         state=state, manifest=manifest, ledger_positions=ledger,
         journal_view=journal_view,
+        unresolved_structure_close_count=STRUCTURES.unresolved_structure_close_count(),
+        unresolved_entry_reconciliation_count=(
+            STRUCTURES.unresolved_entry_reconciliation_count()),
     )
+    entered_at = now_utc.strftime("%H%M%S")
+
+    def persist_pending_entry(proposal, reservation) -> None:
+        cfg = manifest.get("strategies", proposal.engine)
+        if proposal.structure in ("credit_vertical", "iron_condor"):
+            tp, sl = float(cfg.get("take_profit_fraction", 0.5)), \
+                float(cfg.get("stop_loss_multiple", 2.0))
+        else:
+            tp, sl = float(cfg.get("take_profit_fraction", 0.5)), \
+                float(cfg.get("stop_loss_fraction", 0.5))
+        STRUCTURES.record_pending_entry(
+            proposal, entered_at, reservation.client_order_id,
+            take_profit=tp, stop_loss=sl)
+
     entry_result = submit_entries(
         candidates=candidates, chosen=chosen, decisions=decisions,
         state=state, manifest=manifest, executor=executor, portfolio=portfolio,
@@ -607,6 +484,7 @@ def _run_cycle() -> int:
         at_risk_cap=at_risk_cap, exposure_cap=exposure_cap,
         entry_evaluator=entry_evaluator,
         entry_cycle_subject=entry_cycle_subject,
+        before_broker=persist_pending_entry,
     )
     for event in entry_result.events:
         p = event.proposal
@@ -621,19 +499,6 @@ def _run_cycle() -> int:
         else:
             print(f"  {YELLOW}SKIP{RESET} {p.underlying} {p.structure}: "
                   f"{event.detail}")
-
-    entered_at = now_utc.strftime("%H%M%S")
-    for entry in entry_result.submissions:
-        p = entry.proposal
-        cfg = manifest.get("strategies", p.engine)
-        gid = STRUCTURES.record_entry(p, entered_at)
-        if p.structure in ("credit_vertical", "iron_condor"):
-            tp, sl = float(cfg.get("take_profit_fraction", 0.5)), \
-                float(cfg.get("stop_loss_multiple", 2.0))
-        else:
-            tp, sl = float(cfg.get("take_profit_fraction", 0.5)), \
-                float(cfg.get("stop_loss_fraction", 0.5))
-        STRUCTURES.set_exit_thresholds(gid, take_profit=tp, stop_loss=sl)
 
     atomic_write(DAY_PATH, day.as_dict())
     mirror_from_broker(data.positions())

@@ -11,6 +11,7 @@ any time, as long as the order shape was declared.
 """
 from __future__ import annotations
 
+import copy
 import sys
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -22,7 +23,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from agent.executor import Executor                            # noqa: E402
-from policy.loader import load as load_manifest                # noqa: E402
+from policy.loader import Manifest, load as load_manifest      # noqa: E402
 from strategy.proposal import OptionLeg, Proposal               # noqa: E402
 
 UTC = timezone.utc
@@ -134,18 +135,20 @@ def test_a_close_order_gets_no_carve_out(manifest):
 
 def test_close_position_by_limits_also_gets_no_carve_out(manifest):
     """Same regression, through the actual method manage_exits() calls."""
-    declared = manifest.get("environment", "competition_account_id")
+    raw = copy.deepcopy(manifest._raw)
+    raw["session"]["competition_starts_utc"] = "2999-01-01T00:00:00+00:00"
+    future_manifest = Manifest(raw)
+    declared = future_manifest.get("environment", "competition_account_id")
     client = FakeClient(account_number=declared)
-    ex = Executor(client, manifest, verbose=False)
+    ex = Executor(client, future_manifest, verbose=False)
     leg = OptionLeg(symbol="SPY260828C00600000", side="sell", quantity=1,
                     strike=600.0, contract_type="call",
                     expiration=date(2026, 8, 28))
-    # close_position_by_limits() doesn't take `now`, so this exercises the
-    # real (unmocked) clock. Safe today only because "today" is genuinely
-    # before kickoff; see the submit()-level tests above for the version
-    # that doesn't expire once the competition starts.
-    with pytest.raises(RuntimeError, match="pristine|manifest declares"):
-        ex.close_position_by_limits([leg], net_limit=-1.10, reason="test exit")
+    # Give this compatibility entry point a deliberately future policy rather
+    # than relying on the wall clock.  Its authority behavior must stay
+    # deterministic long after the actual competition has started.
+    with pytest.raises(RuntimeError, match="pristine"):
+        ex.close_position_by_limits([leg], net_limit=1.10, reason="test exit")
     assert client.submit_calls == []
 
 

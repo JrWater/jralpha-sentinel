@@ -53,6 +53,24 @@ def test_client_order_id_separates_content_from_logical_submission():
     assert first != second_entry
 
 
+def test_lifecycle_record_is_durable_before_the_broker_call(tmp_path):
+    wal = _wal()
+    journal = wal.SubmissionJournal(tmp_path / "submissions.jsonl")
+    observed: list[tuple[str, str]] = []
+
+    def persist(reservation):
+        observed.append(("persist", reservation.client_order_id))
+
+    def submit(client_order_id):
+        assert observed == [("persist", client_order_id)]
+        return {"id": "broker-1", "status": "accepted"}
+
+    wal.dispatch_entry(journal, _reservation(wal), submit,
+                       before_broker=persist)
+
+    assert journal.replay().by_submission["logical-1"].state == wal.COMMITTED
+
+
 def test_new_wal_fsyncs_the_file_and_parent_directory(tmp_path, monkeypatch):
     wal = _wal()
     path = tmp_path / "new-day" / "submissions.jsonl"

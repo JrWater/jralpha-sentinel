@@ -182,13 +182,18 @@ class Executor:
 
     # ── exits ────────────────────────────────────────────────────────────────
     def close_position_by_limits(self, legs: list, net_limit: float,
-                                 reason: str):
+                                 reason: str, *,
+                                 now: datetime | None = None):
         """Close an open position with opposing limit legs (never market)."""
         proposal = Proposal(
             engine="exit", underlying="", direction="neutral",
             structure="close", legs=legs, limit_price=net_limit,
             max_loss_dollars=0.0, thesis=reason, reason=reason)
-        return self.submit(proposal, closing=True)
+        return self.submit(proposal, closing=True, now=now)
+
+    def get_order_by_id(self, order_id: str):
+        """Read the broker status for this structure's recorded close order."""
+        return self.client.get_order_by_id(order_id)
 
     def retry_open_orders_cleanup(self) -> None:
         """Cancel stale open orders (they will not fill today)."""

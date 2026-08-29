@@ -162,7 +162,7 @@
       "_comment": "SPY-only: sell the wings when realized-vol-based IVR is elevated and the market is range-bound. Four-legged iron condor, defined risk = width minus credit."
     },
     "trend_single": {
-      "enabled": true,
+      "enabled": false,
       "engine_label": "Trend Vector (conviction single-leg)",
       "risk_budget_fraction": 0.1,
       "structures": [

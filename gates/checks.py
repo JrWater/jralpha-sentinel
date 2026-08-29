@@ -180,6 +180,34 @@ def check_unresolved_dispatches(ctx: EvalContext) -> GateResult:
     return GateResult(True, "no unresolved DISPATCHING records")
 
 
+def check_unresolved_structure_closes(ctx: EvalContext) -> GateResult:
+    """A partially filled or unknown close makes exposure unknowable.
+
+    The broker reports net positions by symbol while Sentinel manages
+    structures. A quarantined close therefore cannot be repaired by guessing
+    from a position row; it must reconcile its own recorded close order before
+    new exposure is allowed.
+    """
+    count = ctx.unresolved_structure_close_count
+    if count is None:
+        return GateResult(False, "structure-close reconciliation state unreadable")
+    if count:
+        return GateResult(False, f"{count} unresolved structure close(s) — "
+                                 "reconcile before opening new exposure")
+    return GateResult(True, "no unresolved structure closes")
+
+
+def check_unresolved_entry_reconciliations(ctx: EvalContext) -> GateResult:
+    """An accepted entry is not capacity-free until broker reconciliation."""
+    count = ctx.unresolved_entry_reconciliation_count
+    if count is None:
+        return GateResult(False, "entry reconciliation state unreadable")
+    if count:
+        return GateResult(False, f"{count} unresolved entry reconciliation(s) — "
+                                 "reconcile before opening new exposure")
+    return GateResult(True, "no unresolved entry reconciliations")
+
+
 def check_underlying_data(ctx: EvalContext) -> GateResult:
     """Fresh bars matter only while the market is open.
 
@@ -397,6 +425,17 @@ GATES = (
          "A dispatched order with no broker answer may already be live. New "
          "exposure stays forbidden until reconciliation resolves it by its "
          "predeclared client order id."),
+    Gate("unresolved_structure_closes", check_unresolved_structure_closes,
+         CycleSubject, "BLOCKING", "Entry Authority",
+         "A partial or unknown structure close leaves net broker positions "
+         "ambiguous. New exposure stays forbidden until its own close order "
+         "and declared quantity reconcile."),
+    Gate("unresolved_entry_reconciliations",
+         check_unresolved_entry_reconciliations, CycleSubject,
+         "BLOCKING", "Entry Authority",
+         "A broker-accepted entry has not proved a position exists. New "
+         "exposure waits until the order activates one structure or proves "
+         "it filled nothing."),
     Gate("release_integrity", check_release_integrity, CycleSubject,
          "ATTENTION", "Release Integrity",
          "Running code should be verified code. ATTENTION rather than BLOCKING "

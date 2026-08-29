@@ -42,6 +42,8 @@ class EvalContext:
     git_dirty: bool | None = None
     proposal: Any = None
     unresolved_dispatch_count: int | None = None
+    unresolved_structure_close_count: int | None = None
+    unresolved_entry_reconciliation_count: int | None = None
 
     def __post_init__(self):
         if self.positions is None:
@@ -60,6 +62,8 @@ class CycleSubject:
     git_head: str | None = None
     git_dirty: bool | None = None
     unresolved_dispatch_count: int | None = None
+    unresolved_structure_close_count: int | None = None
+    unresolved_entry_reconciliation_count: int | None = None
 
 
 @dataclass(frozen=True)
@@ -79,6 +83,9 @@ class ProposalSubject(CycleSubject):
             git_head=cycle.git_head,
             git_dirty=cycle.git_dirty,
             unresolved_dispatch_count=cycle.unresolved_dispatch_count,
+            unresolved_structure_close_count=cycle.unresolved_structure_close_count,
+            unresolved_entry_reconciliation_count=(
+                cycle.unresolved_entry_reconciliation_count),
             proposal=proposal,
         )
 
@@ -149,7 +156,10 @@ class GateEvaluator:
         return self._gates
 
     def cycle_subject(self, *, state: Any, manifest: Any, ledger_positions: list,
-                      journal_view: Any, is_paper_session: bool = True) -> CycleSubject:
+                      journal_view: Any, is_paper_session: bool = True,
+                      unresolved_structure_close_count: int | None = None,
+                      unresolved_entry_reconciliation_count: int | None = None
+                      ) -> CycleSubject:
         head, dirty = code_identity(self._root)
         return CycleSubject(
             manifest=manifest, state=state, ledger_positions=ledger_positions,
@@ -157,6 +167,9 @@ class GateEvaluator:
             decision_log_writable=_decisions_writable(self._root),
             git_head=head, git_dirty=dirty,
             unresolved_dispatch_count=_unresolved_dispatch_count(journal_view),
+            unresolved_structure_close_count=unresolved_structure_close_count,
+            unresolved_entry_reconciliation_count=(
+                unresolved_entry_reconciliation_count),
         )
 
     def proposal_subject(self, cycle: CycleSubject, proposal: Any) -> ProposalSubject:
@@ -194,6 +207,9 @@ class GateEvaluator:
             git_head=subject.git_head, git_dirty=subject.git_dirty,
             proposal=proposal,
             unresolved_dispatch_count=subject.unresolved_dispatch_count,
+            unresolved_structure_close_count=subject.unresolved_structure_close_count,
+            unresolved_entry_reconciliation_count=(
+                subject.unresolved_entry_reconciliation_count),
         )
 
 

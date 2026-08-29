@@ -298,6 +298,40 @@ def test_unresolved_dispatch_is_a_registered_blocking_entry_gate():
     assert gate.dimension == "Entry Authority"
 
 
+def test_unresolved_structure_close_blocks_new_exposure(manifest):
+    result = checks.check_unresolved_structure_closes(
+        _ctx(manifest, unresolved_structure_close_count=1))
+
+    assert not result.ok
+    assert "structure close" in result.detail
+
+
+def test_unresolved_structure_close_is_a_registered_blocking_entry_gate():
+    gate = next(g for g in checks.GATES
+                if g.name == "unresolved_structure_closes")
+
+    assert gate.accepts is CycleSubject
+    assert gate.severity == "BLOCKING"
+    assert gate.dimension == "Entry Authority"
+
+
+def test_pending_entry_reconciliation_blocks_new_exposure(manifest):
+    result = checks.check_unresolved_entry_reconciliations(
+        _ctx(manifest, unresolved_entry_reconciliation_count=1))
+
+    assert not result.ok
+    assert "entry reconciliation" in result.detail
+
+
+def test_pending_entry_reconciliation_is_a_registered_blocking_gate():
+    gate = next(g for g in checks.GATES
+                if g.name == "unresolved_entry_reconciliations")
+
+    assert gate.accepts is CycleSubject
+    assert gate.severity == "BLOCKING"
+    assert gate.dimension == "Entry Authority"
+
+
 # ── the proposal gates ───────────────────────────────────────────────────────
 
 def _proposal(**kw):

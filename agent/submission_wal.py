@@ -452,8 +452,10 @@ class SubmissionJournal:
 # ── the two operations that touch the broker ─────────────────────────────────
 
 def dispatch_entry(journal: SubmissionJournal, reservation: Reservation,
-                   submit: Callable[[str], Any]) -> Any:
-    """Hold, make the dispatch durable, then call the broker.
+                   submit: Callable[[str], Any], *,
+                   before_broker: Callable[[Reservation], None] | None = None
+                   ) -> Any:
+    """Hold, persist dependent lifecycle state, then call the broker.
 
     If `submit` raises, the journal is left at DISPATCHING and the exception
     propagates. That is the whole point: the reservation stays held because a
@@ -461,6 +463,11 @@ def dispatch_entry(journal: SubmissionJournal, reservation: Reservation,
     """
     journal.hold(reservation)
     journal.mark_dispatching(reservation.logical_submission_id)
+    if before_broker is not None:
+        # No broker call happens until the structure ledger owns this
+        # client-order identity.  A failure here leaves DISPATCHING durable
+        # and therefore blocks new risk instead of creating an untracked fill.
+        before_broker(reservation)
     order = submit(reservation.client_order_id)
     order_id = _order_value(order, "id")
     if not order_id:

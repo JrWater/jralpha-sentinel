@@ -5,6 +5,7 @@ Run with:  .venv/bin/python -m pytest tests/test_strategy.py -q
 """
 from __future__ import annotations
 
+import copy
 import sys
 from datetime import date, datetime, timezone
 from pathlib import Path
@@ -14,7 +15,7 @@ sys.path.insert(0, str(ROOT))
 
 import pytest
 
-from policy.loader import load as load_manifest
+from policy.loader import Manifest, load as load_manifest
 from strategy.data import ChainContract, contract_symbol, parse_contract
 from strategy.engine import EngineContext, run as run_engines
 from strategy.indicators import (atr, black_scholes, bs_delta, ema, ivr,
@@ -376,6 +377,24 @@ def test_close_proposal_flips_sides_at_touch():
     assert close.limit_price == -5.4
 
 
+def test_single_leg_close_uses_a_positive_simple_limit():
+    """A long option closes by selling at a positive bid, never a credit MLEG."""
+    from strategy.exits import GroupView, build_close_proposal
+    gv = GroupView(
+        group_id="trend_single:NVDA:2026-08-28:153002",
+        engine="trend_single", underlying="NVDA", expiry="2026-08-28",
+        kind="debit", entry_net=0.95, ref_amount=0.95,
+        take_profit_fraction=1.0, stop_loss_fraction=0.5,
+        legs=[("NVDA260828C00225000", "buy", 31)],
+    )
+
+    close = build_close_proposal(gv, {"NVDA260828C00225000": 0.14})
+
+    assert close.order_class == "simple"
+    assert close.legs[0].side == "sell"
+    assert close.limit_price == 0.14
+
+
 def test_credit_structure_pnl_sign():
     from strategy.exits import pnl_of
     # entry: sold for 1.10 credit (entry_net negative); closing costs 0.40
@@ -633,6 +652,12 @@ def test_trend_single_fires_on_high_conviction(manifest):
 
 # ── v3.1.1: the conviction single-leg layer must follow the regime ──────────
 
+def _manifest_with_single_layer(manifest, *, enabled: bool) -> Manifest:
+    """Exercise the strategy rule independently of the production kill switch."""
+    raw = copy.deepcopy(manifest._raw)
+    raw["strategies"]["trend_single"]["enabled"] = enabled
+    return Manifest(raw)
+
 def _single_layer_scenario(manifest, *, spy_closes, breadth):
     """_trend() in a given regime, with one strong positive-score name.
 
@@ -704,7 +729,7 @@ def test_single_leg_layer_does_not_buy_calls_in_risk_off(manifest):
     the more likely it was to fire. Reproduced at regime score -5.15 as a
     $2,988 long call that was the cycle's ONLY trend candidate."""
     regime, cands = _single_layer_scenario(
-        manifest,
+        _manifest_with_single_layer(manifest, enabled=True),
         spy_closes=[140.0 - i * 0.55 for i in range(80)],
         breadth=[-0.5])
     assert regime.mode == "risk_off" and not regime.long_allowed
@@ -719,7 +744,7 @@ def test_single_leg_layer_still_fires_in_risk_on(manifest):
     convexity layer is the point of the v3.0 profile. Same signal, same
     conviction, bullish regime: it must still fire."""
     regime, cands = _single_layer_scenario(
-        manifest,
+        _manifest_with_single_layer(manifest, enabled=True),
         spy_closes=[100.0 + i * 0.45 for i in range(80)],
         breadth=[0.5])
     assert regime.long_allowed
@@ -729,6 +754,15 @@ def test_single_leg_layer_still_fires_in_risk_on(manifest):
     assert p.structure == "single_long" and len(p.legs) == 1
     assert p.legs[0].side == "buy" and p.legs[0].contract_type == "call"
     assert 0 < p.max_loss_dollars <= 3000.0
+
+
+def test_single_leg_layer_is_disabled_in_the_production_manifest(manifest):
+    """The temporary safety switch removes single-leg candidates entirely."""
+    _regime, cands = _single_layer_scenario(
+        manifest,
+        spy_closes=[100.0 + i * 0.45 for i in range(80)],
+        breadth=[0.5])
+    assert [c for c in cands if c.proposal.engine == "trend_single"] == []
 
 
 def test_daystate_release_hands_back_an_unsent_reservation():

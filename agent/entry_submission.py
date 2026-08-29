@@ -12,7 +12,7 @@ import json
 import uuid
 from dataclasses import dataclass
 from datetime import date
-from typing import Any, Sequence
+from typing import Any, Callable, Sequence
 
 from agent.submission_wal import (JournalView, Reservation, dispatch_entry,
                                   make_client_order_id)
@@ -170,7 +170,9 @@ def submit_entries(*, candidates: Sequence[Any], chosen: Sequence[int],
                    portfolio, day, journal, journal_view: JournalView,
                    trading_date: date, cycle_id: str, at_risk_cap: float,
                    exposure_cap: float, entry_evaluator,
-                   entry_cycle_subject) -> EntrySubmissionResult:
+                   entry_cycle_subject,
+                   before_broker: Callable[[Proposal, Reservation], None] | None = None
+                   ) -> EntrySubmissionResult:
     """Evaluate and submit selected entries, returning facts rather than prints.
 
     The input/output boundary is deliberately broker-neutral.  ``executor``
@@ -269,7 +271,10 @@ def submit_entries(*, candidates: Sequence[Any], chosen: Sequence[int],
             order = dispatch_entry(
                 journal, reservation,
                 lambda client_id: executor.submit(
-                    proposal, client_order_id=client_id))
+                    proposal, client_order_id=client_id),
+                before_broker=(
+                    (lambda reserved: before_broker(proposal, reserved))
+                    if before_broker is not None else None))
         except Exception as exc:                            # noqa: BLE001
             current_view = journal.replay()
             project_day_risk(day, current_view, trading_date)

@@ -276,13 +276,15 @@ def main() -> int:
                 order = _wait_order(client, order_id, 20)
                 status = _status(order)
                 print(f"unfilled test order canceled: status={status}")
+            rc.STRUCTURES.reconcile_pending_entries(
+                client.get_order_by_client_id)
             clean = not client.get_all_positions() and not _open_orders(client)
             print(f"AUTO_SUBMISSION_ACCEPTED cleanup={'PASS' if clean else 'FAIL'}")
             return 0 if clean else 6
 
         # A fill proves more than acceptance.  Use the system's own structure
         # exit implementation, with a test-only final-date policy that makes
-        # the already-recorded Position group immediately eligible to flatten.
+        # the activated Position group immediately eligible to flatten.
         cleanup_raw = deepcopy(test_manifest._raw)
         now_et = datetime.now(timezone.utc).astimezone(
             ZoneInfo(str(cleanup_raw["session"]["timezone"])))
@@ -290,6 +292,11 @@ def main() -> int:
         cleanup_raw["session"]["flatten_all_at"] = "00:00"
         from policy.loader import Manifest
         cleanup_manifest = Manifest(cleanup_raw)
+        activation = rc.STRUCTURES.reconcile_pending_entries(
+            client.get_order_by_client_id)
+        if len(activation.activated) != 1:
+            print("AUTO_CYCLE_FAILED entry activation was not exactly one")
+            return 6
         data = rc.AlpacaData(key, secret)
         state = rc.build_state(data, cleanup_manifest,
                                [str(record["underlying"])])

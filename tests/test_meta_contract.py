@@ -19,6 +19,7 @@ import json
 import sys
 from datetime import date
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -115,3 +116,88 @@ def test_a_non_gap_entry_does_not_consume_the_gap_budget(structures):
                 if g.get("engine") == "event_macro"
                 and g.get("structure") == "single_long")
     assert tally == 0, "the strangle consumed a gap entry it does not own"
+
+
+def test_accepted_entry_is_pending_not_an_open_structure(structures):
+    """A broker acceptance is not a fill and must not consume position caps."""
+    proposal = _gap_proposal()
+    structures.record_pending_entry(proposal, "093500", "entry-order-1")
+
+    result = structures.reconcile_pending_entries(
+        lambda order_id: SimpleNamespace(status="accepted", filled_qty="0"))
+
+    meta = structures.load()
+    assert result.activated == ()
+    assert meta["groups"] == {}
+    assert meta["pending_entries"]["entry-order-1"]["reconciliation_required"] is False
+
+
+def test_full_entry_fill_activates_the_structure_with_its_own_order_id(structures):
+    """Only an exact fill promotes a pending entry into the exit lifecycle."""
+    proposal = _gap_proposal()
+    structures.record_pending_entry(proposal, "093500", "entry-order-1")
+
+    result = structures.reconcile_pending_entries(
+        lambda order_id: SimpleNamespace(status="filled", filled_qty="4"))
+
+    meta = structures.load()
+    assert result.activated == (
+        "event_macro:SPY:2026-09-04:093500@entry-order-1",)
+    assert meta["pending_entries"] == {}
+    group = meta["groups"][result.activated[0]]
+    assert group["entry_order_id"] == "entry-order-1"
+    assert group["entry_filled_qty"] == 4
+
+
+def test_same_cycle_same_structure_entries_get_distinct_group_ids(structures):
+    """Two broker attempts may share a timestamp but must never overwrite."""
+    proposal = _gap_proposal()
+    structures.record_pending_entry(proposal, "093500", "client-order-a")
+    structures.record_pending_entry(proposal, "093500", "client-order-b")
+
+    result = structures.reconcile_pending_entries(
+        lambda _client_id: SimpleNamespace(status="filled", filled_qty="4",
+                                           id="broker-order"))
+
+    meta = structures.load()
+    assert len(result.activated) == 2
+    assert len(set(result.activated)) == 2
+    assert len(meta["groups"]) == 2
+
+
+def test_pending_entry_is_durable_before_the_broker_can_be_called(structures):
+    """The pre-dispatch record closes the broker-acceptance crash window."""
+    proposal = _gap_proposal()
+    structures.record_pending_entry(proposal, "093500", "client-order-a")
+
+    meta = structures.load()
+    assert meta["groups"] == {}
+    assert "client-order-a" in meta["pending_entries"]
+
+
+def test_zero_fill_cancel_is_audited_without_creating_a_ghost_group(structures):
+    """A cancelled entry must not survive as a false open position."""
+    structures.record_pending_entry(_gap_proposal(), "093500", "entry-order-1")
+
+    result = structures.reconcile_pending_entries(
+        lambda order_id: SimpleNamespace(status="canceled", filled_qty="0"))
+
+    meta = structures.load()
+    assert result.discarded == ("entry-order-1",)
+    assert meta["pending_entries"] == {}
+    assert meta["groups"] == {}
+    assert meta["entry_outcomes"]["entry-order-1"]["code"] == "ENTRY_NOT_FILLED"
+
+
+def test_partial_entry_fill_remains_quarantined_for_reconciliation(structures):
+    """A partial entry is real exposure, not a removable ghost record."""
+    structures.record_pending_entry(_gap_proposal(), "093500", "entry-order-1")
+
+    result = structures.reconcile_pending_entries(
+        lambda order_id: SimpleNamespace(status="filled", filled_qty="3"))
+
+    meta = structures.load()
+    assert result.quarantined == ("entry-order-1",)
+    pending = meta["pending_entries"]["entry-order-1"]
+    assert pending["reconciliation_required"] is True
+    assert pending["reconciliation_detail"] == "entry_filled_3_of_4"

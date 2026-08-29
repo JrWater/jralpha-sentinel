@@ -31,9 +31,17 @@ class GroupView:
     legs: list = field(default_factory=list)   # (symbol, side, qty)
 
 
-def group_key(engine: str, underlying: str, expiry: str,
-              entered_at: str) -> str:
-    return f"{engine}:{underlying}:{expiry}:{entered_at}"
+def group_key(engine: str, underlying: str, expiry: str, entered_at: str,
+              *, entry_identity: str = "") -> str:
+    """Return the persisted identity of one structure.
+
+    A timestamp is readable but not unique: two selected proposals can reach
+    Alpaca in the same second.  The durable client-order identity keeps those
+    entries distinct, so promotion cannot overwrite a sibling structure.
+    The suffix remains optional only for legacy records and ``record_entry``.
+    """
+    base = f"{engine}:{underlying}:{expiry}:{entered_at}"
+    return base if not entry_identity else f"{base}@{entry_identity}"
 
 
 def net_of(entry_net: float, prices: dict) -> float:
@@ -109,8 +117,12 @@ def build_close_proposal(gv: GroupView, touch_prices: dict) -> Proposal:
         # selling yields +price, buying costs -price
         net += price if flip == "sell" else -price
     # Alpaca's mleg convention: positive limit = debit to pay, negative =
-    # credit to receive. net is proceeds-minus-cost, so the wire price is -net.
+    # credit to receive. net is proceeds-minus-cost, so the multi-leg wire
+    # price is -net. A simple option order has no signed-credit convention:
+    # both buy-to-close and sell-to-close use a positive per-contract limit.
+    limit_price = abs(net) if len(legs) == 1 else -net
     return Proposal(
         engine="exit", underlying=gv.underlying, direction="neutral",
-        structure="close_structure", legs=legs, limit_price=round(-net, 2),
+        structure="close_structure", legs=legs,
+        limit_price=round(limit_price, 2),
         max_loss_dollars=0.0, thesis="close structure", reason="EXIT")
