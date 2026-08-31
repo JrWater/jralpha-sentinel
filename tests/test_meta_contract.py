@@ -189,6 +189,28 @@ def test_zero_fill_cancel_is_audited_without_creating_a_ghost_group(structures):
     assert meta["entry_outcomes"]["entry-order-1"]["code"] == "ENTRY_NOT_FILLED"
 
 
+def test_explicit_alpaca_order_not_found_discards_pending_entry(structures):
+    """A typed 404 proves this pre-dispatch record did not become exposure."""
+    structures.record_pending_entry(_gap_proposal(), "093500", "entry-order-1")
+
+    class OrderNotFound(Exception):
+        def __str__(self):
+            return ('{"code":40410000,"message":'
+                    '"order not found for entry-order-1"}')
+
+    def lookup(order_id: str):
+        assert order_id == "entry-order-1"
+        raise OrderNotFound()
+
+    result = structures.reconcile_pending_entries(lookup)
+
+    meta = structures.load()
+    assert result.discarded == ("entry-order-1",)
+    assert meta["pending_entries"] == {}
+    assert meta["entry_outcomes"]["entry-order-1"]["code"] == (
+        "ENTRY_NOT_SUBMITTED")
+
+
 def test_partial_entry_fill_remains_quarantined_for_reconciliation(structures):
     """A partial entry is real exposure, not a removable ghost record."""
     structures.record_pending_entry(_gap_proposal(), "093500", "entry-order-1")

@@ -420,6 +420,52 @@ def test_one_absent_observation_does_not_release_a_dispatch(tmp_path):
     assert journal.replay().unresolved_dispatches == ("logical-1",)
 
 
+def test_explicit_alpaca_order_not_found_releases_dispatch(tmp_path):
+    """A broker's typed 404 is definitive evidence, unlike a null lookup."""
+    wal = _wal()
+    journal = wal.SubmissionJournal(tmp_path / "submissions.jsonl")
+    journal.hold(_reservation(wal))
+    journal.mark_dispatching("logical-1")
+
+    class OrderNotFound(Exception):
+        def __str__(self):
+            return ('{"code":40410000,"message":'
+                    '"order not found for sentinel-logical-1"}')
+
+    class Broker:
+        def get_order_by_client_id(self, client_id: str):
+            assert client_id == "sentinel-logical-1"
+            raise OrderNotFound()
+
+    view = wal.reconcile_unresolved(journal, Broker())
+
+    assert view.entries_allowed
+    record = view.by_submission["logical-1"]
+    assert record.state == wal.RELEASED
+    assert record.reason_code == "broker_confirmed_order_absent"
+
+
+def test_404_for_a_different_order_never_releases_dispatch(tmp_path):
+    wal = _wal()
+    journal = wal.SubmissionJournal(tmp_path / "submissions.jsonl")
+    journal.hold(_reservation(wal))
+    journal.mark_dispatching("logical-1")
+
+    class WrongOrderNotFound(Exception):
+        def __str__(self):
+            return ('{"code":40410000,"message":'
+                    '"order not found for sentinel-other"}')
+
+    class Broker:
+        def get_order_by_client_id(self, _client_id: str):
+            raise WrongOrderNotFound()
+
+    view = wal.reconcile_unresolved(journal, Broker())
+
+    assert not view.entries_allowed
+    assert view.unresolved_dispatches == ("logical-1",)
+
+
 def test_failed_reconciliation_keeps_dispatch_unresolved(tmp_path):
     wal = _wal()
     journal = wal.SubmissionJournal(tmp_path / "submissions.jsonl")

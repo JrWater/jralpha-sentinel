@@ -15,6 +15,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, NamedTuple
 
+from agent.broker_errors import is_explicit_client_order_absence
+
 ROOT = Path(__file__).resolve().parents[1]
 LEDGER = ROOT / "state" / "ledger.json"
 DECISIONS = ROOT / "state" / "decisions.jsonl"
@@ -205,7 +207,18 @@ class StructureLedger:
                 order = get_order(order_id)
                 status = _broker_status(order)
                 filled = _broker_quantity(order)
-            except Exception:  # noqa: BLE001
+            except Exception as exc:  # noqa: BLE001
+                if is_explicit_client_order_absence(exc, order_id):
+                    outcomes[order_id] = {
+                        "code": "ENTRY_NOT_SUBMITTED",
+                        "broker_status": "not_found",
+                        "filled_qty": 0,
+                        "group_id": entry.get("group_id"),
+                    }
+                    del pending[order_id]
+                    discarded.append(order_id)
+                    changed = True
+                    continue
                 status, filled = "UNKNOWN", None
 
             if status == "FILLED" and filled == expected and expected > 0:

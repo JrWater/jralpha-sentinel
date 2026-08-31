@@ -37,6 +37,8 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Iterable, NamedTuple
 
+from agent.broker_errors import is_explicit_client_order_absence
+
 SCHEMA_VERSION = 1
 
 HELD = "HELD"
@@ -500,6 +502,17 @@ def reconcile_unresolved(journal: SubmissionJournal, broker: Any) -> JournalView
         try:
             order = broker.get_order_by_client_id(cid)
         except Exception as exc:                            # noqa: BLE001
+            if is_explicit_client_order_absence(exc, cid):
+                detail = str(exc)
+                journal.observe(sid, result="CONFIRMED_ABSENT", detail=detail)
+                try:
+                    journal.release(
+                        sid, reason_code="broker_confirmed_order_absent")
+                except InvalidTransition:
+                    # A torn record without its reservation cannot safely
+                    # release risk, even when the broker proves no order.
+                    continue
+                continue
             journal.observe(sid, result="UNAVAILABLE", detail=str(exc))
             continue
         if order is None:
