@@ -1,26 +1,26 @@
 {
   "account": {
     "account_number": "PA3K3A9ZBCBI",
-    "cash": 96244.52,
-    "equity": 95836.52,
+    "cash": 91791.85,
+    "equity": 91791.85,
     "mode": "PAPER",
-    "options_buying_power": 94244.52,
+    "options_buying_power": 2181.85,
     "options_level": 3,
-    "pnl_dollars": -4163.48,
-    "pnl_percent": -4.163,
+    "pnl_dollars": -8208.15,
+    "pnl_percent": -8.208,
     "starting_equity": 100000.0
   },
   "code": {
-    "git_head": "3e8a97287a8e2f5c4113a37e5617bb8a9db3430e",
-    "worktree_dirty": true
+    "git_head": "ab188055a80f92e2f13ba87a24c25598d198b1f5",
+    "worktree_dirty": false
   },
   "day": {
-    "date": "2026-08-28",
+    "date": "2026-09-01",
     "fired_once": [],
     "killed": false,
-    "new_risk_dollars": 29378.0,
+    "new_risk_dollars": 7058.0,
     "scale": 1.0,
-    "start_equity": 100000.0
+    "start_equity": 91791.85
   },
   "decisions": [
     {
@@ -1255,6 +1255,518 @@
       "structure": "credit_vertical",
       "submitted": false,
       "underlying": "AMZN"
+    },
+    {
+      "account_scope": "competition",
+      "at": "2026-08-31T13:35:03.998870+00:00",
+      "authorized": false,
+      "conviction": 0.789,
+      "engine": "trend_directional",
+      "max_loss_dollars": 2000.0,
+      "proposer": {
+        "decision_mode": "llm",
+        "fallback_reason": null,
+        "model": "deepseek-v4-flash",
+        "provider": "deepseek"
+      },
+      "reason": "pretrade refused: entry_window",
+      "refused_by": [
+        "gate:entry_window"
+      ],
+      "selected": true,
+      "structure": "debit_vertical",
+      "submitted": false,
+      "underlying": "NVDA"
+    },
+    {
+      "account_scope": "competition",
+      "at": "2026-08-31T14:00:03.011715+00:00",
+      "authorized": true,
+      "broker_order_id": "a2c0724f-376f-46bf-916d-60e40ccb1167",
+      "broker_status": "filled",
+      "client_order_id": "sentinel-a10ea6195af5208dafb2331d51d6e316",
+      "conviction": 0.838,
+      "engine": "trend_income",
+      "filled_avg_price": -0.77,
+      "filled_qty": 4.0,
+      "max_loss_dollars": 1692.0,
+      "proposer": {
+        "decision_mode": "llm",
+        "fallback_reason": null,
+        "model": "deepseek-v4-flash",
+        "provider": "deepseek"
+      },
+      "reason": "trend",
+      "refused_by": [],
+      "selected": true,
+      "structure": "credit_vertical",
+      "submitted": true,
+      "underlying": "MU"
+    },
+    {
+      "account_scope": "competition",
+      "at": "2026-08-31T14:00:03.011715+00:00",
+      "authorized": true,
+      "broker_order_id": "9eb56362-f8eb-43ff-8f1d-97181e234366",
+      "broker_status": "filled",
+      "client_order_id": "sentinel-6091992bdfac8dcb532fd07f23353bd2",
+      "conviction": 0.832,
+      "engine": "trend_directional",
+      "filled_avg_price": 0.73,
+      "filled_qty": 19.0,
+      "max_loss_dollars": 1919.0,
+      "proposer": {
+        "decision_mode": "llm",
+        "fallback_reason": null,
+        "model": "deepseek-v4-flash",
+        "provider": "deepseek"
+      },
+      "reason": "trend",
+      "refused_by": [],
+      "selected": true,
+      "structure": "debit_vertical",
+      "submitted": true,
+      "underlying": "NVDA"
+    },
+    {
+      "account_scope": "competition",
+      "at": "2026-08-31T14:45:04.148590+00:00",
+      "authorized": true,
+      "broker_order_id": "ecfee7e3-970b-445d-9b0c-19d1b9f738b4",
+      "broker_status": "canceled",
+      "client_order_id": "sentinel-718281ace51caf4829c9bb902df11b08",
+      "conviction": 0.852,
+      "engine": "trend_income",
+      "filled_avg_price": null,
+      "filled_qty": 0.0,
+      "max_loss_dollars": 1820.0,
+      "proposer": {
+        "decision_mode": "llm",
+        "fallback_reason": null,
+        "model": "deepseek-v4-flash",
+        "provider": "deepseek"
+      },
+      "reason": "trend",
+      "refused_by": [],
+      "selected": true,
+      "structure": "credit_vertical",
+      "submitted": true,
+      "underlying": "NVDA"
+    },
+    {
+      "account_scope": "competition",
+      "at": "2026-08-31T14:45:04.148590+00:00",
+      "authorized": true,
+      "broker_status": "unknown",
+      "client_order_id": "sentinel-a5ed456b3d9c1e0e8900752d87f7802c",
+      "conviction": 0.805,
+      "engine": "trend_income",
+      "max_loss_dollars": 1700.0,
+      "proposer": {
+        "decision_mode": "llm",
+        "fallback_reason": null,
+        "model": "deepseek-v4-flash",
+        "provider": "deepseek"
+      },
+      "reason": "submission unresolved: APIError",
+      "refused_by": [],
+      "selected": true,
+      "structure": "credit_vertical",
+      "submission_uncertain": true,
+      "submitted": false,
+      "underlying": "MU"
+    },
+    {
+      "account_scope": "competition",
+      "at": "2026-08-31T16:00:03.729815+00:00",
+      "authorized": true,
+      "broker_order_id": "7a5cede5-8fe6-4f5a-ae1e-c6db7e0b22fc",
+      "broker_status": "filled",
+      "client_order_id": "sentinel-b5370de1fdde6bc56e55350e50eb80c5",
+      "conviction": 0.834,
+      "engine": "trend_directional",
+      "filled_avg_price": 0.4,
+      "filled_qty": 18.0,
+      "max_loss_dollars": 1926.0,
+      "proposer": {
+        "decision_mode": "llm",
+        "fallback_reason": null,
+        "model": "deepseek-v4-flash",
+        "provider": "deepseek"
+      },
+      "reason": "trend",
+      "refused_by": [],
+      "selected": true,
+      "structure": "debit_vertical",
+      "submitted": true,
+      "underlying": "NVDA"
+    },
+    {
+      "account_scope": "competition",
+      "at": "2026-08-31T16:30:03.594357+00:00",
+      "authorized": true,
+      "broker_order_id": "423ae7ad-744c-4ddd-9f43-6cf72639b6d8",
+      "broker_status": "canceled",
+      "client_order_id": "sentinel-1a35cf638f7599d4828a256a0a334b7f",
+      "conviction": 0.86,
+      "engine": "trend_income",
+      "filled_avg_price": null,
+      "filled_qty": 0.0,
+      "max_loss_dollars": 1840.0,
+      "proposer": {
+        "decision_mode": "llm",
+        "fallback_reason": null,
+        "model": "deepseek-v4-flash",
+        "provider": "deepseek"
+      },
+      "reason": "trend",
+      "refused_by": [],
+      "selected": true,
+      "structure": "credit_vertical",
+      "submitted": true,
+      "underlying": "NVDA"
+    },
+    {
+      "account_scope": "competition",
+      "at": "2026-08-31T17:00:03.577881+00:00",
+      "authorized": true,
+      "broker_order_id": "231240e6-70b2-4bc3-ae83-5827902a0a14",
+      "broker_status": "canceled",
+      "client_order_id": "sentinel-55d20a5d843168644d4cb64795653595",
+      "conviction": 0.86,
+      "engine": "trend_income",
+      "filled_avg_price": null,
+      "filled_qty": 0.0,
+      "max_loss_dollars": 1832.0,
+      "proposer": {
+        "decision_mode": "llm",
+        "fallback_reason": null,
+        "model": "deepseek-v4-flash",
+        "provider": "deepseek"
+      },
+      "reason": "trend",
+      "refused_by": [],
+      "selected": true,
+      "structure": "credit_vertical",
+      "submitted": true,
+      "underlying": "NVDA"
+    },
+    {
+      "account_scope": "competition",
+      "at": "2026-08-31T17:00:03.577881+00:00",
+      "authorized": true,
+      "broker_status": "unknown",
+      "client_order_id": "sentinel-b28d1ba16757304e868625a9ef1c6cf0",
+      "conviction": 0.821,
+      "engine": "trend_income",
+      "max_loss_dollars": 1656.0,
+      "proposer": {
+        "decision_mode": "llm",
+        "fallback_reason": null,
+        "model": "deepseek-v4-flash",
+        "provider": "deepseek"
+      },
+      "reason": "submission unresolved: APIError",
+      "refused_by": [],
+      "selected": true,
+      "structure": "credit_vertical",
+      "submission_uncertain": true,
+      "submitted": false,
+      "underlying": "MU"
+    },
+    {
+      "account_scope": "competition",
+      "at": "2026-08-31T17:30:03.578963+00:00",
+      "authorized": true,
+      "broker_order_id": "98121b06-8ed4-4bcd-81d5-51977d9d2534",
+      "broker_status": "filled",
+      "client_order_id": "sentinel-a25d0944f449db116a5773efcca5da92",
+      "conviction": 0.833,
+      "engine": "trend_directional",
+      "filled_avg_price": 0.31,
+      "filled_qty": 19.0,
+      "max_loss_dollars": 1919.0,
+      "proposer": {
+        "decision_mode": "llm",
+        "fallback_reason": null,
+        "model": "deepseek-v4-flash",
+        "provider": "deepseek"
+      },
+      "reason": "trend",
+      "refused_by": [],
+      "selected": true,
+      "structure": "debit_vertical",
+      "submitted": true,
+      "underlying": "NVDA"
+    },
+    {
+      "account_scope": "competition",
+      "at": "2026-08-31T17:30:03.578963+00:00",
+      "authorized": true,
+      "broker_order_id": "2318ebdb-88e7-43a5-b84f-f5058650c1f9",
+      "broker_status": "canceled",
+      "client_order_id": "sentinel-ce4057d23d21826ac52b8522f85e62ea",
+      "conviction": 0.808,
+      "engine": "trend_income",
+      "filled_avg_price": null,
+      "filled_qty": 0.0,
+      "max_loss_dollars": 1688.0,
+      "proposer": {
+        "decision_mode": "llm",
+        "fallback_reason": null,
+        "model": "deepseek-v4-flash",
+        "provider": "deepseek"
+      },
+      "reason": "trend",
+      "refused_by": [],
+      "selected": true,
+      "structure": "credit_vertical",
+      "submitted": true,
+      "underlying": "MU"
+    },
+    {
+      "account_scope": "competition",
+      "at": "2026-08-31T18:00:03.395228+00:00",
+      "authorized": true,
+      "broker_order_id": "a048cef2-fc9e-4ff5-8958-2f28284c41f8",
+      "broker_status": "filled",
+      "client_order_id": "sentinel-a1943a1fcef98e461166a31c99039f5b",
+      "conviction": 0.854,
+      "engine": "trend_directional",
+      "filled_avg_price": 0.38,
+      "filled_qty": 18.0,
+      "max_loss_dollars": 1998.0,
+      "proposer": {
+        "decision_mode": "llm",
+        "fallback_reason": null,
+        "model": "deepseek-v4-flash",
+        "provider": "deepseek"
+      },
+      "reason": "trend",
+      "refused_by": [],
+      "selected": true,
+      "structure": "debit_vertical",
+      "submitted": true,
+      "underlying": "NVDA"
+    },
+    {
+      "account_scope": "competition",
+      "at": "2026-08-31T18:00:03.395228+00:00",
+      "authorized": true,
+      "broker_order_id": "64068cae-ca7d-405f-ab2e-7f7a84cb3333",
+      "broker_status": "canceled",
+      "client_order_id": "sentinel-39cb8a17bc675f3832e2b390305af339",
+      "conviction": 0.848,
+      "engine": "trend_income",
+      "filled_avg_price": null,
+      "filled_qty": 0.0,
+      "max_loss_dollars": 1740.0,
+      "proposer": {
+        "decision_mode": "llm",
+        "fallback_reason": null,
+        "model": "deepseek-v4-flash",
+        "provider": "deepseek"
+      },
+      "reason": "trend",
+      "refused_by": [],
+      "selected": true,
+      "structure": "credit_vertical",
+      "submitted": true,
+      "underlying": "TSLA"
+    },
+    {
+      "account_scope": "competition",
+      "at": "2026-08-31T19:05:03.314878+00:00",
+      "authorized": true,
+      "broker_order_id": "64fde1a8-14bb-4305-8adf-c2d1e448a3e6",
+      "broker_status": "canceled",
+      "client_order_id": "sentinel-95338dcfec3cc4335be19a433a7f1c51",
+      "conviction": 0.826,
+      "engine": "trend_directional",
+      "filled_avg_price": null,
+      "filled_qty": 0.0,
+      "max_loss_dollars": 2000.0,
+      "proposer": {
+        "decision_mode": "llm",
+        "fallback_reason": null,
+        "model": "deepseek-v4-flash",
+        "provider": "deepseek"
+      },
+      "reason": "trend",
+      "refused_by": [],
+      "selected": true,
+      "structure": "debit_vertical",
+      "submitted": true,
+      "underlying": "NVDA"
+    },
+    {
+      "account_scope": "competition",
+      "at": "2026-08-31T19:05:03.314878+00:00",
+      "authorized": true,
+      "broker_order_id": "c147a49e-ca0f-46ad-a906-02a91f9befa7",
+      "broker_status": "filled",
+      "client_order_id": "sentinel-53c0c2c19ac9e4d070c214398062cf5a",
+      "conviction": 0.795,
+      "engine": "trend_directional",
+      "filled_avg_price": 0.42,
+      "filled_qty": 15.0,
+      "max_loss_dollars": 1920.0,
+      "proposer": {
+        "decision_mode": "llm",
+        "fallback_reason": null,
+        "model": "deepseek-v4-flash",
+        "provider": "deepseek"
+      },
+      "reason": "trend",
+      "refused_by": [],
+      "selected": true,
+      "structure": "debit_vertical",
+      "submitted": true,
+      "underlying": "TSLA"
+    },
+    {
+      "account_scope": "competition",
+      "at": "2026-09-01T16:30:03.388180+00:00",
+      "authorized": true,
+      "broker_order_id": "eaffba97-6535-41d9-b88e-e6dd93f415d2",
+      "broker_status": "canceled",
+      "client_order_id": "sentinel-252689ba5ea947d8832f234845785a21",
+      "conviction": 0.138,
+      "engine": "trend_income",
+      "filled_avg_price": null,
+      "filled_qty": 0.0,
+      "max_loss_dollars": 1915.0,
+      "proposer": {
+        "decision_mode": "llm",
+        "fallback_reason": null,
+        "model": "deepseek-v4-flash",
+        "provider": "deepseek"
+      },
+      "reason": "trend",
+      "refused_by": [],
+      "selected": true,
+      "structure": "credit_vertical",
+      "submitted": true,
+      "underlying": "AMD"
+    },
+    {
+      "account_scope": "competition",
+      "at": "2026-09-01T17:00:02.768216+00:00",
+      "authorized": true,
+      "broker_order_id": "0a0f2ff9-8b5c-492e-8cd3-106a74cb5026",
+      "broker_status": "canceled",
+      "client_order_id": "sentinel-e8be2ab337b75bccca78d1562a2e2093",
+      "conviction": 0.155,
+      "engine": "trend_income",
+      "filled_avg_price": null,
+      "filled_qty": 0.0,
+      "max_loss_dollars": 1608.0,
+      "proposer": {
+        "decision_mode": "llm",
+        "fallback_reason": null,
+        "model": "deepseek-v4-flash",
+        "provider": "deepseek"
+      },
+      "reason": "trend",
+      "refused_by": [],
+      "selected": true,
+      "structure": "credit_vertical",
+      "submitted": true,
+      "underlying": "AMD"
+    },
+    {
+      "account_scope": "competition",
+      "at": "2026-09-01T17:30:03.196152+00:00",
+      "authorized": false,
+      "conviction": 0.121,
+      "engine": "trend_income",
+      "max_loss_dollars": 1880.0,
+      "proposer": {
+        "decision_mode": "llm",
+        "fallback_reason": null,
+        "model": "deepseek-v4-flash",
+        "provider": "deepseek"
+      },
+      "reason": "pretrade refused: buying_power",
+      "refused_by": [
+        "gate:buying_power"
+      ],
+      "selected": true,
+      "structure": "credit_vertical",
+      "submitted": false,
+      "underlying": "AMD"
+    },
+    {
+      "account_scope": "competition",
+      "at": "2026-09-01T18:00:03.026486+00:00",
+      "authorized": true,
+      "broker_order_id": "0d5d5cdf-c68c-4ada-a248-ad00ca63d454",
+      "broker_status": "canceled",
+      "client_order_id": "sentinel-5157645f590590117d4d5ea0d6456dba",
+      "conviction": 0.116,
+      "engine": "trend_income",
+      "filled_avg_price": null,
+      "filled_qty": 0.0,
+      "max_loss_dollars": 1640.0,
+      "proposer": {
+        "decision_mode": "llm",
+        "fallback_reason": null,
+        "model": "deepseek-v4-flash",
+        "provider": "deepseek"
+      },
+      "reason": "trend",
+      "refused_by": [],
+      "selected": true,
+      "structure": "credit_vertical",
+      "submitted": true,
+      "underlying": "AMD"
+    },
+    {
+      "account_scope": "competition",
+      "at": "2026-09-01T18:30:02.644662+00:00",
+      "authorized": false,
+      "conviction": 0.099,
+      "engine": "trend_income",
+      "max_loss_dollars": 2000.0,
+      "proposer": {
+        "decision_mode": "llm",
+        "fallback_reason": null,
+        "model": "deepseek-v4-flash",
+        "provider": "deepseek"
+      },
+      "reason": "pretrade refused: buying_power",
+      "refused_by": [
+        "gate:buying_power"
+      ],
+      "selected": true,
+      "structure": "credit_vertical",
+      "submitted": false,
+      "underlying": "AMD"
+    },
+    {
+      "account_scope": "competition",
+      "at": "2026-09-01T19:05:02.433665+00:00",
+      "authorized": true,
+      "broker_order_id": "90c28602-7268-4683-ba0d-bb7fb7bc0426",
+      "broker_status": "expired",
+      "client_order_id": "sentinel-e656f7ef51cc84014802f6098ff67543",
+      "conviction": 0.121,
+      "engine": "trend_income",
+      "filled_avg_price": null,
+      "filled_qty": 0.0,
+      "max_loss_dollars": 1895.0,
+      "proposer": {
+        "decision_mode": "llm",
+        "fallback_reason": null,
+        "model": "deepseek-v4-flash",
+        "provider": "deepseek"
+      },
+      "reason": "trend",
+      "refused_by": [],
+      "selected": true,
+      "structure": "credit_vertical",
+      "submitted": true,
+      "underlying": "AMD"
     }
   ],
   "equity_history": [
@@ -1349,11 +1861,143 @@
     {
       "equity": 95836.52,
       "t": "2026-08-28T19:35:05.287536+00:00"
+    },
+    {
+      "equity": 95903.16,
+      "t": "2026-08-31T13:35:03.998870+00:00"
+    },
+    {
+      "equity": 95903.16,
+      "t": "2026-08-31T14:00:03.011715+00:00"
+    },
+    {
+      "equity": 96079.01,
+      "t": "2026-08-31T14:30:03.382587+00:00"
+    },
+    {
+      "equity": 96635.06,
+      "t": "2026-08-31T14:45:04.148590+00:00"
+    },
+    {
+      "equity": 96547.06,
+      "t": "2026-08-31T15:00:04.032965+00:00"
+    },
+    {
+      "equity": 96491.06,
+      "t": "2026-08-31T15:30:03.433156+00:00"
+    },
+    {
+      "equity": 96439.06,
+      "t": "2026-08-31T16:00:03.729815+00:00"
+    },
+    {
+      "equity": 97366.16,
+      "t": "2026-08-31T16:30:03.594357+00:00"
+    },
+    {
+      "equity": 97200.16,
+      "t": "2026-08-31T17:00:03.577881+00:00"
+    },
+    {
+      "equity": 97227.06,
+      "t": "2026-08-31T17:30:03.578963+00:00"
+    },
+    {
+      "equity": 97283.11,
+      "t": "2026-08-31T18:00:03.395228+00:00"
+    },
+    {
+      "equity": 96544.21,
+      "t": "2026-08-31T18:30:03.396439+00:00"
+    },
+    {
+      "equity": 96449.31,
+      "t": "2026-08-31T19:05:03.314878+00:00"
+    },
+    {
+      "equity": 96733.11,
+      "t": "2026-08-31T19:35:02.796914+00:00"
+    },
+    {
+      "equity": 96368.11,
+      "t": "2026-09-01T06:23:37.336138+00:00"
+    },
+    {
+      "equity": 90591.85,
+      "t": "2026-09-01T13:35:02.754114+00:00"
+    },
+    {
+      "equity": 91954.4,
+      "t": "2026-09-01T14:00:03.315663+00:00"
+    },
+    {
+      "equity": 91764.35,
+      "t": "2026-09-01T14:30:03.529707+00:00"
+    },
+    {
+      "equity": 92191.85,
+      "t": "2026-09-01T14:45:02.531028+00:00"
+    },
+    {
+      "equity": 91401.85,
+      "t": "2026-09-01T15:00:03.640015+00:00"
+    },
+    {
+      "equity": 91696.85,
+      "t": "2026-09-01T15:12:43.173530+00:00"
+    },
+    {
+      "equity": 91791.85,
+      "t": "2026-09-01T15:13:16.734155+00:00"
+    },
+    {
+      "equity": 91791.85,
+      "t": "2026-09-01T15:30:03.515895+00:00"
+    },
+    {
+      "equity": 91791.85,
+      "t": "2026-09-01T16:00:03.294867+00:00"
+    },
+    {
+      "equity": 91791.85,
+      "t": "2026-09-01T16:30:03.388180+00:00"
+    },
+    {
+      "equity": 91791.85,
+      "t": "2026-09-01T17:00:02.768216+00:00"
+    },
+    {
+      "equity": 91791.85,
+      "t": "2026-09-01T17:30:03.196152+00:00"
+    },
+    {
+      "equity": 91791.85,
+      "t": "2026-09-01T18:00:03.026486+00:00"
+    },
+    {
+      "equity": 91791.85,
+      "t": "2026-09-01T18:30:02.644662+00:00"
+    },
+    {
+      "equity": 91791.85,
+      "t": "2026-09-01T19:05:02.433665+00:00"
+    },
+    {
+      "equity": 91791.85,
+      "t": "2026-09-01T19:35:03.291856+00:00"
+    },
+    {
+      "equity": 91791.85,
+      "t": "2026-09-01T20:52:56.862929+00:00"
+    },
+    {
+      "equity": 91791.85,
+      "t": "2026-09-01T20:54:30.864645+00:00"
     }
   ],
   "gates": [
     {
-      "detail": "option quotes 0s old (feed delay is 900s)",
+      "detail": "market closed; quote freshness n/a",
       "dimension": "Data Readiness",
       "name": "option_chain_data",
       "ok": true,
@@ -1362,7 +2006,7 @@
       "severity": "BLOCKING"
     },
     {
-      "detail": "underlying bars 0s old",
+      "detail": "market closed; intraday freshness n/a",
       "dimension": "Data Readiness",
       "name": "underlying_data",
       "ok": true,
@@ -1398,12 +2042,21 @@
       "severity": "BLOCKING"
     },
     {
-      "detail": "equity 95,836.52 >= floor 70,000.00",
+      "detail": "equity 91,791.85 >= floor 70,000.00",
       "dimension": "Entry Authority",
       "name": "equity_floor",
       "ok": true,
       "phase": "preflight",
       "rationale": "The Entry Maintenance trip: below the floor the agent stops creating exposure while exits and reconciliation stay fully operational.",
+      "severity": "BLOCKING"
+    },
+    {
+      "detail": "no non-option broker positions",
+      "dimension": "Entry Authority",
+      "name": "non_option_positions",
+      "ok": true,
+      "phase": "preflight",
+      "rationale": "This is an options-only runtime. A stock or other non-option broker position is unmanaged exposure, so new entries wait until it is reconciled or flattened.",
       "severity": "BLOCKING"
     },
     {
@@ -1425,16 +2078,34 @@
       "severity": "BLOCKING"
     },
     {
-      "detail": "market open",
+      "detail": "no unresolved entry reconciliations",
+      "dimension": "Entry Authority",
+      "name": "unresolved_entry_reconciliations",
+      "ok": true,
+      "phase": "preflight",
+      "rationale": "A broker-accepted entry has not proved a position exists. New exposure waits until the order activates one structure or proves it filled nothing.",
+      "severity": "BLOCKING"
+    },
+    {
+      "detail": "no unresolved structure closes",
+      "dimension": "Entry Authority",
+      "name": "unresolved_structure_closes",
+      "ok": true,
+      "phase": "preflight",
+      "rationale": "A partial or unknown structure close leaves net broker positions ambiguous. New exposure stays forbidden until its own close order and declared quantity reconcile.",
+      "severity": "BLOCKING"
+    },
+    {
+      "detail": "market closed",
       "dimension": "Process Health",
       "name": "market_open",
-      "ok": true,
+      "ok": false,
       "phase": "preflight",
       "rationale": "A closed market cannot accept a new options entry, so there is no reason to construct candidates while the session is closed.",
       "severity": "BLOCKING"
     },
     {
-      "detail": "3 position(s) reconciled",
+      "detail": "0 position(s) reconciled",
       "dimension": "Process Health",
       "name": "position_reconcile",
       "ok": true,
@@ -1443,7 +2114,7 @@
       "severity": "BLOCKING"
     },
     {
-      "detail": "SENTINEL-OPTIONS-V2@3.1.1+fd5a866191c2",
+      "detail": "SENTINEL-OPTIONS-V2@3.2.0+6e6b832fccc8",
       "dimension": "Release Integrity",
       "name": "manifest_identity",
       "ok": true,
@@ -1452,60 +2123,33 @@
       "severity": "BLOCKING"
     },
     {
-      "detail": "worktree dirty at 3e8a97287a8e",
+      "detail": "clean at ab188055a80f",
       "dimension": "Release Integrity",
       "name": "release_integrity",
-      "ok": false,
+      "ok": true,
       "phase": "preflight",
       "rationale": "Running code should be verified code. ATTENTION rather than BLOCKING because editing between cycles is the normal mode during an active build; the dirty state is stamped into every decision record.",
       "severity": "ATTENTION"
     }
   ],
-  "generated_at_utc": "2026-08-28T19:35:05.287536+00:00",
+  "generated_at_utc": "2026-09-01T20:54:30.864645+00:00",
   "market": {
-    "is_open": true
+    "is_open": false
   },
   "permit": {
-    "blocking_gates": [],
-    "entry_maintenance": false,
-    "status": "READY"
+    "blocking_gates": [
+      "market_open"
+    ],
+    "entry_maintenance": true,
+    "status": "BLOCKED"
   },
   "policy": {
-    "identity": "SENTINEL-OPTIONS-V2@3.1.1+fd5a866191c2",
+    "identity": "SENTINEL-OPTIONS-V2@3.2.0+6e6b832fccc8",
     "policy_id": "SENTINEL-OPTIONS-V2",
-    "sha": "fd5a866191c2328afbb099b0f259450b839a22f96fdfc079408c77d7dc9432c0",
-    "version": "3.1.1"
+    "sha": "6e6b832fccc8818e82c6bf38dab1986bd4c5101f2283ce80a66bb93f4a5630e5",
+    "version": "3.2.0"
   },
-  "positions": [
-    {
-      "avg_entry_price": 0.45,
-      "market_value": 4.0,
-      "qty": 4,
-      "symbol": "DELL260828P00450000",
-      "underlying": "DELL",
-      "unrealized_pl": -176.0
-    },
-    {
-      "avg_entry_price": 1.08,
-      "market_value": -348.0,
-      "qty": -4,
-      "symbol": "DELL260828P00455000",
-      "underlying": "DELL",
-      "unrealized_pl": 84.0
-    },
-    {
-      "avg_entry_price": 0.51,
-      "market_value": 0.0,
-      "qty": 31,
-      "symbol": "NVDA260828C00225000",
-      "underlying": "NVDA",
-      "unrealized_pl": -1581.0
-    }
-  ],
-  "regime": {
-    "confidence": 0.84,
-    "mode": "risk_on",
-    "reason": "SPY above EMA50 (+1.84%), RSI 57, breadth +1"
-  },
+  "positions": [],
+  "regime": null,
   "schema_version": 2
 }
