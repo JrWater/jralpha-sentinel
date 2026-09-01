@@ -671,6 +671,22 @@ def test_trend_single_fires_on_high_conviction(manifest):
 
 # ── v3.1.1: the conviction single-leg layer must follow the regime ──────────
 
+def test_production_manifest_uses_v320_event_only_final_window(manifest):
+    """The approved final-window policy removes trend without de-risking events."""
+    assert manifest.get("version") == "3.2.0"
+    assert manifest.get("strategies", "trend_directional", "enabled") is False
+    assert manifest.get("strategies", "trend_income", "enabled") is False
+    assert manifest.get("strategies", "trend_single", "enabled") is False
+    assert manifest.get(
+        "strategies", "catalyst", "pre_event_max_loss_per_trade_fraction") == 0.12
+    assert manifest.get(
+        "strategies", "event_macro", "max_loss_per_trade_fraction") == 0.10
+    assert manifest.get(
+        "strategies", "event_macro", "addon_max_loss_per_trade_fraction") == 0.08
+    assert manifest.get(
+        "strategies", "event_macro", "gap_max_entries_total") == 2
+
+
 def _manifest_with_single_layer(manifest, *, enabled: bool) -> Manifest:
     """Exercise the strategy rule independently of the production kill switch.
 

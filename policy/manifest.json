@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "policy_id": "SENTINEL-OPTIONS-V2",
-  "version": "3.1.4",
+  "version": "3.2.0",
   "_comment_authority": "This manifest is the ONLY authority for strategy parameters. Code reads values from here; it never restates them. Prose documents describe this file, they do not define a competing source of truth. Every semantic change creates a new version rather than rewriting history.",
   "environment": {
     "broker": "ALPACA",
@@ -53,7 +53,7 @@
   },
   "strategies": {
     "trend_directional": {
-      "enabled": true,
+      "enabled": false,
       "exit_loss_kind": "fraction",
       "execution_shape_ids": [
         "mleg_2_leg_limit_day"
@@ -81,7 +81,7 @@
       "breakout_max_positions": 1
     },
     "trend_income": {
-      "enabled": true,
+      "enabled": false,
       "exit_loss_kind": "multiple",
       "execution_shape_ids": [
         "mleg_2_leg_limit_day"
