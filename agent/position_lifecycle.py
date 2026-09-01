@@ -8,6 +8,7 @@ never does.
 """
 from __future__ import annotations
 
+from datetime import date
 from typing import Any, Callable
 
 from agent.ledger import StructureLedger, append_decision
@@ -105,6 +106,10 @@ class PositionLifecycle:
                 # A zero-fill terminal rejection/cancellation is the only
                 # state allowed to return to ordinary exit evaluation.
                 meta_changed = True
+
+        meta_changed = self._reconcile_expired_absent(
+            groups, broker, getattr(state, "non_option_positions", []),
+            now_et.date(), state.now_utc) or meta_changed
 
         # Net broker positions do not identify lots.  Before deciding any new
         # close, prove that all still-live group claims for each symbol fit in
@@ -228,6 +233,64 @@ class PositionLifecycle:
     def _quarantine(group: dict, detail: str) -> None:
         group["reconciliation_required"] = True
         group["reconciliation_detail"] = detail
+
+    def _reconcile_expired_absent(self, groups: dict, broker: dict,
+                                  non_option_positions: list,
+                                  today: date, now_utc) -> bool:
+        """Close expired structures only when their resulting exposure is zero.
+
+        Broker option legs disappear after expiry. That is not sufficient proof
+        of closure because exercise or assignment can leave stock behind.
+        Those groups remain quarantined until the underlying is independently
+        reconciled or flattened.
+        """
+        non_option_symbols = {
+            str(getattr(position, "symbol", "")).upper()
+            for position in non_option_positions
+        }
+        changed = False
+        for group_id, group in groups.items():
+            if group.get("closed") or group.get("close_pending"):
+                continue
+            try:
+                expiry = date.fromisoformat(str(group.get("expiry", "")))
+            except ValueError:
+                continue
+            legs = set(group.get("legs", {}))
+            if not legs or expiry >= today or legs.intersection(broker):
+                continue
+            parsed_legs = [parse_contract(symbol) for symbol in legs]
+            leg_underlyings = {parsed[0].upper() for parsed in parsed_legs if parsed}
+            declared_underlying = str(group.get("underlying", "")).upper()
+            if (not all(parsed_legs) or len(leg_underlyings) != 1 or
+                    not declared_underlying or
+                    declared_underlying not in leg_underlyings):
+                if group.get("reconciliation_detail") != \
+                        "expired_structure_underlying_unresolved":
+                    self._quarantine(group, "expired_structure_underlying_unresolved")
+                    changed = True
+                continue
+            underlying = next(iter(leg_underlyings))
+            if underlying in non_option_symbols:
+                if group.get("reconciliation_detail") != \
+                        "underlying_exposure_after_expiry":
+                    self._quarantine(group, "underlying_exposure_after_expiry")
+                    changed = True
+                continue
+            group["closed"] = True
+            group["terminal_outcome"] = "ENTRY_EXPIRED"
+            group["terminal_reconciliation"] = {
+                "reconciled_at_utc": now_utc.isoformat(),
+                "declared_option_legs": sorted(legs),
+                "broker_option_legs_observed": [],
+                "broker_underlying_positions_observed": [],
+            }
+            group.pop("reconciliation_required", None)
+            group.pop("reconciliation_detail", None)
+            self._record({"kind": "structure_expired_absent", "group": group_id,
+                          "expiry": expiry.isoformat(), "outcome": "ENTRY_EXPIRED"})
+            changed = True
+        return changed
 
     @staticmethod
     def _ownership_conflicts(groups: dict, broker: dict) -> set[str]:

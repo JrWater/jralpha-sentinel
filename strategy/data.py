@@ -33,6 +33,20 @@ def parse_contract(symbol: str) -> tuple[str, date, str, float] | None:
     return underlying, expiry, ("call" if ctype == "C" else "put"), int(strike) / 1000.0
 
 
+def partition_positions(positions: list) -> tuple[list, list]:
+    """Separate option contracts from every other broker-held asset.
+
+    Sentinel's engines deliberately consume only option positions. Callers
+    retain non-option positions as an explicit fact so entry authority cannot
+    ignore unmanaged exposure.
+    """
+    options, non_options = [], []
+    for position in positions:
+        asset_class = str(getattr(position, "asset_class", "")).rsplit(".", 1)[-1]
+        (options if asset_class.lower() == "us_option" else non_options).append(position)
+    return options, non_options
+
+
 def contract_symbol(underlying: str, expiry: date, ctype: str,
                     strike: float) -> str:
     """Build an OCC symbol. Alpaca expects the 8-digit strike (x1000)."""
@@ -66,6 +80,7 @@ class MarketState:
     clock: object = None
     equity: float = 0.0
     positions: list = field(default_factory=list)
+    non_option_positions: list = field(default_factory=list)
     bars: dict = field(default_factory=dict)          # symbol -> list[bar-like]
     latest: dict = field(default_factory=dict)        # symbol -> latest quote
     chains: dict = field(default_factory=dict)        # underlying -> list[ChainContract]

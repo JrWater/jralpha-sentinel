@@ -256,6 +256,19 @@ def check_position_reconcile(ctx: EvalContext) -> GateResult:
     return GateResult(True, f"{len(broker)} position(s) reconciled")
 
 
+def check_non_option_positions(ctx: EvalContext) -> GateResult:
+    """An options-only runtime must not add risk beside unmanaged assets."""
+    positions = ctx.non_option_positions
+    if positions is None:
+        return GateResult(False, "non-option broker position state unavailable")
+    if not positions:
+        return GateResult(True, "no non-option broker positions")
+    symbols = ", ".join(
+        f"{getattr(position, 'symbol', '?')} x{getattr(position, 'qty', '?')}"
+        for position in positions)
+    return GateResult(False, f"non-option broker positions require reconciliation: {symbols}")
+
+
 def check_decision_log(ctx: EvalContext) -> GateResult:
     """If reporting is broken, a failure happens and nobody finds out."""
     if ctx.decision_log_writable is not True:
@@ -407,6 +420,11 @@ GATES = (
          "If the ledger and the broker disagree we do not know our exposure, "
          "and every downstream risk cap is computed off a number we cannot "
          "confirm."),
+    Gate("non_option_positions", check_non_option_positions, CycleSubject,
+         "BLOCKING", "Entry Authority",
+         "This is an options-only runtime. A stock or other non-option broker "
+         "position is unmanaged exposure, so new entries wait until it is "
+         "reconciled or flattened."),
     Gate("decision_log", check_decision_log, CycleSubject,
          "BLOCKING", "Delivery Health",
          "If reporting is broken, a failure happens and nobody finds out. That "

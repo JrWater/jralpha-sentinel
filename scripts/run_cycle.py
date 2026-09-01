@@ -48,7 +48,7 @@ from gates.registry import severity_of
 from gates.safety_gate import write_permit
 from policy.loader import load as load_manifest
 from scripts.verify_account import creds, load_env
-from strategy.data import AlpacaData, MarketState
+from strategy.data import AlpacaData, MarketState, partition_positions
 from strategy.daystate import check_kill, load_or_reset, record_risk, release_risk
 from strategy.engine import EngineContext, run as run_engines
 from strategy.regime import classify, universe_breadth
@@ -204,9 +204,10 @@ def new_decision_row(candidate, *, at_utc: datetime,
 def build_state(data: AlpacaData, manifest, symbols: list[str]) -> MarketState:
     account = data.account()
     clock = data.clock()
-    positions = [p for p in data.positions() if p.asset_class == "us_option"]
+    positions, non_option_positions = partition_positions(data.positions())
     state = MarketState(account=account, clock=clock,
                         equity=float(account.equity), positions=positions,
+                        non_option_positions=non_option_positions,
                         now_utc=datetime.now(timezone.utc))
     bars = data.daily_bars(
         symbols, days=int(manifest.get("agent", "market_summary_window_days",
@@ -242,7 +243,8 @@ def publish_snapshot(*, manifest, state, results, blockers, decisions,
             manifest=manifest, account=state.account, clock=state.clock,
             gate_results=results, gates=checks.GATES,
             permit_status="BLOCKED" if blockers else "READY",
-            blockers=blockers, positions=state.positions,
+            blockers=blockers,
+            positions=[*state.positions, *state.non_option_positions],
             decisions=decisions, git_head=head, git_dirty=dirty,
             regime=regime, day_state=(day.as_dict() if day else None),
             decision_updates=decision_updates,
@@ -406,8 +408,8 @@ def _run_cycle(environment: CycleEnvironment) -> CycleResult:
         # may have quarantined a partial or unknown close.  The ensuing permit
         # must describe the post-exit world, not the one it observed before
         # lifecycle ownership was resolved.
-        state.positions = [p for p in data.positions()
-                           if p.asset_class == "us_option"]
+        state.positions, state.non_option_positions = partition_positions(
+            data.positions())
         environment.mirror_positions(data.positions())
         ledger = environment.ledger_positions()
 

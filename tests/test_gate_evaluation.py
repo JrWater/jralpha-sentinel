@@ -74,6 +74,24 @@ def test_evaluator_selects_only_the_exact_subject_type():
     assert seen == [("cycle", None), ("proposal", proposal)]
 
 
+def test_missing_non_option_position_fact_fails_closed():
+    """A legacy state adapter must not read as an empty stock book."""
+    from gates import checks
+    from gates.evaluation import CycleSubject, GateEvaluator
+
+    gate = next(gate for gate in checks.GATES if gate.name == "non_option_positions")
+    state = SimpleNamespace(
+        now_utc=datetime(2026, 8, 28, 18, tzinfo=timezone.utc),
+        account=SimpleNamespace(), clock=SimpleNamespace(is_open=True),
+        positions=[], chain_ages={}, latest={},
+    )
+    result = GateEvaluator(gates=(gate,)).evaluate(CycleSubject(
+        manifest=SimpleNamespace(), state=state, ledger_positions=[]))
+
+    assert not result["non_option_positions"].ok
+    assert "unavailable" in result["non_option_positions"].detail
+
+
 def test_market_open_is_cycle_readiness_and_entry_window_is_proposal_authorization():
     from gates import checks
     from gates.evaluation import CycleSubject, ProposalSubject

@@ -15,6 +15,7 @@ sys.path.insert(0, str(ROOT))
 
 from policy.loader import load as load_manifest
 from scripts.verify_account import creds, load_env
+from strategy.data import partition_positions
 
 
 def main() -> int:
@@ -28,7 +29,7 @@ def main() -> int:
     from alpaca.trading.client import TradingClient
     client = TradingClient(key, secret, paper=True)
     account = client.get_account()
-    positions = [p for p in client.get_all_positions() if p.asset_class == "us_option"]
+    positions, non_option_positions = partition_positions(client.get_all_positions())
 
     print(f"\nmanifest {manifest.identity}")
     print(f"account  {account.account_number}")
@@ -55,6 +56,10 @@ def main() -> int:
     row(total_mv >= 0 or not positions, "market value",
         f"{len(positions)} open option contracts, "
         f"${total_mv:,.2f} total market value")
+    non_option_detail = ", ".join(
+        f"{position.symbol} x{position.qty}" for position in non_option_positions)
+    row(not non_option_positions, "no non-option positions",
+        non_option_detail or "options-only account state")
 
     now = datetime.now(timezone.utc)
     start_utc = datetime.fromisoformat(

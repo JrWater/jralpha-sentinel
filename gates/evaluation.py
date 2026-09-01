@@ -34,6 +34,7 @@ class EvalContext:
     is_paper_session: bool | None = None
     clock: Any = None
     positions: list = None
+    non_option_positions: list = None
     ledger_positions: list | None = None
     option_quote_age_seconds: float | None = None
     underlying_bar_age_seconds: float | None = None
@@ -202,6 +203,7 @@ class GateEvaluator:
             manifest=subject.manifest, now_utc=state.now_utc,
             account=state.account, is_paper_session=subject.is_paper_session,
             clock=state.clock, positions=state.positions,
+            non_option_positions=getattr(state, "non_option_positions", None),
             ledger_positions=subject.ledger_positions,
             option_quote_age_seconds=quote_age if quote_age is not None else
             getattr(state, "chain_ages", {}).get("SPY"),

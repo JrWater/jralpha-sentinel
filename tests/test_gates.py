@@ -24,6 +24,8 @@ from gates.evaluation import CycleSubject                    # noqa: E402
 from gates.registry import (DIMENSIONS, Gate, GateResult,     # noqa: E402
                             blockers, severity_of, validate)
 from policy.loader import load as load_manifest               # noqa: E402
+from scripts.run_cycle import run_preflight                   # noqa: E402
+from strategy.data import MarketState                         # noqa: E402
 
 UTC = timezone.utc
 NOW = datetime(2026, 8, 28, 18, 0, tzinfo=UTC)   # 14:00 New York, mid-session
@@ -274,6 +276,39 @@ def test_ledger_disagreement_blocks_new_exposure(manifest):
                                           qty="1")],
                ledger_positions=[])
     assert not checks.check_position_reconcile(ctx).ok
+
+
+def test_non_option_broker_position_blocks_new_exposure(manifest):
+    """An options-only agent must not add risk beside an unmanaged stock."""
+    result = checks.check_non_option_positions(
+        _ctx(manifest, non_option_positions=[
+            SimpleNamespace(symbol="TSLA", qty="500"),
+        ]))
+
+    assert not result.ok
+    assert "TSLA" in result.detail
+
+
+def test_non_option_position_is_a_registered_blocking_entry_gate():
+    gate = next(g for g in checks.GATES if g.name == "non_option_positions")
+
+    assert gate.accepts is CycleSubject
+    assert gate.severity == "BLOCKING"
+    assert gate.dimension == "Entry Authority"
+
+
+def test_preflight_blocks_new_exposure_when_broker_reports_stock(manifest, tmp_path):
+    state = MarketState(
+        account=_account(), clock=SimpleNamespace(is_open=True),
+        positions=[], non_option_positions=[
+            SimpleNamespace(symbol="TSLA", qty="500"),
+        ], now_utc=NOW)
+
+    results = run_preflight(
+        state, manifest, ledger=[], root=tmp_path, decision_log_writable=True)
+
+    assert not results["non_option_positions"].ok
+    assert "TSLA" in results["non_option_positions"].detail
 
 
 def test_unresolved_dispatch_blocks_new_exposure(manifest):

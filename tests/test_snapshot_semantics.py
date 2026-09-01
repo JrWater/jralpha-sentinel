@@ -51,7 +51,7 @@ class Manifest:
         return default
 
 
-def _build(decisions, **kwargs):
+def _build(decisions, positions=None, **kwargs):
     return snapshot.build(
         manifest=Manifest(),
         account=SimpleNamespace(
@@ -59,11 +59,23 @@ def _build(decisions, **kwargs):
             options_trading_level=3, account_number="PAPER-TEST"),
         clock=SimpleNamespace(is_open=True),
         gate_results={}, gates=(), permit_status="READY", blockers=(),
-        positions=[], decisions=decisions, git_head="a" * 40,
+        positions=positions or [], decisions=decisions, git_head="a" * 40,
         git_dirty=False,
         now_utc=datetime(2026, 8, 28, 16, 0, tzinfo=timezone.utc),
         **kwargs,
     )
+
+
+def test_snapshot_discloses_non_option_broker_positions():
+    payload = _build([], positions=[SimpleNamespace(
+        symbol="TSLA", qty="500", avg_entry_price="367.97",
+        market_value="183800", unrealized_pl="-185")])
+
+    assert payload["positions"] == [{
+        "symbol": "TSLA", "underlying": "TSLA", "qty": 500,
+        "avg_entry_price": 367.97, "market_value": 183800.0,
+        "unrealized_pl": -185.0,
+    }]
 
 
 def test_snapshot_rejects_new_legacy_accepted_records(monkeypatch):
