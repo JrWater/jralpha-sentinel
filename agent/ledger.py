@@ -101,6 +101,18 @@ class StructureLedger:
     def save(self, payload: dict) -> None:
         atomic_write(self.path, payload)
 
+    def protected_open_order_ids(self) -> frozenset[str]:
+        """Return lifecycle-owned orders that generic cleanup must not cancel."""
+        return frozenset(
+            str(order_id)
+            for group in self.load().get("groups", {}).values()
+            for pending, order_id in (
+                (group.get("close_pending"), group.get("close_order_id")),
+                (group.get("residual_equity_close_pending"),
+                 group.get("residual_equity_close_order_id")),
+            )
+            if pending and order_id)
+
     def _group_record(self, proposal: Any) -> dict:
         """Serialize the strategy-owned facts of one eventual structure."""
         entry_net = sum(
@@ -158,7 +170,8 @@ class StructureLedger:
     def record_pending_entry(self, proposal: Any, entered_at: str,
                              entry_order_id: str, *,
                              take_profit: float = 0.0,
-                             stop_loss: float = 0.0) -> str:
+                             stop_loss: float = 0.0,
+                             pre_expiry_underlying_qty: int | None = None) -> str:
         """Persist an accepted order without claiming a position exists yet."""
         from strategy.exits import group_key
 
@@ -176,6 +189,10 @@ class StructureLedger:
         group = self._group_record(proposal)
         group["take_profit_fraction"] = take_profit
         group["stop_loss_fraction"] = stop_loss
+        if pre_expiry_underlying_qty is not None:
+            if not isinstance(pre_expiry_underlying_qty, int):
+                raise ValueError("pre-expiry underlying quantity must be an integer")
+            group["pre_expiry_underlying_qty"] = pre_expiry_underlying_qty
         pending[order_id] = {
             "group_id": group_id,
             "expected_qty": self._expected_order_quantity(proposal),

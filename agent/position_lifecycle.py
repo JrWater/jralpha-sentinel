@@ -8,7 +8,7 @@ never does.
 """
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime, timezone
 from typing import Any, Callable
 
 from agent.ledger import StructureLedger, append_decision
@@ -27,6 +27,13 @@ def _quantity(value: Any) -> int | None:
     except (TypeError, ValueError):
         return None
     return quantity if quantity >= 0 else None
+
+
+def _signed_quantity(value: Any) -> int | None:
+    try:
+        return int(float(value))
+    except (TypeError, ValueError):
+        return None
 
 
 def _group_quantity(group: dict) -> int | None:
@@ -77,7 +84,8 @@ class PositionLifecycle:
         groups = meta.get("groups", {})
         broker = {position.symbol: position for position in state.positions}
         submitted = 0
-        meta_changed = False
+        meta_changed = self._record_pre_expiry_underlying_baselines(
+            groups, getattr(state, "non_option_positions", None), now_et)
 
         # A group owns a symbol until its own close order proves otherwise.
         # This also prevents a same-cycle accepted structure close becoming an
@@ -96,7 +104,7 @@ class PositionLifecycle:
             if group.get("closed"):
                 continue
             if group.get("close_pending"):
-                resolution = self._reconcile_close(group_id, group, executor)
+                resolution = self._reconcile_close(group_id, group, executor, broker)
                 if resolution == "closed":
                     meta_changed = True
                     continue
@@ -107,9 +115,21 @@ class PositionLifecycle:
                 # state allowed to return to ordinary exit evaluation.
                 meta_changed = True
 
+        meta_changed = self._reconcile_residual_equity_orders(
+            groups, getattr(state, "non_option_positions", None), executor,
+            state.now_utc) or meta_changed
+        residual_order_ids_before = {
+            str(group.get("residual_equity_close_order_id"))
+            for group in groups.values()
+            if group.get("residual_equity_close_pending")
+        }
         meta_changed = self._reconcile_expired_absent(
             groups, broker, getattr(state, "non_option_positions", None),
-            now_et.date(), state.now_utc) or meta_changed
+            now_et.date(), state.now_utc, getattr(state, "latest", {}), executor) or meta_changed
+        submitted += sum(
+            1 for group in groups.values()
+            if group.get("residual_equity_close_pending") and
+            str(group.get("residual_equity_close_order_id")) not in residual_order_ids_before)
 
         # Net broker positions do not identify lots.  Before deciding any new
         # close, prove that all still-live group claims for each symbol fit in
@@ -155,12 +175,14 @@ class PositionLifecycle:
                 event_exit_time=group.get("event_exit_time", ""),
                 legs=legs,
             )
-            reason = decide_exit(
-                view, pnl_of(view.entry_net, net), now_et=now_et,
-                final_date=final_date, flatten_at=flatten_at)
+            remainder_required = bool(group.get("verified_close_remainder_required"))
+            reason = (group.get("verified_close_remainder_reason")
+                      if remainder_required else decide_exit(
+                          view, pnl_of(view.entry_net, net), now_et=now_et,
+                          final_date=final_date, flatten_at=flatten_at))
             if not reason:
                 continue
-            if group.get("take_profit_fraction", 0.0) <= 0 and \
+            if not remainder_required and group.get("take_profit_fraction", 0.0) <= 0 and \
                     not any(word in reason for word in ("event", "flatten", "time-stop")):
                 continue
 
@@ -179,6 +201,8 @@ class PositionLifecycle:
             group["close_pending"] = True
             group["close_order_id"] = str(order.id)
             group["close_reason"] = reason
+            group.pop("verified_close_remainder_required", None)
+            group.pop("verified_close_remainder_reason", None)
             meta_changed = True
             submitted += 1
             print(f"  EXIT {group_id} {reason} net {close.limit_price:.2f}")
@@ -188,7 +212,8 @@ class PositionLifecycle:
             structures.save(meta)
         return submitted
 
-    def _reconcile_close(self, group_id: str, group: dict, executor: Any) -> str:
+    def _reconcile_close(self, group_id: str, group: dict, executor: Any,
+                         broker: dict) -> str:
         order_id = group.get("close_order_id")
         if not order_id:
             self._quarantine(group, "close_pending_without_order_id")
@@ -213,7 +238,22 @@ class PositionLifecycle:
             self._record({"kind": "structure_close_confirmed", "group": group_id,
                           "order_id": order_id, "filled_qty": filled})
             return "closed"
-        if status == "FILLED" or status in {"PARTIALLY_FILLED", "UNKNOWN", ""}:
+        if status == "FILLED" and 0 < filled < expected:
+            if not self._record_confirmed_partial_fill(group, filled, broker):
+                self._quarantine(group, f"close_{status.lower()}_{filled}_of_{expected}")
+                return "quarantined"
+            group["close_pending"] = False
+            group["last_close_order_id"] = order_id
+            group.pop("close_order_id", None)
+            group["verified_close_remainder_required"] = True
+            group["verified_close_remainder_reason"] = group.get(
+                "close_reason", "verified partial close remainder")
+            self._record({"kind": "structure_close_partial_confirmed",
+                          "group": group_id, "order_id": order_id,
+                          "filled_qty": filled,
+                          "remaining_qty": expected - filled})
+            return "retry"
+        if status in {"PARTIALLY_FILLED", "UNKNOWN", ""}:
             self._quarantine(group, f"close_{status.lower() or 'unknown'}_{filled}_of_{expected}")
             return "quarantined"
         if status in {"CANCELED", "REJECTED", "EXPIRED"}:
@@ -221,6 +261,19 @@ class PositionLifecycle:
                 group["close_pending"] = False
                 group["last_close_order_id"] = order_id
                 group.pop("close_order_id", None)
+                return "retry"
+            if (filled < expected and
+                    self._record_confirmed_partial_fill(group, filled, broker)):
+                group["close_pending"] = False
+                group["last_close_order_id"] = order_id
+                group.pop("close_order_id", None)
+                group["verified_close_remainder_required"] = True
+                group["verified_close_remainder_reason"] = group.get(
+                    "close_reason", "verified partial close remainder")
+                self._record({"kind": "structure_close_partial_confirmed",
+                              "group": group_id, "order_id": order_id,
+                              "filled_qty": filled,
+                              "remaining_qty": expected - filled})
                 return "retry"
             self._quarantine(group, f"close_{status.lower()}_{filled}_of_{expected}")
             return "quarantined"
@@ -230,13 +283,70 @@ class PositionLifecycle:
         return "pending"
 
     @staticmethod
+    def _record_confirmed_partial_fill(group: dict, filled: int,
+                                       broker: dict) -> bool:
+        """Reduce a group only when every remaining leg matches the snapshot."""
+        for symbol, info in group.get("legs", {}).items():
+            quantity = _quantity(info.get("qty"))
+            position = broker.get(symbol)
+            if quantity is None or filled <= 0 or filled >= quantity or position is None:
+                return False
+            try:
+                observed = int(float(position.qty))
+            except (AttributeError, TypeError, ValueError):
+                return False
+            expected_sign = 1 if info.get("side") == "buy" else -1
+            if observed != expected_sign * (quantity - filled):
+                return False
+        for info in group["legs"].values():
+            info["qty"] = int(info["qty"]) - filled
+        return True
+
+    @staticmethod
     def _quarantine(group: dict, detail: str) -> None:
         group["reconciliation_required"] = True
         group["reconciliation_detail"] = detail
 
+    @staticmethod
+    def _record_pre_expiry_underlying_baselines(groups: dict,
+                                                non_option_positions: list | None,
+                                                now_et: datetime) -> bool:
+        """Persist the stock baseline required to attribute a later delivery."""
+        if non_option_positions is None:
+            return False
+        quantities: dict[str, int] = {}
+        for position in non_option_positions:
+            symbol = str(getattr(position, "symbol", "")).strip().upper()
+            try:
+                quantity = int(float(getattr(position, "qty", None)))
+            except (TypeError, ValueError):
+                continue
+            if symbol:
+                quantities[symbol] = quantities.get(symbol, 0) + quantity
+        changed = False
+        for group in groups.values():
+            if group.get("closed") or "pre_expiry_underlying_qty" in group:
+                continue
+            try:
+                expiry = date.fromisoformat(str(group.get("expiry", "")))
+            except ValueError:
+                continue
+            before_expiry_cutoff = (
+                expiry > now_et.date() or
+                (expiry == now_et.date() and
+                 (now_et.hour, now_et.minute) < (15, 15)))
+            underlying = str(group.get("underlying", "")).strip().upper()
+            if before_expiry_cutoff and underlying:
+                group["pre_expiry_underlying_qty"] = quantities.get(underlying, 0)
+                group["pre_expiry_underlying_snapshot_utc"] = \
+                    now_et.astimezone(timezone.utc).isoformat()
+                changed = True
+        return changed
+
     def _reconcile_expired_absent(self, groups: dict, broker: dict,
                                   non_option_positions: list | None,
-                                  today: date, now_utc) -> bool:
+                                  today: date, now_utc, latest: dict,
+                                  executor: Any) -> bool:
         """Close expired structures only when their resulting exposure is zero.
 
         Broker option legs disappear after expiry. That is not sufficient proof
@@ -245,17 +355,31 @@ class PositionLifecycle:
         reconciled or flattened.
         """
         non_option_symbols = set()
+        non_option_by_symbol: dict[str, list] = {}
         non_option_state_known = non_option_positions is not None
         for position in non_option_positions or []:
             symbol = getattr(position, "symbol", None)
             if not isinstance(symbol, str) or not symbol.strip():
                 non_option_state_known = False
                 continue
-            non_option_symbols.add(symbol.strip().upper())
+            normalized = symbol.strip().upper()
+            non_option_symbols.add(normalized)
+            non_option_by_symbol.setdefault(normalized, []).append(position)
         changed = False
         for group_id, group in groups.items():
-            if group.get("closed") or group.get("close_pending"):
+            if (group.get("closed") or group.get("close_pending") or
+                    group.get("residual_equity_close_pending")):
                 continue
+            retry_after = group.get("residual_equity_close_retry_after_utc")
+            if retry_after:
+                try:
+                    if now_utc <= datetime.fromisoformat(retry_after):
+                        continue
+                except ValueError:
+                    self._quarantine(group, "residual_equity_retry_clock_unreadable")
+                    changed = True
+                    continue
+                group.pop("residual_equity_close_retry_after_utc", None)
             try:
                 expiry = date.fromisoformat(str(group.get("expiry", "")))
             except ValueError:
@@ -291,10 +415,11 @@ class PositionLifecycle:
                     changed = True
                 continue
             if underlying in non_option_symbols:
-                if group.get("reconciliation_detail") != \
-                        "underlying_exposure_after_expiry":
-                    self._quarantine(group, "underlying_exposure_after_expiry")
-                    changed = True
+                self._quarantine(group, "underlying_exposure_after_expiry")
+                changed = True
+                changed = self._submit_residual_equity_close(
+                    group_id, group, groups, non_option_by_symbol[underlying],
+                    latest, executor) or changed
                 continue
             group["closed"] = True
             group["terminal_outcome"] = "ENTRY_EXPIRED"
@@ -310,6 +435,187 @@ class PositionLifecycle:
                           "expiry": expiry.isoformat(), "outcome": "ENTRY_EXPIRED"})
             changed = True
         return changed
+
+    def _reconcile_residual_equity_orders(self, groups: dict,
+                                          non_option_positions: list | None,
+                                          executor: Any, now_utc: datetime) -> bool:
+        """Reprice only a terminal residual close; never duplicate an open one."""
+        if non_option_positions is None:
+            changed = False
+            for group in groups.values():
+                if group.get("residual_equity_close_pending"):
+                    self._quarantine(group, "non_option_position_state_unavailable")
+                    changed = True
+            return changed
+        positions = {
+            str(getattr(position, "symbol", "")).strip().upper(): position
+            for position in non_option_positions or []
+            if str(getattr(position, "symbol", "")).strip()
+        }
+        changed = False
+        for group_id, group in groups.items():
+            if not group.get("residual_equity_close_pending"):
+                continue
+            order_id = group.get("residual_equity_close_order_id")
+            if not order_id:
+                self._quarantine(group, "residual_equity_close_missing_order_id")
+                changed = True
+                continue
+            try:
+                order = executor.get_order_by_id(order_id)
+            except Exception:  # noqa: BLE001
+                self._quarantine(group, "residual_equity_close_status_unavailable")
+                changed = True
+                continue
+            status = _order_status(order)
+            underlying = str(group.get("underlying", "")).upper()
+            position = positions.get(underlying)
+            if status == "FILLED":
+                baseline = _signed_quantity(group.get("pre_expiry_underlying_qty"))
+                observed = 0 if position is None else _signed_quantity(
+                    getattr(position, "qty", None))
+                if baseline is None or observed is None:
+                    self._quarantine(group, "residual_equity_baseline_unreadable")
+                    changed = True
+                    continue
+                if observed == baseline:
+                    group["closed"] = True
+                    group["residual_equity_close_pending"] = False
+                    group["terminal_outcome"] = "ENTRY_EXPIRED_RESIDUAL_FLATTENED"
+                    group.pop("reconciliation_required", None)
+                    group.pop("reconciliation_detail", None)
+                    self._record({"kind": "residual_equity_flatten_confirmed",
+                                  "group": group_id, "order_id": order_id})
+                    changed = True
+                    continue
+                group["residual_equity_close_pending"] = False
+                group["last_residual_equity_close_order_id"] = order_id
+                group["residual_equity_close_retry_after_utc"] = now_utc.isoformat()
+                group.pop("residual_equity_close_order_id", None)
+                self._quarantine(group, "residual_equity_close_filled_exposure_remains")
+                changed = True
+                continue
+            if status in {"CANCELED", "REJECTED", "EXPIRED"}:
+                filled = _quantity(getattr(order, "filled_qty", None))
+                attempted = _signed_quantity(group.get("residual_equity_close_qty"))
+                baseline = _signed_quantity(group.get("pre_expiry_underlying_qty"))
+                observed = 0 if position is None else _signed_quantity(
+                    getattr(position, "qty", None))
+                if (filled is None or attempted is None or baseline is None or
+                        observed is None or filled > abs(attempted)):
+                    self._quarantine(group, "residual_equity_close_quantity_unreadable")
+                    changed = True
+                    continue
+                remaining = attempted - (1 if attempted > 0 else -1) * filled
+                if observed - baseline != remaining:
+                    self._quarantine(group, "residual_equity_close_partial_unresolved")
+                    changed = True
+                    continue
+                group["residual_equity_close_pending"] = False
+                group["last_residual_equity_close_order_id"] = order_id
+                group.pop("residual_equity_close_order_id", None)
+                if remaining:
+                    group["residual_equity_remaining_qty"] = remaining
+                else:
+                    group.pop("residual_equity_remaining_qty", None)
+                changed = True
+        return changed
+
+    def _submit_residual_equity_close(self, group_id: str, group: dict,
+                                      groups: dict, positions: list,
+                                      latest: dict, executor: Any) -> bool:
+        """Submit the narrow emergency close only when attribution is unique."""
+        underlying = str(group.get("underlying", "")).upper()
+        matches = [candidate for candidate in groups.values()
+                   if not candidate.get("closed") and
+                   str(candidate.get("underlying", "")).upper() == underlying]
+        if len(matches) != 1 or len(positions) != 1:
+            return False
+        try:
+            quantity = int(float(positions[0].qty))
+        except (AttributeError, TypeError, ValueError):
+            return False
+        declared = _group_quantity(group)
+        baseline = group.get("pre_expiry_underlying_qty")
+        try:
+            delivered = quantity - int(baseline)
+        except (TypeError, ValueError):
+            return False
+        retry_remaining = _signed_quantity(group.get("residual_equity_remaining_qty"))
+        if (quantity == 0 or declared is None or
+                (retry_remaining is None and abs(delivered) != declared * 100) or
+                (retry_remaining is not None and delivered != retry_remaining)):
+            return False
+        allowed_deltas = self._possible_delivery_deltas(group)
+        attributable_delivery = (_signed_quantity(
+            group.get("residual_equity_original_delivery_qty"))
+            if retry_remaining is not None else delivered)
+        if (allowed_deltas is None or attributable_delivery is None or
+                attributable_delivery not in allowed_deltas):
+            return False
+        quote = latest.get(underlying)
+        side_price = "bid_price" if delivered > 0 else "ask_price"
+        try:
+            limit = float(getattr(quote, side_price))
+        except (AttributeError, TypeError, ValueError):
+            limit = 0.0
+        if limit <= 0:
+            # The stock remains a hard entry blocker; lack of a live touch is
+            # not evidence that it disappeared, nor authority to guess a price.
+            return False
+        attempt = int(group.get("residual_equity_close_attempt", 0)) + 1
+        client_order_id = f"sentinel-residual-{underlying}-{attempt}"
+        try:
+            order = executor.submit_residual_equity_close(
+                underlying, delivered, limit, client_order_id=client_order_id)
+        except Exception as exc:  # noqa: BLE001
+            print(f"  RESIDUAL EXIT FAILED {group_id}: {exc}")
+            return False
+        group["residual_equity_close_pending"] = True
+        group["residual_equity_close_order_id"] = str(order.id)
+        group["residual_equity_close_client_order_id"] = client_order_id
+        group["residual_equity_close_qty"] = delivered
+        group.setdefault("residual_equity_original_delivery_qty", delivered)
+        group.pop("residual_equity_remaining_qty", None)
+        group["residual_equity_close_limit_price"] = limit
+        group["residual_equity_close_attempt"] = attempt
+        self._record({"kind": "residual_equity_flatten_tracking", "group": group_id,
+                      "order_id": str(order.id), "symbol": underlying,
+                      "quantity": delivered})
+        return True
+
+    @staticmethod
+    def _possible_delivery_deltas(group: dict) -> set[int] | None:
+        """Return stock deltas possible at expiry from the recorded OCC legs."""
+        legs = []
+        for symbol, info in group.get("legs", {}).items():
+            parsed = parse_contract(symbol)
+            quantity = _quantity(info.get("qty"))
+            side = info.get("side")
+            if (not parsed or quantity is None or quantity <= 0 or
+                    side not in {"buy", "sell"}):
+                return None
+            legs.append((parsed[2], parsed[3], side, quantity))
+        if not legs:
+            return None
+        strikes = sorted({strike for _kind, strike, _side, _quantity in legs})
+        probes = [strikes[0] - 1.0]
+        probes.extend((left + right) / 2 for left, right in zip(strikes, strikes[1:]))
+        probes.append(strikes[-1] + 1.0)
+        outcomes = {0}
+        for spot in probes:
+            delta = 0
+            for kind, strike, side, quantity in legs:
+                in_the_money = ((kind == "call" and spot > strike) or
+                                 (kind == "put" and spot < strike))
+                if not in_the_money:
+                    continue
+                direction = 1 if kind == "call" else -1
+                if side == "sell":
+                    direction *= -1
+                delta += direction * quantity * 100
+            outcomes.add(delta)
+        return outcomes
 
     @staticmethod
     def _ownership_conflicts(groups: dict, broker: dict) -> set[str]:

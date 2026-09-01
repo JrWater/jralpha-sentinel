@@ -73,6 +73,31 @@ def test_group_record_identifies_a_gap_entry(structures):
         f"it wrote {sorted(group)}")
 
 
+def test_lifecycle_protected_orders_include_option_and_residual_closes(structures):
+    """Cron cleanup cannot cancel either pending lifecycle-owned close."""
+    structures.save({"groups": {
+        "option": {"close_pending": True, "close_order_id": "option-close"},
+        "residual": {
+            "residual_equity_close_pending": True,
+            "residual_equity_close_order_id": "residual-close",
+        },
+        "inactive": {"close_pending": False, "close_order_id": "ignore"},
+    }})
+
+    assert structures.protected_open_order_ids() == frozenset({
+        "option-close", "residual-close"})
+
+
+def test_pending_entry_persists_its_pre_expiry_stock_baseline(structures):
+    """Late same-day entries retain the stock fact needed for expiry recovery."""
+    structures.record_pending_entry(
+        _gap_proposal(), "153100", "entry-order-1",
+        pre_expiry_underlying_qty=-100)
+
+    pending = json.loads(structures.path.read_text())["pending_entries"]
+    assert pending["entry-order-1"]["group"]["pre_expiry_underlying_qty"] == -100
+
+
 def test_the_window_cap_predicate_actually_tallies(structures):
     """The guard's own expression, run against two recorded gap entries.
 

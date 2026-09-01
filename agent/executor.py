@@ -205,11 +205,57 @@ class Executor:
             max_loss_dollars=0.0, thesis=reason, reason=reason)
         return self.submit(proposal, closing=True, now=now)
 
+    def submit_residual_equity_close(self, symbol: str, quantity: int,
+                                     limit_price: float, *,
+                                     client_order_id: str | None = None,
+                                     now: datetime | None = None):
+        """Flatten stock delivered by one expired Sentinel structure.
+
+        This is not a general equity trading API: lifecycle code must first
+        prove attribution, and this boundary accepts only a declared,
+        risk-reducing Day limit close on the declared paper account.
+        """
+        self._refuse_unless_authorized(now=now)
+        self.manifest.residual_equity_close_shape()
+        normalized = symbol.strip().upper() if isinstance(symbol, str) else ""
+        if not normalized:
+            raise RuntimeError("residual equity close requires a symbol")
+        if not isinstance(quantity, int) or quantity == 0:
+            raise RuntimeError("residual equity close requires a non-zero quantity")
+        if limit_price <= 0:
+            raise RuntimeError("residual equity close requires a positive limit")
+        side = OrderSide.SELL if quantity > 0 else OrderSide.BUY
+        intent = (PositionIntent.SELL_TO_CLOSE if quantity > 0
+                  else PositionIntent.BUY_TO_CLOSE)
+        order = self.client.submit_order(LimitOrderRequest(
+            symbol=normalized,
+            qty=abs(quantity),
+            side=side,
+            position_intent=intent,
+            order_class=OrderClass.SIMPLE,
+            time_in_force=TimeInForce.DAY,
+            limit_price=limit_price,
+            client_order_id=client_order_id,
+        ))
+        self._log(f"  SUBMITTED residual close {order.id} {normalized} "
+                  f"x{abs(quantity)} @ {limit_price:.2f} -> {order.status}")
+        self._record_decision({
+            "kind": "residual_equity_flatten_submitted",
+            "at_utc": datetime.now(timezone.utc).isoformat(),
+            "order_id": str(order.id),
+            "client_order_id": client_order_id,
+            "symbol": normalized,
+            "quantity": quantity,
+            "limit_price": limit_price,
+        })
+        return order
+
     def get_order_by_id(self, order_id: str):
         """Read the broker status for this structure's recorded close order."""
         return self.client.get_order_by_id(order_id)
 
-    def retry_open_orders_cleanup(self) -> None:
+    def retry_open_orders_cleanup(self, *, preserve_order_ids: frozenset[str] =
+                                  frozenset()) -> None:
         """Cancel stale open orders (they will not fill today)."""
         try:
             open_orders = self.client.get_orders(
@@ -217,6 +263,9 @@ class Executor:
         except Exception:                                   # noqa: BLE001
             return
         for o in open_orders:
+            if str(getattr(o, "id", "")) in preserve_order_ids:
+                self._log(f"  PRESERVED lifecycle order {o.id} ({o.symbol})")
+                continue
             try:
                 self.client.cancel_order_by_id(o.id)
                 self._log(f"  CANCELLED stale {o.id} ({o.symbol})")

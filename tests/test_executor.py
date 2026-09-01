@@ -61,6 +61,12 @@ def manifest():
     return load_manifest()
 
 
+@pytest.fixture(autouse=True)
+def _isolate_decision_log(monkeypatch):
+    """Unit brokers must never append their fake orders to live audit state."""
+    monkeypatch.setattr("agent.executor.append_decision", lambda _record: None)
+
+
 def _proposal(**kw) -> Proposal:
     base = dict(
         engine="trend_single", underlying="SPY", direction="long",
@@ -265,3 +271,14 @@ def test_open_order_cleanup_uses_the_sdk_filter_object(manifest):
     assert len(client.get_orders_filters) == 1
     assert client.get_orders_filters[0].status == QueryOrderStatus.OPEN
     assert client.canceled_order_ids == ["stale-1"]
+
+
+def test_open_order_cleanup_preserves_tracked_lifecycle_close(manifest):
+    """A lifecycle close must survive the routine stale-order sweep."""
+    declared = manifest.get("environment", "competition_account_id")
+    client = FakeClient(account_number=declared)
+    ex = Executor(client, manifest, verbose=False)
+
+    ex.retry_open_orders_cleanup(preserve_order_ids=frozenset({"stale-1"}))
+
+    assert client.canceled_order_ids == []

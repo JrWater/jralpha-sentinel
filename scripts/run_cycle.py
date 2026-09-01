@@ -391,7 +391,13 @@ def _run_cycle(environment: CycleEnvironment) -> CycleResult:
     executor = environment.executor_factory(
         data.trading, manifest, record_decision=environment.append_decision)
     if not args.dry_run:
-        executor.retry_open_orders_cleanup()
+        preserved_residual_orders = \
+            environment.structures.protected_open_order_ids()
+        if preserved_residual_orders:
+            executor.retry_open_orders_cleanup(
+                preserve_order_ids=preserved_residual_orders)
+        else:
+            executor.retry_open_orders_cleanup()
         # Cleanup happens before this read, so an old DAY order cancelled in
         # this cycle is discarded now rather than blocking one extra cycle.
         entry_reconciliation = environment.structures.reconcile_pending_entries(
@@ -586,6 +592,16 @@ def _run_cycle(environment: CycleEnvironment) -> CycleResult:
             environment.structures.unresolved_entry_reconciliation_count()),
     )
     entered_at = now_utc.strftime("%H%M%S")
+    underlying_baselines: dict[str, int] = {}
+    for position in state.non_option_positions:
+        try:
+            quantity = int(float(position.qty))
+        except (AttributeError, TypeError, ValueError):
+            continue
+        symbol = str(getattr(position, "symbol", "")).strip().upper()
+        if symbol:
+            underlying_baselines[symbol] = \
+                underlying_baselines.get(symbol, 0) + quantity
 
     entry_result = submit_entries(
         candidates=candidates, chosen=chosen, decisions=decisions,
@@ -599,7 +615,8 @@ def _run_cycle(environment: CycleEnvironment) -> CycleResult:
             manifest, environment.structures, journal, executor,
             account_id=str(state.account.account_number),
             trading_date=trading_date, cycle_id=cycle_id,
-            entered_at=entered_at),
+            entered_at=entered_at,
+            underlying_baselines=underlying_baselines),
     )
     for event in entry_result.events:
         p = event.proposal

@@ -108,7 +108,11 @@ def test_structure_admission_records_policy_exit_intent_before_dispatch():
     args, kwargs = recorded[0]
     assert args[0] is proposal
     assert args[1:] == ("101500", "client-1")
-    assert kwargs == {"take_profit": 0.5, "stop_loss": 2.0}
+    assert kwargs == {
+        "take_profit": 0.5,
+        "stop_loss": 2.0,
+        "pre_expiry_underlying_qty": 0,
+    }
 
 
 def test_unresolved_admission_preserves_identity_and_aborts_later_entries(

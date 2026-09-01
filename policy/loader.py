@@ -244,6 +244,17 @@ class Manifest:
         return frozenset(self._shapes_by_id[shape_id].asset_class
                          for shape_id in shape_ids)
 
+    def residual_equity_close_shape(self) -> OrderShape:
+        """Return the one declared stock-only emergency close wire shape."""
+        shape = self._shapes_by_id.get("residual_equity_close_limit_day")
+        if (shape is None or shape.asset_class != "us_equity" or
+                not shape.matches(order_class="simple", type="limit",
+                                  time_in_force="day", legs=1)):
+            raise ValueError(
+                "manifest must declare residual_equity_close_limit_day as "
+                "a one-leg Day equity limit close")
+        return shape
+
     @property
     def identity(self) -> str:
         return f"{self.policy_id}@{self.version}+{self.sha[:12]}"

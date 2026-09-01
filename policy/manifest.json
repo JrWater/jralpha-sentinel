@@ -250,6 +250,15 @@
       "type": "limit",
       "time_in_force": "day",
       "legs": 4
+    },
+    {
+      "id": "residual_equity_close_limit_day",
+      "asset_class": "us_equity",
+      "order_class": "simple",
+      "type": "limit",
+      "time_in_force": "day",
+      "legs": 1,
+      "_comment": "Emergency risk-reduction only: closes stock uniquely attributable to an expired Sentinel option structure. It is never an entry shape."
     }
   ],
   "_comment_shapes": "The wire form of every order this policy may emit. The executor builds an order FROM this list and validates any order it sees at the broker AGAINST the same list. Note the absence of 'market': on a 15-minute-delayed feed a market order is a blank cheque; on the final morning a market close would also be unverifiable. Every exit is a limit order at the current bid/ask, so 'flatten' means 'liquidate by limit, confirm, then liquidate the remainder at the improved touch', never 'market everything'.",

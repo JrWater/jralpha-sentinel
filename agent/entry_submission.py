@@ -111,7 +111,8 @@ class StructureAdmission:
 
     def __init__(self, manifest, structures, journal, executor, *,
                  account_id: str, trading_date: date, cycle_id: str,
-                 entered_at: str):
+                 entered_at: str,
+                 underlying_baselines: dict[str, int] | None = None):
         self._manifest = manifest
         self._structures = structures
         self._journal = journal
@@ -120,14 +121,20 @@ class StructureAdmission:
         self._trading_date = trading_date
         self._cycle_id = cycle_id
         self._entered_at = entered_at
+        self._underlying_baselines = underlying_baselines or {}
 
     def record_pending(self, proposal: Proposal, reservation: Reservation) -> None:
         exit_intent = self._manifest.exit_intent_for(
             proposal.engine, proposal.structure)
+        kwargs = {
+            "take_profit": exit_intent.take_profit,
+            "stop_loss": exit_intent.stop_loss_factor,
+        }
+        kwargs["pre_expiry_underlying_qty"] = \
+            self._underlying_baselines.get(proposal.underlying, 0)
         self._structures.record_pending_entry(
             proposal, self._entered_at, reservation.client_order_id,
-            take_profit=exit_intent.take_profit,
-            stop_loss=exit_intent.stop_loss_factor)
+            **kwargs)
 
     def admit(self, proposal: Proposal, *, fire_keys: tuple[str, ...],
               gap_counters: tuple[tuple[str, int], ...]) -> tuple[Reservation, Any]:
