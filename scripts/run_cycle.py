@@ -391,15 +391,17 @@ def _run_cycle(environment: CycleEnvironment) -> CycleResult:
     executor = environment.executor_factory(
         data.trading, manifest, record_decision=environment.append_decision)
     if not args.dry_run:
-        preserved_residual_orders = \
+        preserved_lifecycle_orders = \
             environment.structures.protected_open_order_ids()
-        if preserved_residual_orders:
-            executor.retry_open_orders_cleanup(
-                preserve_order_ids=preserved_residual_orders)
-        else:
-            executor.retry_open_orders_cleanup()
-        # Cleanup happens before this read, so an old DAY order cancelled in
-        # this cycle is discarded now rather than blocking one extra cycle.
+        pending_entry_clients = \
+            environment.structures.pending_entry_client_order_ids()
+        executor.retry_open_orders_cleanup(
+            preserve_order_ids=preserved_lifecycle_orders,
+            preserve_client_order_ids=pending_entry_clients)
+        # An accepted DAY entry is owned by its pending structure record until
+        # the broker proves fill, cancel, rejection, or expiry.  Cleanup may
+        # still remove unknown orders, but must not erase that reconciliation
+        # evidence before the following read.
         entry_reconciliation = environment.structures.reconcile_pending_entries(
             data.trading.get_order_by_client_id)
         if (entry_reconciliation.activated or entry_reconciliation.discarded

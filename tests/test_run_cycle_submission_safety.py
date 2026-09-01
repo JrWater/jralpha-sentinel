@@ -151,10 +151,12 @@ def test_scheduled_cycle_with_stock_exposure_refuses_before_engine_or_submit(
     class Executor:
         def __init__(self):
             self.cleanup_calls = 0
+            self.cleanup_kwargs = None
             self.submissions = 0
 
-        def retry_open_orders_cleanup(self):
+        def retry_open_orders_cleanup(self, **kwargs):
             self.cleanup_calls += 1
+            self.cleanup_kwargs = kwargs
 
     executor = Executor()
     snapshots = []
@@ -171,12 +173,17 @@ def test_scheduled_cycle_with_stock_exposure_refuses_before_engine_or_submit(
         snapshot_history_path=tmp_path / "snapshot.json")
     monkeypatch.setattr(run_cycle, "build_state", lambda *_args: state)
     monkeypatch.setattr(sys, "argv", ["run_cycle.py"])
+    environment.structures.record_pending_entry(
+        _proposal(), "093500", "pending-entry-client-id")
 
     result = run_cycle.run(environment)
 
     assert result.disposition == "entry_permit_refused"
     assert "non_option_positions" in result.blockers
+    assert "unresolved_entry_reconciliations" in result.blockers
     assert executor.cleanup_calls == 1
+    assert executor.cleanup_kwargs["preserve_client_order_ids"] == frozenset({
+        "pending-entry-client-id"})
     assert executor.submissions == 0
     assert snapshots[-1]["positions"][0]["symbol"] == "TSLA"
 

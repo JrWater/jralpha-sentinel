@@ -113,6 +113,13 @@ class StructureLedger:
             )
             if pending and order_id)
 
+    def pending_entry_client_order_ids(self) -> frozenset[str]:
+        """Return accepted entry identities awaiting definitive broker outcome."""
+        return frozenset(
+            str(client_order_id)
+            for client_order_id in self.load().get("pending_entries", {})
+            if client_order_id)
+
     def _group_record(self, proposal: Any) -> dict:
         """Serialize the strategy-owned facts of one eventual structure."""
         entry_net = sum(

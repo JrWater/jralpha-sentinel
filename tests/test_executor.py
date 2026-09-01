@@ -50,7 +50,8 @@ class FakeClient:
 
     def get_orders(self, filter=None):
         self.get_orders_filters.append(filter)
-        return [SimpleNamespace(id="stale-1", symbol="SPY")]
+        return [SimpleNamespace(id="stale-1", client_order_id="stale-client-1",
+                                symbol="SPY")]
 
     def cancel_order_by_id(self, order_id):
         self.canceled_order_ids.append(order_id)
@@ -280,5 +281,18 @@ def test_open_order_cleanup_preserves_tracked_lifecycle_close(manifest):
     ex = Executor(client, manifest, verbose=False)
 
     ex.retry_open_orders_cleanup(preserve_order_ids=frozenset({"stale-1"}))
+
+    assert client.canceled_order_ids == []
+
+
+def test_open_order_cleanup_preserves_a_pending_entry_by_client_order_id(
+        manifest):
+    """A still-reconciling Day entry must outlive the next scheduled cycle."""
+    declared = manifest.get("environment", "competition_account_id")
+    client = FakeClient(account_number=declared)
+    ex = Executor(client, manifest, verbose=False)
+
+    ex.retry_open_orders_cleanup(
+        preserve_client_order_ids=frozenset({"stale-client-1"}))
 
     assert client.canceled_order_ids == []

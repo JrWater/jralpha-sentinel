@@ -98,6 +98,14 @@ def test_pending_entry_persists_its_pre_expiry_stock_baseline(structures):
     assert pending["entry-order-1"]["group"]["pre_expiry_underlying_qty"] == -100
 
 
+def test_pending_entry_client_ids_are_protected_from_cycle_cleanup(structures):
+    """A broker-accepted entry remains owned until broker reconciliation."""
+    structures.record_pending_entry(_gap_proposal(), "093500", "entry-order-1")
+
+    assert structures.pending_entry_client_order_ids() == frozenset({
+        "entry-order-1"})
+
+
 def test_the_window_cap_predicate_actually_tallies(structures):
     """The guard's own expression, run against two recorded gap entries.
 

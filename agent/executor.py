@@ -290,17 +290,20 @@ class Executor:
         })
         return order
 
-    def retry_open_orders_cleanup(self, *, preserve_order_ids: frozenset[str] =
-                                  frozenset()) -> None:
-        """Cancel stale open orders (they will not fill today)."""
+    def retry_open_orders_cleanup(
+            self, *, preserve_order_ids: frozenset[str] = frozenset(),
+            preserve_client_order_ids: frozenset[str] = frozenset()) -> None:
+        """Cancel only open orders that have no active Sentinel owner."""
         try:
             open_orders = self.client.get_orders(
                 filter=GetOrdersRequest(status=QueryOrderStatus.OPEN))
         except Exception:                                   # noqa: BLE001
             return
         for o in open_orders:
-            if str(getattr(o, "id", "")) in preserve_order_ids:
-                self._log(f"  PRESERVED lifecycle order {o.id} ({o.symbol})")
+            if (str(getattr(o, "id", "")) in preserve_order_ids or
+                    str(getattr(o, "client_order_id", "")) in
+                    preserve_client_order_ids):
+                self._log(f"  PRESERVED tracked order {o.id} ({o.symbol})")
                 continue
             try:
                 self.client.cancel_order_by_id(o.id)
