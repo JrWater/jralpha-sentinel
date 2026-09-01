@@ -130,6 +130,29 @@ execution through the Trading API.
 4. Sep 3: LULU straddle 15:00–15:15 + NFP strangle, both 1 DTE
 5. Sep 4: 09:30–09:45 NFP gap vertical; 10:45 aggressive flatten; 15:00 UTC submit
 
+## v3.2.0 FINAL window configuration (2026-08-31, cross-validated)
+
+Four independent engines were asked the same question over the same
+universe and period. Three of them agree on the direction, and the live
+account confirms it (3 days in: −3.4%, held by trend legs):
+
+| engine | result |
+|---|---|
+| Vibe-Trading spot (fills + commission) | trend rules −6.65% vs SPY +23.9%, PF 0.92, P(Sharpe>0) 39% |
+| Vibe-Trading options (independent BS) | credit spreads +2.1%, roundtrip win 69%, PF 1.06 |
+| our model sim (no costs) | credit +18.4k / 87% — optimistic, corrected by the row above |
+| Vibe-Trading LLM-agent | +85% but self-falsified (MC p=0.82; all profit in 5 trades; long-hold wins, churn loses) |
+
+**Verdict for the remaining window: the trend vector is DISABLED
+(`trend_directional`/`trend_income`/`trend_single` all off).** Its expected
+value after costs is ≈ 0 at best, and its variance competes for the shared
+$40k at-risk budget against the only two statistically grounded positive-EV
+bets in the window — the NFP gap continuation (9/10, 33 first-Fridays) and
+the LULU straddle (median move 11.8% vs ~6% breakeven). The event stack
+(LULU $12k + NFP strangle $10k + gap $8k×2) fits the at-risk cap exactly.
+Exits and reconciliation continue to manage whatever is already open; no
+new trend exposure opens.
+
 ## v3.1 Evidence pass (2026-08-26): event studies, PEAD killed
 
 The two biggest all-in bets deserved evidence, so the window's events were

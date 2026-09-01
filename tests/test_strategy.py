@@ -15,7 +15,7 @@ sys.path.insert(0, str(ROOT))
 
 import pytest
 
-from policy.loader import Manifest, load as load_manifest
+from policy.loader import LossBudget, Manifest, load as load_manifest
 from strategy.data import ChainContract, contract_symbol, parse_contract
 from strategy.engine import EngineContext, run as run_engines
 from strategy.indicators import (atr, black_scholes, bs_delta, ema, ivr,
@@ -264,6 +264,25 @@ def test_engine_suppressed_on_final_date(manifest):
     assert run_engines(ctx) == []
 
 
+def test_engine_final_day_keeps_only_manifest_allowed_event_candidates(
+        manifest, monkeypatch):
+    from types import SimpleNamespace
+    import strategy.engine as engine_module
+    from strategy.data import MarketState
+
+    events = [SimpleNamespace(label="event-nfp-gap", score=0.65),
+              SimpleNamespace(label="event-unlisted", score=0.75)]
+    monkeypatch.setattr(engine_module, "_event", lambda _ctx: events)
+    ctx = EngineContext(
+        state=MarketState(equity=100000.0), manifest=manifest,
+        regime=classify([100 + i * 0.5 for i in range(80)],
+                        [100 + i * 0.6 for i in range(80)], [0.5]),
+        now_et=datetime(2026, 9, 4, 10, 0, tzinfo=timezone.utc))
+
+    assert [candidate.label for candidate in run_engines(ctx)] == ["event-nfp-gap"]
+
+
+
 def test_engine_never_emits_without_evidence(manifest):
     """An empty market state must produce zero candidates — never a guess."""
     from strategy.data import MarketState
@@ -451,7 +470,7 @@ def test_sizing_scale_halves_cap(manifest):
                            count_by_engine={}, current_equity=100000,
                            starting_equity=100000, scale=0.5)
     sized = fixed_quantity(p, manifest, "event_macro", state,
-                           cap_key="addon_max_loss_per_trade_fraction")
+                           budget=LossBudget.GAP_ADDON)
     # add-on cap 8% = $8,000; halved = $4,000 -> 10 contracts
     assert sized is not None and sized.legs[0].quantity == 10
 
@@ -653,9 +672,15 @@ def test_trend_single_fires_on_high_conviction(manifest):
 # ── v3.1.1: the conviction single-leg layer must follow the regime ──────────
 
 def _manifest_with_single_layer(manifest, *, enabled: bool) -> Manifest:
-    """Exercise the strategy rule independently of the production kill switch."""
+    """Exercise the strategy rule independently of the production kill switch.
+
+    v3.2.0 disabled the whole trend vector in production; this helper also
+    re-enables the vector's two engines so the single-leg MECHANISM remains
+    testable while the production switch stays off."""
     raw = copy.deepcopy(manifest._raw)
     raw["strategies"]["trend_single"]["enabled"] = enabled
+    raw["strategies"]["trend_directional"]["enabled"] = True
+    raw["strategies"]["trend_income"]["enabled"] = True
     return Manifest(raw)
 
 def _single_layer_scenario(manifest, *, spy_closes, breadth):
