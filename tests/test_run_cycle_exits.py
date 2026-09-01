@@ -213,7 +213,99 @@ def test_expired_structure_with_an_unparseable_leg_stays_quarantined(tmp_path):
     group = json.loads(meta_path.read_text())["groups"]["corrupt-tsla"]
     assert group["closed"] is False
     assert group["reconciliation_required"] is True
-    assert group["reconciliation_detail"] == "expired_structure_underlying_unresolved"
+    assert group["reconciliation_detail"] == "expired_structure_leg_identity_unresolved"
+
+
+def test_expired_structure_with_a_later_occ_leg_stays_quarantined(tmp_path):
+    """The ledger expiry must agree with every valid declared contract leg."""
+    raw = copy.deepcopy(load_manifest()._raw)
+    raw["environment"]["competition_account_id"] = "PAPER-TEST"
+    manifest = Manifest(raw)
+    meta_path = tmp_path / "positions_meta.json"
+    meta_path.write_text(json.dumps({"groups": {
+        "inconsistent-expiry": {
+            "closed": False,
+            "underlying": "TSLA",
+            "expiry": "2026-08-31",
+            "legs": {
+                "TSLA260831C00367500": {"side": "buy", "qty": 15},
+                "TSLA260904C00372500": {"side": "sell", "qty": 15},
+            },
+        },
+    }}))
+    state = MarketState(
+        now_utc=datetime(2026, 9, 1, 14, tzinfo=timezone.utc), positions=[])
+
+    assert run_cycle.manage_exits(
+        state, manifest, PaperBrokerBoundary("PAPER-TEST"),
+        structures=StructureLedger(meta_path), record_decision=lambda _: None) == 0
+
+    group = json.loads(meta_path.read_text())["groups"]["inconsistent-expiry"]
+    assert group["closed"] is False
+    assert group["reconciliation_required"] is True
+    assert group["reconciliation_detail"] == "expired_structure_leg_identity_unresolved"
+
+
+def test_expired_structure_with_unknown_stock_fact_stays_quarantined(tmp_path):
+    """A legacy snapshot missing stock facts cannot prove zero residual exposure."""
+    raw = copy.deepcopy(load_manifest()._raw)
+    raw["environment"]["competition_account_id"] = "PAPER-TEST"
+    manifest = Manifest(raw)
+    meta_path = tmp_path / "positions_meta.json"
+    meta_path.write_text(json.dumps({"groups": {
+        "legacy-tsla": {
+            "closed": False,
+            "underlying": "TSLA",
+            "expiry": "2026-08-31",
+            "legs": {
+                "TSLA260831C00367500": {"side": "buy", "qty": 15},
+                "TSLA260831C00372500": {"side": "sell", "qty": 15},
+            },
+        },
+    }}))
+    state = SimpleNamespace(
+        now_utc=datetime(2026, 9, 1, 14, tzinfo=timezone.utc), positions=[],
+        chains={})
+
+    assert run_cycle.manage_exits(
+        state, manifest, PaperBrokerBoundary("PAPER-TEST"),
+        structures=StructureLedger(meta_path), record_decision=lambda _: None) == 0
+
+    group = json.loads(meta_path.read_text())["groups"]["legacy-tsla"]
+    assert group["closed"] is False
+    assert group["reconciliation_required"] is True
+    assert group["reconciliation_detail"] == "non_option_position_state_unavailable"
+
+
+def test_expired_structure_with_unreadable_stock_identity_stays_quarantined(tmp_path):
+    """One malformed non-option position prevents a zero-exposure conclusion."""
+    raw = copy.deepcopy(load_manifest()._raw)
+    raw["environment"]["competition_account_id"] = "PAPER-TEST"
+    manifest = Manifest(raw)
+    meta_path = tmp_path / "positions_meta.json"
+    meta_path.write_text(json.dumps({"groups": {
+        "legacy-tsla": {
+            "closed": False,
+            "underlying": "TSLA",
+            "expiry": "2026-08-31",
+            "legs": {
+                "TSLA260831C00367500": {"side": "buy", "qty": 15},
+                "TSLA260831C00372500": {"side": "sell", "qty": 15},
+            },
+        },
+    }}))
+    state = MarketState(
+        now_utc=datetime(2026, 9, 1, 14, tzinfo=timezone.utc), positions=[],
+        non_option_positions=[SimpleNamespace(symbol=None, qty="500")])
+
+    assert run_cycle.manage_exits(
+        state, manifest, PaperBrokerBoundary("PAPER-TEST"),
+        structures=StructureLedger(meta_path), record_decision=lambda _: None) == 0
+
+    group = json.loads(meta_path.read_text())["groups"]["legacy-tsla"]
+    assert group["closed"] is False
+    assert group["reconciliation_required"] is True
+    assert group["reconciliation_detail"] == "non_option_position_state_unavailable"
 
 
 def test_registered_structure_exit_is_not_resubmitted_as_orphan(

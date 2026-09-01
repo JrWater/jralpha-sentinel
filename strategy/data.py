@@ -29,7 +29,10 @@ def parse_contract(symbol: str) -> tuple[str, date, str, float] | None:
     if not m:
         return None
     underlying, yymmdd, ctype, strike = m.groups()
-    expiry = datetime.strptime(yymmdd, "%y%m%d").date()
+    try:
+        expiry = datetime.strptime(yymmdd, "%y%m%d").date()
+    except ValueError:
+        return None
     return underlying, expiry, ("call" if ctype == "C" else "put"), int(strike) / 1000.0
 
 

@@ -108,7 +108,7 @@ class PositionLifecycle:
                 meta_changed = True
 
         meta_changed = self._reconcile_expired_absent(
-            groups, broker, getattr(state, "non_option_positions", []),
+            groups, broker, getattr(state, "non_option_positions", None),
             now_et.date(), state.now_utc) or meta_changed
 
         # Net broker positions do not identify lots.  Before deciding any new
@@ -235,7 +235,7 @@ class PositionLifecycle:
         group["reconciliation_detail"] = detail
 
     def _reconcile_expired_absent(self, groups: dict, broker: dict,
-                                  non_option_positions: list,
+                                  non_option_positions: list | None,
                                   today: date, now_utc) -> bool:
         """Close expired structures only when their resulting exposure is zero.
 
@@ -244,10 +244,14 @@ class PositionLifecycle:
         Those groups remain quarantined until the underlying is independently
         reconciled or flattened.
         """
-        non_option_symbols = {
-            str(getattr(position, "symbol", "")).upper()
-            for position in non_option_positions
-        }
+        non_option_symbols = set()
+        non_option_state_known = non_option_positions is not None
+        for position in non_option_positions or []:
+            symbol = getattr(position, "symbol", None)
+            if not isinstance(symbol, str) or not symbol.strip():
+                non_option_state_known = False
+                continue
+            non_option_symbols.add(symbol.upper())
         changed = False
         for group_id, group in groups.items():
             if group.get("closed") or group.get("close_pending"):
@@ -263,7 +267,13 @@ class PositionLifecycle:
             leg_underlyings = {parsed[0].upper() for parsed in parsed_legs if parsed}
             declared_underlying = str(group.get("underlying", "")).upper()
             if (not all(parsed_legs) or len(leg_underlyings) != 1 or
-                    not declared_underlying or
+                    any(parsed[1] != expiry for parsed in parsed_legs)):
+                if group.get("reconciliation_detail") != \
+                        "expired_structure_leg_identity_unresolved":
+                    self._quarantine(group, "expired_structure_leg_identity_unresolved")
+                    changed = True
+                continue
+            if (not declared_underlying or
                     declared_underlying not in leg_underlyings):
                 if group.get("reconciliation_detail") != \
                         "expired_structure_underlying_unresolved":
@@ -271,6 +281,12 @@ class PositionLifecycle:
                     changed = True
                 continue
             underlying = next(iter(leg_underlyings))
+            if not non_option_state_known:
+                if group.get("reconciliation_detail") != \
+                        "non_option_position_state_unavailable":
+                    self._quarantine(group, "non_option_position_state_unavailable")
+                    changed = True
+                continue
             if underlying in non_option_symbols:
                 if group.get("reconciliation_detail") != \
                         "underlying_exposure_after_expiry":

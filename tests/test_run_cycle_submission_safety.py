@@ -12,9 +12,12 @@ sys.path.insert(0, str(ROOT))
 
 from agent.submission_wal import (DISPATCHING, JournalView, Risk,
                                   SubmissionState)
+from agent.ledger import StructureLedger
 from agent import entry_submission
 from agent.proposer import SelectionResult
+from policy.loader import load as load_manifest
 from scripts import run_cycle
+from strategy.data import MarketState
 from strategy.daystate import DayState
 from strategy.proposal import OptionLeg, Proposal
 
@@ -123,6 +126,59 @@ def test_cycle_environment_isolates_all_durable_cycle_paths(tmp_path):
     assert environment.permit_path == tmp_path / "entry_permit.json"
     assert environment.decisions_path.read_text()
     assert environment.ledger_path.exists()
+
+
+def test_scheduled_cycle_with_stock_exposure_refuses_before_engine_or_submit(
+        tmp_path, monkeypatch):
+    """The non-dry cron path cannot turn an unmanaged stock into new options."""
+    manifest = load_manifest()
+    state = MarketState(
+        account=SimpleNamespace(
+            account_number=manifest.get("environment", "competition_account_id"),
+            status="ACTIVE", trading_blocked=False, equity="100000",
+            cash="100000", options_trading_level=3,
+            options_buying_power="100000"),
+        clock=SimpleNamespace(is_open=True), equity=100000.0,
+        positions=[], non_option_positions=[SimpleNamespace(symbol="TSLA", qty="500")],
+        now_utc=datetime(2026, 9, 1, 14, tzinfo=timezone.utc))
+
+    class Data:
+        trading = SimpleNamespace(get_order_by_client_id=lambda _id: None)
+
+        def positions(self):
+            return state.non_option_positions
+
+    class Executor:
+        def __init__(self):
+            self.cleanup_calls = 0
+            self.submissions = 0
+
+        def retry_open_orders_cleanup(self):
+            self.cleanup_calls += 1
+
+    executor = Executor()
+    snapshots = []
+    environment = run_cycle.CycleEnvironment(
+        root=ROOT, state_dir=tmp_path / "state",
+        structures=StructureLedger(tmp_path / "state" / "positions_meta.json"),
+        manifest_loader=lambda: manifest, environment_loader=lambda _path: {},
+        credential_loader=lambda _env: ("key", "secret"),
+        data_factory=lambda _key, _secret: Data(),
+        executor_factory=lambda *_args, **_kwargs: executor,
+        engine_runner=lambda _ctx: (_ for _ in ()).throw(
+            AssertionError("blocked cycle must not reach engines")),
+        snapshot_writer=snapshots.append,
+        snapshot_history_path=tmp_path / "snapshot.json")
+    monkeypatch.setattr(run_cycle, "build_state", lambda *_args: state)
+    monkeypatch.setattr(sys, "argv", ["run_cycle.py"])
+
+    result = run_cycle.run(environment)
+
+    assert result.disposition == "entry_permit_refused"
+    assert "non_option_positions" in result.blockers
+    assert executor.cleanup_calls == 1
+    assert executor.submissions == 0
+    assert snapshots[-1]["positions"][0]["symbol"] == "TSLA"
 
 
 def test_new_public_decision_has_no_accepted_alias():
