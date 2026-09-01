@@ -251,7 +251,7 @@ class PositionLifecycle:
             if not isinstance(symbol, str) or not symbol.strip():
                 non_option_state_known = False
                 continue
-            non_option_symbols.add(symbol.upper())
+            non_option_symbols.add(symbol.strip().upper())
         changed = False
         for group_id, group in groups.items():
             if group.get("closed") or group.get("close_pending"):
@@ -259,6 +259,9 @@ class PositionLifecycle:
             try:
                 expiry = date.fromisoformat(str(group.get("expiry", "")))
             except ValueError:
+                if group.get("reconciliation_detail") != "group_expiry_unreadable":
+                    self._quarantine(group, "group_expiry_unreadable")
+                    changed = True
                 continue
             legs = set(group.get("legs", {}))
             if not legs or expiry >= today or legs.intersection(broker):

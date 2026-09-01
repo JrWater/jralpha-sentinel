@@ -308,6 +308,66 @@ def test_expired_structure_with_unreadable_stock_identity_stays_quarantined(tmp_
     assert group["reconciliation_detail"] == "non_option_position_state_unavailable"
 
 
+def test_expired_structure_with_whitespace_stock_symbol_stays_quarantined(tmp_path):
+    """Broker symbol normalization cannot erase residual underlying exposure."""
+    raw = copy.deepcopy(load_manifest()._raw)
+    raw["environment"]["competition_account_id"] = "PAPER-TEST"
+    manifest = Manifest(raw)
+    meta_path = tmp_path / "positions_meta.json"
+    meta_path.write_text(json.dumps({"groups": {
+        "legacy-tsla": {
+            "closed": False,
+            "underlying": "TSLA",
+            "expiry": "2026-08-31",
+            "legs": {
+                "TSLA260831C00367500": {"side": "buy", "qty": 15},
+                "TSLA260831C00372500": {"side": "sell", "qty": 15},
+            },
+        },
+    }}))
+    state = MarketState(
+        now_utc=datetime(2026, 9, 1, 14, tzinfo=timezone.utc), positions=[],
+        non_option_positions=[SimpleNamespace(symbol=" TSLA ", qty="500")])
+
+    assert run_cycle.manage_exits(
+        state, manifest, PaperBrokerBoundary("PAPER-TEST"),
+        structures=StructureLedger(meta_path), record_decision=lambda _: None) == 0
+
+    group = json.loads(meta_path.read_text())["groups"]["legacy-tsla"]
+    assert group["closed"] is False
+    assert group["reconciliation_required"] is True
+    assert group["reconciliation_detail"] == "underlying_exposure_after_expiry"
+
+
+def test_structure_with_unreadable_declared_expiry_stays_quarantined(tmp_path):
+    """A malformed expiry cannot escape the structure-close gate."""
+    raw = copy.deepcopy(load_manifest()._raw)
+    raw["environment"]["competition_account_id"] = "PAPER-TEST"
+    manifest = Manifest(raw)
+    symbol = "TSLA260831C00367500"
+    meta_path = tmp_path / "positions_meta.json"
+    meta_path.write_text(json.dumps({"groups": {
+        "malformed-expiry": {
+            "closed": False,
+            "underlying": "TSLA",
+            "expiry": "not-a-date",
+            "legs": {symbol: {"side": "buy", "qty": 15}},
+        },
+    }}))
+    state = MarketState(
+        now_utc=datetime(2026, 9, 1, 14, tzinfo=timezone.utc),
+        positions=[SimpleNamespace(symbol=symbol, qty="15", current_price="1.00")])
+
+    assert run_cycle.manage_exits(
+        state, manifest, PaperBrokerBoundary("PAPER-TEST"),
+        structures=StructureLedger(meta_path), record_decision=lambda _: None) == 0
+
+    group = json.loads(meta_path.read_text())["groups"]["malformed-expiry"]
+    assert group["closed"] is False
+    assert group["reconciliation_required"] is True
+    assert group["reconciliation_detail"] == "group_expiry_unreadable"
+
+
 def test_registered_structure_exit_is_not_resubmitted_as_orphan(
         tmp_path, monkeypatch):
     """One registered spread produces exactly one broker close order.
