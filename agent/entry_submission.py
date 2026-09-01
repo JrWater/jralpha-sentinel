@@ -12,10 +12,10 @@ import json
 import uuid
 from dataclasses import dataclass
 from datetime import date
-from typing import Any, Callable, Sequence
+from typing import Any, Sequence
 
-from agent.submission_wal import (JournalView, Reservation, dispatch_entry,
-                                  make_client_order_id)
+from agent.submission_wal import (DISPATCHING, JournalView, Reservation,
+                                  dispatch_entry, make_client_order_id)
 from gates.evaluation import code_identity
 from gates.registry import severity_of
 from strategy.daystate import fire_key, fired
@@ -106,6 +106,61 @@ class EntryEvent:
     order: Any = None
 
 
+class StructureAdmission:
+    """Own reservation, durable structure handoff, and broker dispatch."""
+
+    def __init__(self, manifest, structures, journal, executor, *,
+                 account_id: str, trading_date: date, cycle_id: str,
+                 entered_at: str):
+        self._manifest = manifest
+        self._structures = structures
+        self._journal = journal
+        self._executor = executor
+        self._account_id = account_id
+        self._trading_date = trading_date
+        self._cycle_id = cycle_id
+        self._entered_at = entered_at
+
+    def record_pending(self, proposal: Proposal, reservation: Reservation) -> None:
+        exit_intent = self._manifest.exit_intent_for(
+            proposal.engine, proposal.structure)
+        self._structures.record_pending_entry(
+            proposal, self._entered_at, reservation.client_order_id,
+            take_profit=exit_intent.take_profit,
+            stop_loss=exit_intent.stop_loss_factor)
+
+    def admit(self, proposal: Proposal, *, fire_keys: tuple[str, ...],
+              gap_counters: tuple[tuple[str, int], ...]) -> tuple[Reservation, Any]:
+        """Reserve, hand off reconciliation identity, then dispatch once."""
+        reservation = make_reservation(
+            proposal=proposal, manifest=self._manifest,
+            account_id=self._account_id, trading_date=self._trading_date,
+            cycle_id=self._cycle_id, fire_keys=fire_keys,
+            gap_counters=gap_counters)
+        try:
+            order = dispatch_entry(
+                self._journal, reservation,
+                lambda client_id: self._executor.submit(
+                    proposal, client_order_id=client_id),
+                before_broker=lambda reserved: self.record_pending(
+                    proposal, reserved))
+        except Exception as exc:                            # noqa: BLE001
+            record = self._journal.replay().by_submission.get(
+                reservation.logical_submission_id)
+            if record is not None and record.state == DISPATCHING:
+                raise AdmissionDispatchError(reservation) from exc
+            raise
+        return reservation, order
+
+
+class AdmissionDispatchError(RuntimeError):
+    """A post-reservation failure whose client identity needs reconciliation."""
+
+    def __init__(self, reservation: Reservation):
+        super().__init__("admission dispatch did not complete")
+        self.reservation = reservation
+
+
 @dataclass(frozen=True)
 class SubmittedEntry:
     """The one fact a caller needs to book a broker-accepted structure."""
@@ -118,7 +173,7 @@ class SubmittedEntry:
 
 @dataclass(frozen=True)
 class EntrySubmissionResult:
-    """Returned facts; the adapter decides presentation and structure records."""
+    """Returned facts; the adapter decides presentation, not lifecycle writes."""
 
     submissions: tuple[SubmittedEntry, ...]
     events: tuple[EntryEvent, ...]
@@ -166,19 +221,18 @@ def _mark_submission_uncertain(row: dict, exc: Exception) -> None:
 
 
 def submit_entries(*, candidates: Sequence[Any], chosen: Sequence[int],
-                   decisions: list[dict], state, manifest, executor,
+                   decisions: list[dict], manifest,
                    portfolio, day, journal, journal_view: JournalView,
-                   trading_date: date, cycle_id: str, at_risk_cap: float,
+                   trading_date: date, at_risk_cap: float,
                    exposure_cap: float, entry_evaluator,
                    entry_cycle_subject,
-                   before_broker: Callable[[Proposal, Reservation], None] | None = None
+                   structure_admission: StructureAdmission
                    ) -> EntrySubmissionResult:
     """Evaluate and submit selected entries, returning facts rather than prints.
 
-    The input/output boundary is deliberately broker-neutral.  ``executor``
-    can be the live Alpaca adapter or a recorder in a test; the critical
-    guarantee is invariant in both modes: a gate-refused proposal never calls
-    ``executor.submit``.
+    The input/output boundary is deliberately broker-neutral.  The admission
+    object owns the executor; the critical guarantee is invariant in both
+    modes: a gate-refused proposal never reaches that executor.
     """
     events: list[EntryEvent] = []
     submissions: list[SubmittedEntry] = []
@@ -214,8 +268,7 @@ def submit_entries(*, candidates: Sequence[Any], chosen: Sequence[int],
         if proposal.engine == "event_macro" and proposal.structure == "single_long":
             gap_total = project_gap_usage(
                 current_view, trading_date, "event_macro:single_long")
-            gap_max = int(manifest.get("strategies", "event_macro",
-                                       "gap_max_entries_total", default=2))
+            gap_max = manifest.event_gap_entry_limit()
             if gap_total >= gap_max:
                 row["refused_by"] = ["control:gap_entry_limit"]
                 row["reason"] = f"window gap entries {gap_total}/{gap_max} used"
@@ -260,22 +313,14 @@ def submit_entries(*, candidates: Sequence[Any], chosen: Sequence[int],
         gap_counters = (("event_macro:single_long", 1),) if (
             proposal.engine == "event_macro" and
             proposal.structure == "single_long") else ()
-        reservation = make_reservation(
-            proposal=proposal, manifest=manifest,
-            account_id=str(state.account.account_number),
-            trading_date=trading_date, cycle_id=cycle_id,
-            fire_keys=fire_keys, gap_counters=gap_counters)
-        row["authorized"] = True
-        row["client_order_id"] = reservation.client_order_id
         try:
-            order = dispatch_entry(
-                journal, reservation,
-                lambda client_id: executor.submit(
-                    proposal, client_order_id=client_id),
-                before_broker=(
-                    (lambda reserved: before_broker(proposal, reserved))
-                    if before_broker is not None else None))
-        except Exception as exc:                            # noqa: BLE001
+            reservation, order = structure_admission.admit(
+                proposal, fire_keys=fire_keys, gap_counters=gap_counters)
+            row["authorized"] = True
+            row["client_order_id"] = reservation.client_order_id
+        except AdmissionDispatchError as exc:
+            row["authorized"] = True
+            row["client_order_id"] = exc.reservation.client_order_id
             current_view = journal.replay()
             project_day_risk(day, current_view, trading_date)
             _mark_submission_uncertain(row, exc)
@@ -284,6 +329,12 @@ def submit_entries(*, candidates: Sequence[Any], chosen: Sequence[int],
                                      row["reason"]))
             uncertain = True
             break
+        except Exception as exc:                            # noqa: BLE001
+            row["refused_by"] = ["control:admission_setup_failed"]
+            row["reason"] = f"admission setup failed: {type(exc).__name__}"
+            events.append(EntryEvent("admission_setup_failed", index, proposal,
+                                     row["reason"]))
+            continue
 
         row["submitted"] = True
         row.update(_broker_order_facts(order))

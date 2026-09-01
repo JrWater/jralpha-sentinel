@@ -148,8 +148,8 @@ account confirms it (3 days in: −3.4%, held by trend legs):
 value after costs is ≈ 0 at best, and its variance competes for the shared
 $40k at-risk budget against the only two statistically grounded positive-EV
 bets in the window — the NFP gap continuation (9/10, 33 first-Fridays) and
-the LULU straddle (median move 11.8% vs ~6% breakeven). The event stack
-(LULU $12k + NFP strangle $10k + gap $8k×2) fits the at-risk cap exactly.
+the LULU straddle (median move 11.8% vs ~6% breakeven). Their declared
+allocation remains below that shared at-risk cap.
 Exits and reconciliation continue to manage whatever is already open; no
 new trend exposure opens.
 

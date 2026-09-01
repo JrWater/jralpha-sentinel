@@ -16,6 +16,7 @@ from scripts.check_deliverables import (
     discover_binary_inputs,
     sha256,
 )
+from policy.public_projection import project_public_claims
 
 def write_provenance(*, root: Path = ROOT,
                      artifacts: tuple[str, ...] = CANONICAL_BINARIES) -> dict:
@@ -37,6 +38,17 @@ def write_provenance(*, root: Path = ROOT,
         "schema_version": 1,
         "artifacts": records,
     }
+    manifest_path = root / "policy" / "manifest.json"
+    if manifest_path.is_file():
+        from policy.loader import load as load_manifest
+
+        manifest = load_manifest(manifest_path)
+        claims = project_public_claims(manifest)
+        document["policy"] = {
+            "identity": manifest.identity,
+            "manifest_sha": manifest.sha,
+            "risk_values": claims.risk_values,
+        }
     target = root / PROVENANCE_PATH
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(json.dumps(document, indent=2, sort_keys=True) + "\n")

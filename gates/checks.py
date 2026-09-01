@@ -113,12 +113,11 @@ def check_equity_floor(ctx: EvalContext) -> GateResult:
     Crossing this does not flatten the book. Panic-liquidating at a threshold
     is itself a strategy, and not one this policy authorizes.
     """
-    start = float(ctx.manifest.get("environment", "required_starting_equity"))
-    floor_frac = float(ctx.manifest.get("risk_caps", "equity_floor_fraction"))
+    limits = ctx.manifest.risk_limits()
     equity = _f(getattr(ctx.account, "equity", None))
     if equity is None:
         return GateResult(False, "no equity reported")
-    floor = start * floor_frac
+    floor = limits.equity_floor
     if equity < floor:
         return GateResult(False, f"equity {equity:,.2f} below floor {floor:,.2f}"
                                  f" -> ENTRY MAINTENANCE")
@@ -139,23 +138,14 @@ def check_entry_window(ctx: EvalContext) -> GateResult:
         return GateResult(False, "no proposal")
     if ctx.clock is None or not getattr(ctx.clock, "is_open", False):
         return GateResult(False, "market closed")
+    window = ctx.manifest.entry_window_for(ctx.proposal.engine)
     from zoneinfo import ZoneInfo
-    tz = ZoneInfo(ctx.manifest.get("session", "timezone"))
-    local = ctx.now_utc.astimezone(tz).time()
-    open_after = ctx.manifest.get("session", "no_new_exposure_before")
-    close_before = ctx.manifest.get("session", "no_new_exposure_after")
-    if getattr(ctx.proposal, "engine", "") == "event_macro":
-        # the declared exception: the 0-DTE NFP gap continuation trades the
-        # 09:30-09:50 window on the report morning (then hard-flattens)
-        open_after = ctx.manifest.get("strategies", "event_macro",
-                                      "entry_open_override",
-                                      default="09:30")
-    hh, mm = map(int, open_after.split(":"))
-    if (local.hour, local.minute) < (hh, mm):
-        return GateResult(False, f"{local:%H:%M} before entry window {open_after}")
-    hh, mm = map(int, close_before.split(":"))
-    if (local.hour, local.minute) >= (hh, mm):
-        return GateResult(False, f"{local:%H:%M} after entry window {close_before}")
+    local = ctx.now_utc.astimezone(ZoneInfo(window.timezone)).time()
+    phase = window.phase_at(ctx.now_utc)
+    if phase == "before":
+        return GateResult(False, f"{local:%H:%M} before entry window {window.opens_at}")
+    if phase == "after":
+        return GateResult(False, f"{local:%H:%M} after entry window {window.closes_at}")
     return GateResult(True, f"{local:%H:%M} inside entry window")
 
 
@@ -325,8 +315,9 @@ def check_symbol_declared(ctx: EvalContext) -> GateResult:
 
 def check_position_caps(ctx: EvalContext) -> GateResult:
     p = ctx.proposal
-    max_total = int(ctx.manifest.get("risk_caps", "max_concurrent_positions"))
-    max_per = int(ctx.manifest.get("risk_caps", "max_positions_per_underlying"))
+    limits = ctx.manifest.risk_limits()
+    max_total = limits.max_concurrent_positions
+    max_per = limits.max_positions_per_underlying
     if len(ctx.positions) >= max_total:
         return GateResult(False, f"{len(ctx.positions)} positions >= cap {max_total}")
     same = sum(1 for pos in ctx.positions
@@ -345,9 +336,7 @@ def check_per_trade_risk(ctx: EvalContext) -> GateResult:
     way down.
     """
     p = ctx.proposal
-    start = float(ctx.manifest.get("environment", "required_starting_equity"))
-    frac = float(ctx.manifest.get("risk_caps", "max_loss_per_position_fraction"))
-    cap = start * frac
+    cap = ctx.manifest.risk_limits().per_position_loss_cap
     risk = _f(getattr(p, "max_loss_dollars", None))
     if risk is None:
         return GateResult(False, "proposal does not state max_loss_dollars")

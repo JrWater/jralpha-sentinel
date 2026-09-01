@@ -71,6 +71,114 @@ def test_lifecycle_record_is_durable_before_the_broker_call(tmp_path):
     assert journal.replay().by_submission["logical-1"].state == wal.COMMITTED
 
 
+def test_structure_admission_handoff_precedes_broker_and_fails_closed(
+        tmp_path):
+    from types import SimpleNamespace
+
+    from agent.entry_submission import StructureAdmission
+    from strategy.proposal import Proposal
+
+    wal = _wal()
+    journal = wal.SubmissionJournal(tmp_path / "submissions.jsonl")
+    proposal = Proposal(engine="trend_income", underlying="SPY",
+                        direction="neutral", structure="credit_vertical")
+    observed = []
+    structures = SimpleNamespace(
+        record_pending_entry=lambda *_args, **_kwargs: observed.append("pending"))
+    manifest = SimpleNamespace(
+        sha="manifest-sha",
+        exit_intent_for=lambda *_args: SimpleNamespace(
+            take_profit=0.5, stop_loss_factor=2.0))
+    class Executor:
+        def submit(self, _proposal, *, client_order_id):
+            assert observed == ["pending"]
+            observed.append("broker")
+            return {"id": "broker-1", "status": "accepted",
+                    "client_order_id": client_order_id}
+
+    admission = StructureAdmission(
+        manifest, structures, journal, Executor(), account_id="account",
+        trading_date=date(2026, 8, 28), cycle_id="cycle", entered_at="101500")
+
+    reservation, _order = admission.admit(
+        proposal, fire_keys=(), gap_counters=())
+    assert observed == ["pending", "broker"]
+    assert journal.replay().by_submission[
+        reservation.logical_submission_id].state == wal.COMMITTED
+
+
+def test_structure_admission_failure_keeps_dispatch_unresolved(tmp_path):
+    from types import SimpleNamespace
+
+    from agent.entry_submission import AdmissionDispatchError, StructureAdmission
+    from strategy.proposal import Proposal
+
+    wal = _wal()
+    journal = wal.SubmissionJournal(tmp_path / "submissions.jsonl")
+    proposal = Proposal(engine="trend_income", underlying="SPY",
+                        direction="neutral", structure="credit_vertical")
+    structures = SimpleNamespace(
+        record_pending_entry=lambda *_args, **_kwargs:
+        (_ for _ in ()).throw(OSError("ledger unavailable")))
+    manifest = SimpleNamespace(
+        sha="manifest-sha",
+        exit_intent_for=lambda *_args: SimpleNamespace(
+            take_profit=0.5, stop_loss_factor=2.0))
+    class Executor:
+        def submit(self, *_args, **_kwargs):
+            calls.append("broker")
+
+    calls = []
+    admission = StructureAdmission(
+        manifest, structures, journal, Executor(), account_id="account",
+        trading_date=date(2026, 8, 28), cycle_id="cycle", entered_at="101500")
+
+    with pytest.raises(AdmissionDispatchError) as error:
+        admission.admit(proposal, fire_keys=(), gap_counters=())
+
+    assert calls == []
+    reservation = error.value.reservation
+    assert journal.replay().by_submission[reservation.logical_submission_id].state == \
+        wal.DISPATCHING
+
+
+def test_structure_admission_journal_failure_is_not_a_dispatch(tmp_path):
+    from types import SimpleNamespace
+
+    from agent.entry_submission import StructureAdmission
+    from strategy.proposal import Proposal
+
+    wal = _wal()
+    journal = wal.SubmissionJournal(tmp_path / "submissions.jsonl")
+    proposal = Proposal(engine="trend_income", underlying="SPY",
+                        direction="neutral", structure="credit_vertical")
+    manifest = SimpleNamespace(
+        sha="manifest-sha",
+        exit_intent_for=lambda *_args: SimpleNamespace(
+            take_profit=0.5, stop_loss_factor=2.0))
+    structures = SimpleNamespace(record_pending_entry=lambda *_args, **_kwargs:
+                                 pytest.fail("pending record must not run"))
+    calls = []
+
+    class Executor:
+        def submit(self, *_args, **_kwargs):
+            calls.append("broker")
+
+    def unavailable(_reservation):
+        raise OSError("journal unavailable")
+
+    journal.hold = unavailable
+    admission = StructureAdmission(
+        manifest, structures, journal, Executor(), account_id="account",
+        trading_date=date(2026, 8, 28), cycle_id="cycle", entered_at="101500")
+
+    with pytest.raises(OSError, match="journal unavailable"):
+        admission.admit(proposal, fire_keys=(), gap_counters=())
+
+    assert calls == []
+    assert journal.replay().by_submission == {}
+
+
 def test_new_wal_fsyncs_the_file_and_parent_directory(tmp_path, monkeypatch):
     wal = _wal()
     path = tmp_path / "new-day" / "submissions.jsonl"

@@ -99,10 +99,30 @@ def test_cycle_main_owns_the_single_lock(monkeypatch, tmp_path):
     monkeypatch.setattr(run_cycle, "CYCLE_LOCK_PATH", tmp_path / "cycle.lock")
     monkeypatch.setattr(run_cycle, "cycle_lock",
                         lambda path, blocking=False: Lock())
-    monkeypatch.setattr(run_cycle, "_run_cycle", lambda: 7)
+    monkeypatch.setattr(
+        run_cycle, "_run_cycle",
+        lambda _environment: run_cycle.CycleResult(7, "test"))
 
     assert run_cycle.main() == 7
     assert entered == [tmp_path / "cycle.lock"]
+
+
+def test_cycle_environment_isolates_all_durable_cycle_paths(tmp_path):
+    from dataclasses import replace
+
+    environment = replace(
+        run_cycle.production_environment(), state_dir=tmp_path,
+        structures=run_cycle.StructureLedger(tmp_path / "positions_meta.json"))
+
+    environment.append_decision({"kind": "test"})
+    environment.mirror_positions([])
+
+    assert environment.day_path == tmp_path / "day_state.json"
+    assert environment.submission_wal_path == tmp_path / "submission_wal.jsonl"
+    assert environment.cycle_lock_path == tmp_path / "cycle.lock"
+    assert environment.permit_path == tmp_path / "entry_permit.json"
+    assert environment.decisions_path.read_text()
+    assert environment.ledger_path.exists()
 
 
 def test_new_public_decision_has_no_accepted_alias():

@@ -75,9 +75,9 @@ def _group_positions(positions: list) -> list:
     return sorted(out, key=lambda r: (r["underlying"], r["symbol"]))
 
 
-def _read_previous() -> dict:
+def _read_previous(path: Path = SNAPSHOT) -> dict:
     try:
-        return json.loads(SNAPSHOT.read_text())
+        return json.loads(path.read_text())
     except (OSError, ValueError):
         return {}
 
@@ -114,10 +114,11 @@ def build(*, manifest, account, clock, gate_results, gates, permit_status: str,
           blockers, positions: list, decisions: list, git_head: str | None,
           git_dirty: bool | None, regime=None, day_state: dict | None = None,
           decision_updates: dict[str, dict] | None = None,
-          now_utc: datetime | None = None) -> dict:
+          now_utc: datetime | None = None,
+          previous_snapshot_path: Path = SNAPSHOT) -> dict:
     """Assemble the snapshot. Pure: callers decide when to write it."""
     now = now_utc or datetime.now(timezone.utc)
-    previous = _read_previous()
+    previous = _read_previous(previous_snapshot_path)
 
     equity = _f(getattr(account, "equity", 0))
     start = _f(manifest.get("environment", "required_starting_equity"), 100000.0)

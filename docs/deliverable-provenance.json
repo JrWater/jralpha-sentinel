@@ -3,12 +3,14 @@
     "media/cover.png": {
       "inputs": {
         "media/build/cover.html": "2c5b701734100202a707da48b4a0db1b47737697450b596baa97fb446a4bd772",
-        "media/build/datauris.json": "76aa2d7357884693c4efbbf0ac14207ffb9bfcb460b5627f2f5fc271f88cf554"
+        "media/build/datauris.json": "76aa2d7357884693c4efbbf0ac14207ffb9bfcb460b5627f2f5fc271f88cf554",
+        "policy/manifest.json": "cefe353f1c5e88e4ae8c96d68a75e3444014228513a5636020d7485b09eb14e2"
       },
       "sha256": "74c59a99d6112f9e16e4d767f7463dbd513f9694326f89119af5818882934298"
     },
     "media/sentinel_demo.mp4": {
       "inputs": {
+        "policy/manifest.json": "cefe353f1c5e88e4ae8c96d68a75e3444014228513a5636020d7485b09eb14e2",
         "sentinel-video/assets/align/01_title.json": "31fffeb5c0fc45b9a79db99922714555ed59e2665ba37cf28cd691942a146ecb",
         "sentinel-video/assets/align/02_problem.json": "3c106963a7cb8e25d35500906f292b8e972e691a662a312b3276a33f97fddb4a",
         "sentinel-video/assets/align/03_architecture.json": "41e9d2f42ccc51ae41ee886f9416b5f2de39c447dc94c7b49ce25811a3305689",
@@ -36,7 +38,7 @@
         "sentinel-video/assets/fonts/Caveat-700-latin.woff2": "891951df5e8b5b0f0bc760d31375405e795c666b5add70437de12d4a6482b33f",
         "sentinel-video/compositions/scene-01.html": "f2d60887dd640cb201890801a57ed38f8c7b94b83fd9debfa79673d4ba61c421",
         "sentinel-video/compositions/scene-02.html": "255cfae7c55a5f522c09b377744425040a7309c71750cc33bc2ae1a3c5922d1b",
-        "sentinel-video/compositions/scene-03.html": "3440b1542ebd239ae292622e4e561a770c2c44b48ef2776d336ad054199a5154",
+        "sentinel-video/compositions/scene-03.html": "893d3880e4fa305b65b06714b34c52c26d935f499b6d48ec5f71884492a8da24",
         "sentinel-video/compositions/scene-04.html": "d474e18d6f47b69e1c1ee633065641a94112e1bf15f5874003bb711fa7522e3b",
         "sentinel-video/compositions/scene-05.html": "17852f71c395b759808f0be26e23f6197fd8ba55cd2e5550cd4ddc3ad36c0f7b",
         "sentinel-video/compositions/scene-06.html": "207a610b7b6bbd5cbb5d8783fb8b5c05f75ddda5df71c2cef5ac8034b877a324",
@@ -50,14 +52,25 @@
         "sentinel-video/package.json": "69b85b980c36c7729efd0a3086da6ba96896ee0f36ea0f167b3ba9642792cb6f",
         "sentinel-video/tools/timeline.py": "8508802b8fea77bff1f517792005e1fac945275505c33b30b3afd3953898acfc"
       },
-      "sha256": "c9f2cc76132d74bddfa4e6305cac50077dfcb7b5b4816445f4ff762fc2b5fa48"
+      "sha256": "be1966ed976750a2407169ad6dd27935a849a45411e5112b9715b8cec342538c"
     },
     "media/slides.pdf": {
       "inputs": {
         "media/build/datauris.json": "76aa2d7357884693c4efbbf0ac14207ffb9bfcb460b5627f2f5fc271f88cf554",
-        "media/build/slides.html": "5f84790f6767df292df4defbf07b67db5f7287eec70933eb6fb3e04f9baa521f"
+        "media/build/slides.html": "5f84790f6767df292df4defbf07b67db5f7287eec70933eb6fb3e04f9baa521f",
+        "policy/manifest.json": "cefe353f1c5e88e4ae8c96d68a75e3444014228513a5636020d7485b09eb14e2"
       },
-      "sha256": "f230e0cc00cdb84b9d1c271fef9b57bd27745b93b54d27d82ddbaf295bf5de21"
+      "sha256": "a7566d586311825859f0db424bc4b7fd8e05a32ddd956e561747fff58fc81862"
+    }
+  },
+  "policy": {
+    "identity": "SENTINEL-OPTIONS-V2@3.1.4+8df81b86716d",
+    "manifest_sha": "8df81b86716d1a885175cc247c7ee47ac05736d918930afabaf32bc06dd79a4a",
+    "risk_values": {
+      "at_risk_cap": 40000.0,
+      "daily_kill": 12000.0,
+      "equity_floor": 70000.0,
+      "per_trade_hard_cap": 12000.0
     }
   },
   "schema_version": 1

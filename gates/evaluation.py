@@ -157,6 +157,7 @@ class GateEvaluator:
 
     def cycle_subject(self, *, state: Any, manifest: Any, ledger_positions: list,
                       journal_view: Any, is_paper_session: bool = True,
+                      decision_log_writable: bool | None = None,
                       unresolved_structure_close_count: int | None = None,
                       unresolved_entry_reconciliation_count: int | None = None
                       ) -> CycleSubject:
@@ -164,7 +165,9 @@ class GateEvaluator:
         return CycleSubject(
             manifest=manifest, state=state, ledger_positions=ledger_positions,
             is_paper_session=is_paper_session,
-            decision_log_writable=_decisions_writable(self._root),
+            decision_log_writable=(decision_log_writable if
+                                   decision_log_writable is not None else
+                                   _decisions_writable(self._root)),
             git_head=head, git_dirty=dirty,
             unresolved_dispatch_count=_unresolved_dispatch_count(journal_view),
             unresolved_structure_close_count=unresolved_structure_close_count,

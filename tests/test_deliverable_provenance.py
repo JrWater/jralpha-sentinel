@@ -3,7 +3,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from scripts.check_deliverables import sha256
+from scripts.check_deliverables import discover_binary_inputs, sha256
 from scripts import write_deliverable_provenance as provenance_writer
 from scripts.write_deliverable_provenance import write_provenance
 
@@ -58,3 +58,23 @@ def test_provenance_writer_defaults_to_all_canonical_artifacts(monkeypatch):
 
     assert provenance_writer.main() == 0
     assert received["artifacts"] == provenance_writer.CANONICAL_BINARIES
+
+
+def test_provenance_writer_omits_policy_projection_without_a_manifest(tmp_path):
+    _write(tmp_path, "media/cover.png", b"final-cover")
+    _write(tmp_path, "media/build/cover.html", "<main>cover</main>")
+    _write(tmp_path, "media/build/datauris.json", "{}")
+
+    document = write_provenance(root=tmp_path, artifacts=("media/cover.png",))
+
+    assert "policy" not in document
+
+
+def test_policy_manifest_is_a_binary_provenance_input_when_present(tmp_path):
+    _write(tmp_path, "media/cover.png", b"final-cover")
+    _write(tmp_path, "media/build/cover.html", "<main>cover</main>")
+    _write(tmp_path, "media/build/datauris.json", "{}")
+    _write(tmp_path, "policy/manifest.json", "{}")
+
+    assert "policy/manifest.json" in discover_binary_inputs(
+        tmp_path, "media/cover.png")

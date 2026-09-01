@@ -91,16 +91,15 @@ def test_market_open_is_cycle_readiness_and_entry_window_is_proposal_authorizati
 
 def test_event_window_exception_needs_a_proposal_but_market_open_does_not():
     from gates import checks
+    from policy.loader import EntryWindow
 
     class Manifest:
-        def get(self, *path, default=...):
-            values = {
-                ("session", "timezone"): "America/New_York",
-                ("session", "no_new_exposure_before"): "10:00",
-                ("session", "no_new_exposure_after"): "15:30",
-                ("strategies", "event_macro", "entry_open_override"): "09:30",
-            }
-            return values.get(path, default)
+        def entry_window_for(self, engine):
+            return EntryWindow(
+                timezone="America/New_York",
+                opens_at="09:30" if engine == "event_macro" else "10:00",
+                closes_at="15:30",
+            )
 
     def context(engine):
         return checks.EvalContext(

@@ -128,6 +128,7 @@ def test_finding_codes_are_closed_and_exit_only_depends_on_blocking():
         "BINARY_PROVENANCE_MISSING",
         "BINARY_PROVENANCE_MISMATCH",
         "BINARY_PROVENANCE_UNTRACKED_INPUT",
+        "POLICY_PROVENANCE_MISMATCH",
         "HISTORICAL_EXEMPTION",
     )
     assert exit_code((

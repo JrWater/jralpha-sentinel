@@ -35,10 +35,12 @@ def _intent(side: str, closing: bool) -> PositionIntent:
 
 
 class Executor:
-    def __init__(self, client: TradingClient, manifest, *, verbose: bool = True):
+    def __init__(self, client: TradingClient, manifest, *, verbose: bool = True,
+                 record_decision=None):
         self.client = client
         self.manifest = manifest
         self.verbose = verbose
+        self._record_decision = record_decision or append_decision
 
     def _log(self, msg: str) -> None:
         if self.verbose:
@@ -178,7 +180,7 @@ class Executor:
             ))
         self._log(f"  SUBMITTED {order.id} {proposal.structure} "
                   f"{proposal.underlying} @ {limit:.2f} -> {order.status}")
-        append_decision({
+        self._record_decision({
             "kind": "order_submitted",
             "at_utc": datetime.now(timezone.utc).isoformat(),
             "order_id": str(order.id),

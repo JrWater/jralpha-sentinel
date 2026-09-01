@@ -19,6 +19,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta
 
+from policy.loader import LossBudget
 from strategy import catalysts
 from strategy.data import MarketState
 from strategy.indicators import ivr, realized_vol
@@ -52,27 +53,24 @@ class EngineContext:
         self.portfolio = self.portfolio or PortfolioState(
             max_loss_by_underlying={}, max_loss_total=0.0,
             count_by_engine={}, current_equity=self.state.equity,
-            starting_equity=float(
-                self.manifest.get("environment", "required_starting_equity")))
+            starting_equity=self.manifest.risk_limits().starting_equity)
 
     @property
     def is_final_date(self) -> bool:
-        return self.now_et.date().isoformat() == str(
-            self.manifest.get("session", "final_trading_date"))
+        return self.now_et.date() == self.manifest.final_day_rules().trading_date
 
     @property
     def final_date_entry_frozen(self) -> bool:
-        return (self.is_final_date and bool(
-            self.manifest.get("session", "no_new_exposure_on_final_date")))
+        return self.manifest.final_day_rules().is_entry_frozen(self.now_et.date())
 
 
 def run(ctx: EngineContext) -> list[Candidate]:
     """All candidates this cycle, ranked by score. Empty is a valid answer."""
     if ctx.final_date_entry_frozen:
-        # The submission-day freeze stands, with exactly one pre-declared
-        # exception: the 0-DTE NFP gap continuation (09:30-09:50 ET, hard
-        # time-stop 10:40 ET). Nothing else may open on the final morning.
-        return [c for c in _event(ctx) if c.label == "event-nfp-gap"]
+        rules = ctx.manifest.final_day_rules()
+        return sorted((c for c in _event(ctx)
+                       if rules.allows_event_candidate(ctx.now_et.date(), c.label)),
+                      key=lambda c: c.score, reverse=True)
 
     out: list[Candidate] = []
     out.extend(_trend(ctx))
@@ -367,7 +365,7 @@ def _earnings_straddle(ctx: EngineContext, symbol: str, cat, cfg) -> Candidate |
                        f"{proposal.event_exit_time} ET. Confirmed event, "
                        f"defined risk.")
     sized = fixed_quantity(proposal, ctx.manifest, "catalyst", ctx.portfolio,
-                           cap_key="pre_event_max_loss_per_trade_fraction")
+                           budget=LossBudget.PRE_EVENT)
     if sized is None:
         return None
     return Candidate(sized, 0.9, "catalyst-straddle")
@@ -401,7 +399,7 @@ def _pead_vertical(ctx: EngineContext, sig: Signal, cfg) -> Candidate | None:
                        f"{sig.gap_pct:+.1f}% post-earnings and held it; "
                        f"buying the drift within {dte} DTE.")
     sized = fixed_quantity(proposal, ctx.manifest, "catalyst", ctx.portfolio,
-                           cap_key="pead_max_loss_per_trade_fraction")
+                           budget=LossBudget.PEAD)
     if sized is None:
         return None
     return Candidate(sized, 0.8, "catalyst-pead")
@@ -511,7 +509,7 @@ def _nfp_gap_play(ctx: EngineContext, cfg) -> Candidate | None:
                        f"single-leg, time-stop 10:40 ET, risk = debit paid.")
     sized = fixed_quantity(proposal, ctx.manifest, "event_macro",
                             ctx.portfolio,
-                            cap_key="addon_max_loss_per_trade_fraction")
+                            budget=LossBudget.GAP_ADDON)
     if sized is None:
         return None
     return Candidate(sized, 0.65, "event-nfp-gap")

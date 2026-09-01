@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from policy.loader import LossBudget
 from strategy.proposal import Proposal
 
 MIN_QUANTITY = 1
@@ -66,24 +67,9 @@ def release_open_risk(state: PortfolioState, dollars: float) -> None:
     state.max_loss_total = max(0.0, state.max_loss_total - dollars)
 
 
-def engine_cap(manifest, engine: str, cap_key: str | None = None,
-               scale: float = 1.0) -> float:
-    """The engine's per-trade max-loss cap, in dollars.
-
-    cap_key overrides which manifest key holds the fraction (the Event Vector
-    has one cap for the strangle and a smaller one for the gap add-on). scale
-    is the drawdown scale carried in PortfolioState.
-    """
-    start = float(manifest.get("environment", "required_starting_equity"))
-    cfg = manifest.get("strategies", engine)
-    key = cap_key or "max_loss_per_trade_fraction"
-    frac = float(cfg.get(key, 0.01)) if isinstance(cfg, dict) else 0.01
-    return start * frac * scale
-
-
 def fixed_quantity(proposal: Proposal, manifest, engine: str,
                    state: PortfolioState,
-                   cap_key: str | None = None) -> Proposal | None:
+                   budget: LossBudget = LossBudget.STANDARD) -> Proposal | None:
     """Size by max loss: how many contracts keep the trade inside its cap.
 
     Returns None when the trade is refused at this layer (too big for the
@@ -91,7 +77,7 @@ def fixed_quantity(proposal: Proposal, manifest, engine: str,
     exceeded).
     """
     scale = getattr(state, "scale", 1.0) or 1.0
-    cap = engine_cap(manifest, engine, cap_key=cap_key, scale=scale)
+    cap = manifest.engine_loss_cap(engine, budget=budget, scale=scale)
     max_per_contract = proposal.max_loss_dollars  # with qty == 1
     if max_per_contract <= 0:
         return None
@@ -103,8 +89,7 @@ def fixed_quantity(proposal: Proposal, manifest, engine: str,
     qty = max(MIN_QUANTITY, int(cap // max_per_contract))
 
     # portfolio at-risk cap (sum of max losses of open book + this trade)
-    at_risk_cap = (float(manifest.get("risk_caps", "at_risk_cap_fraction"))
-                   * float(manifest.get("environment", "required_starting_equity")))
+    at_risk_cap = manifest.risk_limits().at_risk_cap
     if proposal.max_loss_dollars * qty + state.max_loss_total > at_risk_cap:
         # try to shrink to what fits; never below 1 contract of an approved trade
         fit = int((at_risk_cap - state.max_loss_total) // proposal.max_loss_dollars)

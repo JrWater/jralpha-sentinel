@@ -22,8 +22,10 @@ import argparse
 import json
 import sys
 import uuid
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import Any, Callable
 from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -31,8 +33,8 @@ sys.path.insert(0, str(ROOT))
 
 from agent.executor import Executor
 from agent.cycle_lock import CycleAlreadyRunning, cycle_lock
-from agent.entry_submission import (project_day_risk, proposal_fingerprint,
-                                    submit_entries)
+from agent.entry_submission import (StructureAdmission, project_day_risk,
+                                    proposal_fingerprint, submit_entries)
 from agent.ledger import (StructureLedger, atomic_write, append_decision,
                           ledger_positions, mirror_from_broker)
 from agent.position_lifecycle import PositionLifecycle
@@ -61,6 +63,101 @@ SUBMISSION_WAL_PATH = ROOT / "state" / "submission_wal.jsonl"
 CYCLE_LOCK_PATH = ROOT / "state" / "cycle.lock"
 PUBLIC_ACCOUNT_SCOPE = "competition"
 STRUCTURES = StructureLedger()
+
+
+@dataclass(frozen=True)
+class CycleEnvironment:
+    """All mutable adapters for one operational cycle.
+
+    The cycle owns ordering; a CLI, scheduler, or rehearsal supplies only
+    isolated paths and adapter implementations through this boundary.
+    """
+
+    root: Path
+    state_dir: Path
+    structures: StructureLedger
+    manifest_loader: Callable[[], Any]
+    environment_loader: Callable[[Path], dict]
+    credential_loader: Callable[[dict], tuple[str | None, str | None]]
+    data_factory: Callable[[str, str], AlpacaData]
+    executor_factory: Callable[..., Executor]
+    engine_runner: Callable[[EngineContext], list]
+    snapshot_writer: Callable[[dict], None]
+    snapshot_history_path: Path
+    account_scope: str = PUBLIC_ACCOUNT_SCOPE
+
+    @property
+    def day_path(self) -> Path:
+        return self.state_dir / "day_state.json"
+
+    @property
+    def submission_wal_path(self) -> Path:
+        return self.state_dir / "submission_wal.jsonl"
+
+    @property
+    def cycle_lock_path(self) -> Path:
+        return self.state_dir / "cycle.lock"
+
+    @property
+    def ledger_path(self) -> Path:
+        return self.state_dir / "ledger.json"
+
+    @property
+    def decisions_path(self) -> Path:
+        return self.state_dir / "decisions.jsonl"
+
+    @property
+    def permit_path(self) -> Path:
+        return self.state_dir / "entry_permit.json"
+
+    @property
+    def prior_snapshot_path(self) -> Path:
+        return self.snapshot_history_path
+
+    def append_decision(self, record: dict) -> None:
+        append_decision(record, path=self.decisions_path)
+
+    def mirror_positions(self, positions) -> dict:
+        return mirror_from_broker(positions, path=self.ledger_path)
+
+    def ledger_positions(self) -> list[dict]:
+        return ledger_positions(path=self.ledger_path)
+
+    def decision_log_writable(self) -> bool:
+        try:
+            self.decisions_path.parent.mkdir(parents=True, exist_ok=True)
+            with self.decisions_path.open("a"):
+                pass
+            return True
+        except OSError:
+            return False
+
+
+def production_environment() -> CycleEnvironment:
+    """Bind the default CLI/scheduler path to the production state directory."""
+    from agent import snapshot as snapshot_mod
+
+    return CycleEnvironment(
+        root=ROOT, state_dir=DAY_PATH.parent, structures=STRUCTURES,
+        manifest_loader=load_manifest, environment_loader=load_env,
+        credential_loader=creds, data_factory=AlpacaData,
+        executor_factory=Executor, engine_runner=run_engines,
+        snapshot_writer=snapshot_mod.write,
+        account_scope=PUBLIC_ACCOUNT_SCOPE,
+        snapshot_history_path=ROOT / "docs" / "snapshot.json")
+
+
+@dataclass(frozen=True)
+class CycleResult:
+    """The public outcome of one ordered operational cycle."""
+
+    exit_code: int
+    disposition: str
+    blockers: tuple[str, ...] = ()
+    decisions: tuple[dict, ...] = ()
+    gate_results: dict[str, Any] = field(default_factory=dict)
+    submission_count: int = 0
+    uncertain: bool = False
 
 
 def unresolved_dispatch_count(view: JournalView) -> int | None:
@@ -128,14 +225,18 @@ def build_state(data: AlpacaData, manifest, symbols: list[str]) -> MarketState:
 
 
 def publish_snapshot(*, manifest, state, results, blockers, decisions,
-                     regime=None, day=None, decision_updates=None) -> None:
+                     regime=None, day=None, decision_updates=None,
+                     root: Path = ROOT,
+                     snapshot_writer: Callable[[dict], None] | None = None,
+                     previous_snapshot_path: Path | None = None
+                     ) -> None:
     """Write the credential-free page the judges read. Never fatal.
 
     A dashboard that cannot render must not be able to stop the agent from
     trading, so every failure here is reported and swallowed.
     """
     from agent import snapshot as snap_mod
-    head, dirty = code_identity()
+    head, dirty = code_identity(root)
     try:
         payload = snap_mod.build(
             manifest=manifest, account=state.account, clock=state.clock,
@@ -145,8 +246,10 @@ def publish_snapshot(*, manifest, state, results, blockers, decisions,
             decisions=decisions, git_head=head, git_dirty=dirty,
             regime=regime, day_state=(day.as_dict() if day else None),
             decision_updates=decision_updates,
-            now_utc=state.now_utc)
-        snap_mod.write(payload)
+            now_utc=state.now_utc,
+            previous_snapshot_path=(previous_snapshot_path or
+                                    snap_mod.SNAPSHOT))
+        (snapshot_writer or snap_mod.write)(payload)
     except Exception as exc:                                  # noqa: BLE001
         print(f"{YELLOW}snapshot not written{RESET}: "
               f"{type(exc).__name__}: {exc}")
@@ -154,13 +257,16 @@ def publish_snapshot(*, manifest, state, results, blockers, decisions,
 
 def run_preflight(state: MarketState, manifest, ledger,
                   journal_view: JournalView | None = None,
-                  *, structures: StructureLedger | None = None) -> dict:
+                  *, structures: StructureLedger | None = None,
+                  root: Path = ROOT,
+                  decision_log_writable: bool | None = None) -> dict:
     journal_view = journal_view or SubmissionJournal(
         SUBMISSION_WAL_PATH).replay()
-    evaluator = GateEvaluator(root=ROOT)
+    evaluator = GateEvaluator(root=root)
     subject = evaluator.cycle_subject(
         state=state, manifest=manifest, ledger_positions=ledger,
         journal_view=journal_view,
+        decision_log_writable=decision_log_writable,
         unresolved_structure_close_count=(
             structures or STRUCTURES).unresolved_structure_close_count(),
         unresolved_entry_reconciliation_count=(
@@ -210,19 +316,20 @@ def release_entry_risk(portfolio: PortfolioState, day, dollars: float) -> None:
 # ── exits ────────────────────────────────────────────────────────────────────
 
 def manage_exits(state: MarketState, manifest, executor: Executor,
-                 *, structures: StructureLedger | None = None) -> int:
+                 *, structures: StructureLedger | None = None,
+                 record_decision: Callable[[dict], None] | None = None) -> int:
     """Delegate structure exits to their lifecycle module.
 
     Kept here as the cycle's compatibility seam; all lifecycle semantics live
     in :class:`agent.position_lifecycle.PositionLifecycle`.
     """
-    return PositionLifecycle(record_decision=append_decision).manage(
+    return PositionLifecycle(record_decision=record_decision or append_decision).manage(
         state, manifest, executor, structures=structures or STRUCTURES)
 
 
 # ── the cycle ────────────────────────────────────────────────────────────────
 
-def _run_cycle() -> int:
+def _run_cycle(environment: CycleEnvironment) -> CycleResult:
     ap = argparse.ArgumentParser()
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--no-llm", action="store_true")
@@ -232,21 +339,21 @@ def _run_cycle() -> int:
                          "(used past the final trading date)")
     args = ap.parse_args()
 
-    manifest = load_manifest()
-    env = load_env(ROOT / args.env)
-    key, secret = creds(env)
+    manifest = environment.manifest_loader()
+    env = environment.environment_loader(environment.root / args.env)
+    key, secret = environment.credential_loader(env)
     if not key or not secret:
-        print(f"{RED}No credentials.{RESET} Fill {ROOT}/{args.env}.")
-        return 2
+        print(f"{RED}No credentials.{RESET} Fill {environment.root}/{args.env}.")
+        return CycleResult(2, "missing_credentials")
 
-    data = AlpacaData(key, secret)
+    data = environment.data_factory(key, secret)
     symbols = sorted(set(manifest.declared_symbols()))
     state = build_state(data, manifest, symbols)
     now_utc = state.now_utc
     timezone_name = str(manifest.get("session", "timezone"))
     trading_date = now_utc.astimezone(ZoneInfo(timezone_name)).date()
     cycle_id = uuid.uuid4().hex
-    journal = SubmissionJournal(SUBMISSION_WAL_PATH)
+    journal = SubmissionJournal(environment.submission_wal_path)
     journal_view = (journal.replay() if args.dry_run else
                     reconcile_unresolved(journal, data.trading))
     decision_updates = ({} if args.dry_run else
@@ -259,38 +366,33 @@ def _run_cycle() -> int:
     # ── 0. day-state gates (daily exposure cap, kill switch, scale) ─────────
     today = trading_date.isoformat()
     try:
-        raw_day = json.loads(DAY_PATH.read_text())
+        raw_day = json.loads(environment.day_path.read_text())
     except (OSError, json.JSONDecodeError):
         raw_day = None
+    limits = manifest.risk_limits()
     day = load_or_reset(raw_day, today=today, equity_now=state.equity,
-                        scale_fraction=float(manifest.get(
-                            "risk_caps", "drawdown_scale_fraction")))
+                        scale_fraction=limits.drawdown_scale_fraction)
     project_day_risk(day, journal_view, trading_date)
     killed = check_kill(day, state.equity,
-                        float(manifest.get("risk_caps",
-                                           "daily_loss_kill_fraction")))
-    exposure_cap = (float(manifest.get("risk_caps",
-                                       "daily_new_exposure_cap_fraction"))
-                    * float(manifest.get("environment",
-                                         "required_starting_equity")))
-    at_risk_cap = (float(manifest.get("risk_caps", "at_risk_cap_fraction"))
-                   * float(manifest.get("environment",
-                                        "required_starting_equity")))
+                        limits.daily_loss_kill_fraction)
+    exposure_cap = limits.daily_new_exposure_cap
+    at_risk_cap = limits.at_risk_cap
 
     # ── 1. establish the broker/ledger view used by risk-reducing exits ────
-    mirror_from_broker(data.positions())
-    ledger = ledger_positions()
+    environment.mirror_positions(data.positions())
+    ledger = environment.ledger_positions()
 
     # ── 2. exits FIRST: the book is settled before we size anything new ─────
     # Exits are risk-REDUCING, so they run even when preflight gates are red;
     # the permit only gates NEW exposure. This is what keeps the final-day
     # flatten alive even if a data gate is red at 10:45 ET.
-    executor = Executor(data.trading, manifest)
+    executor = environment.executor_factory(
+        data.trading, manifest, record_decision=environment.append_decision)
     if not args.dry_run:
         executor.retry_open_orders_cleanup()
         # Cleanup happens before this read, so an old DAY order cancelled in
         # this cycle is discarded now rather than blocking one extra cycle.
-        entry_reconciliation = STRUCTURES.reconcile_pending_entries(
+        entry_reconciliation = environment.structures.reconcile_pending_entries(
             data.trading.get_order_by_client_id)
         if (entry_reconciliation.activated or entry_reconciliation.discarded
                 or entry_reconciliation.quarantined):
@@ -298,28 +400,33 @@ def _run_cycle() -> int:
                   f"{len(entry_reconciliation.activated)}, discarded "
                   f"{len(entry_reconciliation.discarded)}, quarantined "
                   f"{len(entry_reconciliation.quarantined)}")
-        manage_exits(state, manifest, executor)
+        manage_exits(state, manifest, executor, structures=environment.structures,
+                     record_decision=environment.append_decision)
         # Rebuild the fact set even when no close was submitted: reconciliation
         # may have quarantined a partial or unknown close.  The ensuing permit
         # must describe the post-exit world, not the one it observed before
         # lifecycle ownership was resolved.
         state.positions = [p for p in data.positions()
                            if p.asset_class == "us_option"]
-        mirror_from_broker(data.positions())
-        ledger = ledger_positions()
+        environment.mirror_positions(data.positions())
+        ledger = environment.ledger_positions()
 
     # ── 3. preflight gates for NEW exposure ─────────────────────────────────
     # This deliberately happens after exits.  A partial/unknown structure
     # close therefore turns Entry Authority red in this very cycle, while
     # exit management above remains available even if the gate is red.
-    results = run_preflight(state, manifest, ledger, journal_view)
+    results = run_preflight(
+        state, manifest, ledger, journal_view, structures=environment.structures,
+        root=environment.root,
+        decision_log_writable=environment.decision_log_writable())
     print("\npreflight gates")
     print_gates(results)
     blockers = [n for n, r in results.items()
                 if not r.ok and severity_of(checks.GATES, n) == "BLOCKING"]
 
     if not args.dry_run:
-        write_permit(results, checks.GATES, manifest_sha=manifest.sha)
+        write_permit(results, checks.GATES, manifest_sha=manifest.sha,
+                     path=environment.permit_path, repo=environment.root)
 
     # Past the final trading date the account must stop growing, but it must
     # not stop being managed: exits are the only way a residual position from
@@ -329,15 +436,20 @@ def _run_cycle() -> int:
     if args.exits_only:
         print(f"\n{YELLOW}EXITS ONLY{RESET}: past the final trading date — "
               f"book still managed, nothing new will be sized.")
-        return 0
+        return CycleResult(0, "exits_only", tuple(blockers),
+                           gate_results=results)
 
     if blockers and not args.dry_run:
         print(f"\n{RED}PERMIT REFUSED{RESET}: {', '.join(blockers)} — no new "
               f"exposure this cycle.")
         publish_snapshot(manifest=manifest, state=state, results=results,
                          blockers=blockers, decisions=[], day=day,
-                         decision_updates=decision_updates)
-        return 1
+                         decision_updates=decision_updates,
+                         root=environment.root,
+                         snapshot_writer=environment.snapshot_writer,
+                         previous_snapshot_path=environment.prior_snapshot_path)
+        return CycleResult(1, "entry_permit_refused", tuple(blockers),
+                           gate_results=results)
 
     # ── 4. engine candidates ────────────────────────────────────────────────
     signals = {}
@@ -355,7 +467,7 @@ def _run_cycle() -> int:
         if len(closes) >= 60:
             signals[sym] = score_symbol(closes, spy_closes, highs, lows, sym)
 
-    meta = STRUCTURES.load()
+    meta = environment.structures.load()
     open_groups = [g for g in meta.get("groups", {}).values()
                    if not g.get("closed")]
     portfolio = PortfolioState(
@@ -364,8 +476,7 @@ def _run_cycle() -> int:
                            for g in open_groups),
         count_by_engine={},
         current_equity=state.equity,
-        starting_equity=float(
-            manifest.get("environment", "required_starting_equity")),
+        starting_equity=limits.starting_equity,
         scale=day.scale,
     )
     for g in open_groups:
@@ -374,7 +485,7 @@ def _run_cycle() -> int:
 
     ctx = EngineContext(state=state, manifest=manifest, regime=regime,
                         now_et=now_et, signals=signals, portfolio=portfolio)
-    candidates = run_engines(ctx)
+    candidates = environment.engine_runner(ctx)
 
     print(f"\nregime  {regime.mode} ({regime.confidence:.2f}) — {regime.reason}")
     print(f"day     new_risk=${day.new_risk_dollars:,.0f}/{exposure_cap:,.0f} "
@@ -416,7 +527,7 @@ def _run_cycle() -> int:
     # a proposer selection as `accepted` before the pretrade gates had run.
     decisions = [new_decision_row(
         c, at_utc=now_utc, selected=(i in chosen),
-        account_scope=PUBLIC_ACCOUNT_SCOPE, proposer=proposer_result)
+        account_scope=environment.account_scope, proposer=proposer_result)
                  for i, c in enumerate(candidates)]
     if blockers:
         for row in decisions:
@@ -437,54 +548,56 @@ def _run_cycle() -> int:
     if args.dry_run:
         publish_snapshot(manifest=manifest, state=state, results=results,
                          blockers=blockers, decisions=decisions, regime=regime,
-                         day=day, decision_updates=decision_updates)
+                         day=day, decision_updates=decision_updates,
+                         root=environment.root,
+                         snapshot_writer=environment.snapshot_writer,
+                         previous_snapshot_path=environment.prior_snapshot_path)
         print(f"\n{DIM}dry run — nothing was sent.{RESET}")
-        return 0
+        return CycleResult(0, "dry_run", tuple(blockers), tuple(decisions),
+                           results)
     if blockers or killed or not chosen:
         why = "kill switch" if killed else (
             "permit refused" if blockers else "no selection")
         print(f"\n{DIM}{why} — nothing was sent.{RESET}")
-        atomic_write(DAY_PATH, day.as_dict())
+        atomic_write(environment.day_path, day.as_dict())
         publish_snapshot(manifest=manifest, state=state, results=results,
                          blockers=blockers, decisions=decisions, regime=regime,
-                         day=day, decision_updates=decision_updates)
-        return 0
+                         day=day, decision_updates=decision_updates,
+                         root=environment.root,
+                         snapshot_writer=environment.snapshot_writer,
+                         previous_snapshot_path=environment.prior_snapshot_path)
+        return CycleResult(0, "no_new_entry", tuple(blockers),
+                           tuple(decisions), results)
 
     # ── 5. admission, WAL reservation, pretrade gates, submit ─────────────
     # Entry evaluation begins after exits refresh the broker and ledger views.
     # The typed subject supplies one shared fact set to every selected proposal;
     # `submit_entries` returns outcomes rather than emitting its own output.
-    entry_evaluator = GateEvaluator(root=ROOT)
+    entry_evaluator = GateEvaluator(root=environment.root)
     entry_cycle_subject = entry_evaluator.cycle_subject(
         state=state, manifest=manifest, ledger_positions=ledger,
         journal_view=journal_view,
-        unresolved_structure_close_count=STRUCTURES.unresolved_structure_close_count(),
+        decision_log_writable=environment.decision_log_writable(),
+        unresolved_structure_close_count=(
+            environment.structures.unresolved_structure_close_count()),
         unresolved_entry_reconciliation_count=(
-            STRUCTURES.unresolved_entry_reconciliation_count()),
+            environment.structures.unresolved_entry_reconciliation_count()),
     )
     entered_at = now_utc.strftime("%H%M%S")
 
-    def persist_pending_entry(proposal, reservation) -> None:
-        cfg = manifest.get("strategies", proposal.engine)
-        if proposal.structure in ("credit_vertical", "iron_condor"):
-            tp, sl = float(cfg.get("take_profit_fraction", 0.5)), \
-                float(cfg.get("stop_loss_multiple", 2.0))
-        else:
-            tp, sl = float(cfg.get("take_profit_fraction", 0.5)), \
-                float(cfg.get("stop_loss_fraction", 0.5))
-        STRUCTURES.record_pending_entry(
-            proposal, entered_at, reservation.client_order_id,
-            take_profit=tp, stop_loss=sl)
-
     entry_result = submit_entries(
         candidates=candidates, chosen=chosen, decisions=decisions,
-        state=state, manifest=manifest, executor=executor, portfolio=portfolio,
+        manifest=manifest, portfolio=portfolio,
         day=day, journal=journal, journal_view=journal_view,
-        trading_date=trading_date, cycle_id=cycle_id,
+        trading_date=trading_date,
         at_risk_cap=at_risk_cap, exposure_cap=exposure_cap,
         entry_evaluator=entry_evaluator,
         entry_cycle_subject=entry_cycle_subject,
-        before_broker=persist_pending_entry,
+        structure_admission=StructureAdmission(
+            manifest, environment.structures, journal, executor,
+            account_id=str(state.account.account_number),
+            trading_date=trading_date, cycle_id=cycle_id,
+            entered_at=entered_at),
     )
     for event in entry_result.events:
         p = event.proposal
@@ -500,23 +613,37 @@ def _run_cycle() -> int:
             print(f"  {YELLOW}SKIP{RESET} {p.underlying} {p.structure}: "
                   f"{event.detail}")
 
-    atomic_write(DAY_PATH, day.as_dict())
-    mirror_from_broker(data.positions())
+    atomic_write(environment.day_path, day.as_dict())
+    environment.mirror_positions(data.positions())
     publish_snapshot(manifest=manifest, state=state, results=results,
                      blockers=blockers, decisions=decisions, regime=regime,
-                     day=day, decision_updates=decision_updates)
+                     day=day, decision_updates=decision_updates,
+                     root=environment.root,
+                     snapshot_writer=environment.snapshot_writer,
+                     previous_snapshot_path=environment.prior_snapshot_path)
     print(f"\nsubmitted {len(entry_result.submissions)} proposal(s) this cycle")
-    return 1 if entry_result.uncertain else 0
+    return CycleResult(
+        1 if entry_result.uncertain else 0,
+        "submission_uncertain" if entry_result.uncertain else "completed",
+        tuple(blockers), tuple(decisions), results,
+        submission_count=len(entry_result.submissions),
+        uncertain=entry_result.uncertain)
 
 
-def main() -> int:
-    """The one ownership boundary shared by every cycle entry point."""
+def run(environment: CycleEnvironment | None = None) -> CycleResult:
+    """Run one Cycle behind the shared adapter and outcome seams."""
+    environment = environment or production_environment()
     try:
-        with cycle_lock(CYCLE_LOCK_PATH, blocking=False):
-            return _run_cycle()
+        with cycle_lock(environment.cycle_lock_path, blocking=False):
+            return _run_cycle(environment)
     except CycleAlreadyRunning as exc:
         print(f"{YELLOW}CYCLE REFUSED{RESET}: {exc}")
-        return 0
+        return CycleResult(0, "already_running")
+
+
+def main(environment: CycleEnvironment | None = None) -> int:
+    """CLI compatibility adapter for the Cycle result seam."""
+    return run(environment).exit_code
 
 
 if __name__ == "__main__":

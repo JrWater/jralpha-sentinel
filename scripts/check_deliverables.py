@@ -19,6 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from gates.registry import SEVERITIES
+from policy.public_projection import project_public_claims
 
 
 FINDING_CODES = (
@@ -28,6 +29,7 @@ FINDING_CODES = (
     "BINARY_PROVENANCE_MISSING",
     "BINARY_PROVENANCE_MISMATCH",
     "BINARY_PROVENANCE_UNTRACKED_INPUT",
+    "POLICY_PROVENANCE_MISMATCH",
     "HISTORICAL_EXEMPTION",
 )
 
@@ -71,47 +73,14 @@ def _finding(*args, **kwargs) -> Finding:
     return _assert_finding(Finding(*args, **kwargs))
 
 
-def _manifest_get(manifest, *path, default=...):
-    if isinstance(manifest, Mapping):
-        value = manifest
-        for part in path:
-            if not isinstance(value, Mapping) or part not in value:
-                if default is ...:
-                    raise KeyError(path)
-                return default
-            value = value[part]
-        return value
-    return manifest.get(*path, default=default)
-
-
 def _money(value: float) -> str:
     return f"${value:,.0f}"
 
 
 def canonical(manifest) -> tuple[dict[str, float], set[int]]:
     """Return manifest-backed public values; never derive them from prose."""
-    start = float(_manifest_get(manifest, "environment", "required_starting_equity"))
-    risk = _manifest_get(manifest, "risk_caps")
-    slots = {
-        "per_trade_hard_cap": start * float(risk["max_loss_per_position_fraction"]),
-        "at_risk_cap": start * float(risk["at_risk_cap_fraction"]),
-        "daily_kill": start * float(risk["daily_loss_kill_fraction"]),
-        "equity_floor": start * float(risk["equity_floor_fraction"]),
-    }
-    legal = {round(value) for value in slots.values()}
-    legal.add(round(start * float(risk["daily_new_exposure_cap_fraction"])))
-    legal.add(round(start))
-    for cfg in _manifest_get(manifest, "strategies", default={}).values():
-        if not isinstance(cfg, Mapping):
-            continue
-        for key, value in cfg.items():
-            if key.startswith("_") or "fraction" not in key:
-                continue
-            try:
-                legal.add(round(start * float(value)))
-            except (TypeError, ValueError):
-                continue
-    return slots, legal
+    claims = project_public_claims(manifest)
+    return claims.risk_values, set(claims.legal_dollar_values)
 
 
 def discover_deliverables(root: Path) -> tuple[Path, ...]:
@@ -279,12 +248,15 @@ def discover_binary_inputs(root: Path, artifact: str) -> tuple[str, ...]:
         paths = {root / "media/build/cover.html", root / "media/build/datauris.json"}
     else:
         return ()
+    policy_manifest = root / "policy" / "manifest.json"
+    if policy_manifest.is_file():
+        paths.add(policy_manifest)
     return tuple(sorted(
         path.relative_to(root).as_posix() for path in paths if path.is_file()
     ))
 
 
-def _provenance_findings(root: Path) -> list[Finding]:
+def _provenance_findings(root: Path, manifest) -> list[Finding]:
     outputs = tuple(relative for relative in CANONICAL_BINARIES if (root / relative).is_file())
     if not outputs:
         return []
@@ -303,6 +275,19 @@ def _provenance_findings(root: Path) -> list[Finding]:
             "valid " + PROVENANCE_PATH, str(exc),
         ) for output in outputs]
     findings: list[Finding] = []
+    if (root / "policy" / "manifest.json").is_file():
+        claims = project_public_claims(manifest)
+        expected = {
+            "identity": getattr(manifest, "identity", None),
+            "manifest_sha": getattr(manifest, "sha", None),
+            "risk_values": claims.risk_values,
+        }
+        if document.get("policy") != expected:
+            findings.append(_finding(
+                "POLICY_PROVENANCE_MISMATCH", "BLOCKING", PROVENANCE_PATH,
+                None, json.dumps(expected, sort_keys=True),
+                json.dumps(document.get("policy"), sort_keys=True),
+            ))
     for output in outputs:
         record = records.get(output)
         if not isinstance(record, Mapping):
@@ -345,7 +330,7 @@ def check_deliverables(*, root: Path = ROOT, manifest=None) -> tuple[Finding, ..
     if manifest is None:
         from policy.loader import load as load_manifest
         manifest = load_manifest()
-    findings = _text_findings(root, manifest) + _provenance_findings(root)
+    findings = _text_findings(root, manifest) + _provenance_findings(root, manifest)
     return tuple(sorted(findings, key=lambda finding: (
         finding.severity, finding.location, finding.code,
         finding.manifest_key or "", finding.actual or "",

@@ -20,11 +20,9 @@ import argparse
 import json
 import sys
 import time
-from contextlib import ExitStack
 from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from unittest import mock
 from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -162,8 +160,6 @@ def main() -> int:
     from scripts import run_cycle as rc
     from scripts.verify_account import creds, load_env
     from agent import ledger as ledger_mod
-    from agent import snapshot as snapshot_mod
-    from gates import safety_gate
 
     key, secret = creds(load_env(LEGACY_ENV))
     if not key or not secret:
@@ -194,128 +190,104 @@ def main() -> int:
     paths = _test_paths(run_id)
     paths["base"].mkdir(parents=True, exist_ok=False)
 
-    def mirror(rows):
-        return ledger_mod.mirror_from_broker(rows, paths["ledger"])
+    engine_runner = rc.run_engines
+    if args.require_fill:
+        real_run_engines = engine_runner
 
-    def ledger_positions():
-        return ledger_mod.ledger_positions(paths["ledger"])
+        def engine_runner(ctx):
+            return _one_marketable_credit_candidate(
+                real_run_engines(ctx), args.max_risk_dollars)
 
-    def append_decision(row):
-        return ledger_mod.append_decision(row, paths["decisions"])
-
-    def write_permit(results, gates, *, manifest_sha):
-        return safety_gate.write_permit(
-            results, gates, manifest_sha=manifest_sha,
-            path=paths["permit"])
-
-    def decisions_writable(_root=None):
-        paths["decisions"].parent.mkdir(parents=True, exist_ok=True)
-        paths["decisions"].touch(exist_ok=True)
-        return True
-
-    snapshot_mod.SNAPSHOT = paths["snapshot"]
-    rc.STRUCTURES = ledger_mod.StructureLedger(paths["meta"])
-    rc.DAY_PATH = paths["day"]
-    rc.SUBMISSION_WAL_PATH = paths["wal"]
-    rc.CYCLE_LOCK_PATH = paths["lock"]
-    rc.PUBLIC_ACCOUNT_SCOPE = "legacy_test"
+    cycle_environment = rc.CycleEnvironment(
+        root=ROOT, state_dir=paths["base"],
+        structures=ledger_mod.StructureLedger(paths["meta"]),
+        manifest_loader=lambda: test_manifest,
+        environment_loader=load_env, credential_loader=creds,
+        data_factory=rc.AlpacaData, executor_factory=rc.Executor,
+        engine_runner=engine_runner,
+        snapshot_writer=lambda payload: ledger_mod.atomic_write(
+            paths["snapshot"], payload),
+        account_scope="legacy_test",
+        snapshot_history_path=paths["snapshot"])
 
     print(f"test account: {account.account_number}")
     print(f"isolated state: {paths['base']}")
     print(f"max declared risk: ${args.max_risk_dollars:,.2f}")
 
-    with ExitStack() as stack:
-        stack.enter_context(mock.patch.object(
-            rc, "load_manifest", lambda *a, **k: test_manifest))
-        stack.enter_context(mock.patch.object(rc, "mirror_from_broker", mirror))
-        stack.enter_context(mock.patch.object(rc, "ledger_positions",
-                                              ledger_positions))
-        stack.enter_context(mock.patch.object(rc, "append_decision",
-                                              append_decision))
-        stack.enter_context(mock.patch.object(rc, "write_permit", write_permit))
-        stack.enter_context(mock.patch(
-            "gates.evaluation._decisions_writable", decisions_writable))
-        stack.enter_context(mock.patch("agent.executor.append_decision",
-                                      append_decision))
-        if args.require_fill:
-            real_run_engines = rc.run_engines
+    sys.argv = ["run_cycle.py", "--env", str(LEGACY_ENV), "--no-llm"]
+    cycle_result = rc.run(cycle_environment)
+    code = cycle_result.exit_code
+    if code != 0:
+        print(f"AUTO_CYCLE_FAILED exit={code}")
+        return 4
 
-            def fill_oriented_engines(ctx):
-                return _one_marketable_credit_candidate(
-                    real_run_engines(ctx), args.max_risk_dollars)
+    records = [json.loads(line) for line in
+               paths["decisions"].read_text().splitlines() if line.strip()]
+    submitted = [r for r in records if r.get("kind") == "order_submitted"]
+    if len(submitted) != 1:
+        print(f"AUTO_CYCLE_FAILED submitted_records={len(submitted)}")
+        return 4
+    record = submitted[0]
+    if float(record.get("max_loss_dollars", 0)) > args.max_risk_dollars:
+        print("AUTO_CYCLE_FAILED risk cap exceeded")
+        return 5
 
-            stack.enter_context(mock.patch.object(
-                rc, "run_engines", fill_oriented_engines))
+    order_id = record["order_id"]
+    order = _wait_order(client, order_id, args.fill_wait_seconds)
+    status = _status(order)
+    print(f"broker order: {order_id} status={status}")
 
-        sys.argv = ["run_cycle.py", "--env", str(LEGACY_ENV), "--no-llm"]
-        code = rc.main()
-        if code != 0:
-            print(f"AUTO_CYCLE_FAILED exit={code}")
-            return 4
+    if status in {"rejected", "suspended", "expired"}:
+        clean = not client.get_all_positions() and not _open_orders(client)
+        print(f"AUTO_SUBMISSION_REJECTED cleanup={'PASS' if clean else 'FAIL'}")
+        return 5 if clean else 6
 
-        records = [json.loads(line) for line in
-                   paths["decisions"].read_text().splitlines() if line.strip()]
-        submitted = [r for r in records if r.get("kind") == "order_submitted"]
-        if len(submitted) != 1:
-            print(f"AUTO_CYCLE_FAILED submitted_records={len(submitted)}")
-            return 4
-        record = submitted[0]
-        if float(record.get("max_loss_dollars", 0)) > args.max_risk_dollars:
-            print("AUTO_CYCLE_FAILED risk cap exceeded")
-            return 5
-
-        order_id = record["order_id"]
-        order = _wait_order(client, order_id, args.fill_wait_seconds)
-        status = _status(order)
-        print(f"broker order: {order_id} status={status}")
-
-        if status in {"rejected", "suspended", "expired"}:
-            clean = not client.get_all_positions() and not _open_orders(client)
-            print(f"AUTO_SUBMISSION_REJECTED cleanup={'PASS' if clean else 'FAIL'}")
-            return 5 if clean else 6
-
-        if status not in {"filled", "partially_filled"}:
-            if status != "canceled":
-                client.cancel_order_by_id(order_id)
-                order = _wait_order(client, order_id, 20)
-                status = _status(order)
-                print(f"unfilled test order canceled: status={status}")
-            rc.STRUCTURES.reconcile_pending_entries(
-                client.get_order_by_client_id)
-            clean = not client.get_all_positions() and not _open_orders(client)
-            print(f"AUTO_SUBMISSION_ACCEPTED cleanup={'PASS' if clean else 'FAIL'}")
-            return 0 if clean else 6
-
-        # A fill proves more than acceptance.  Use the system's own structure
-        # exit implementation, with a test-only final-date policy that makes
-        # the activated Position group immediately eligible to flatten.
-        cleanup_raw = deepcopy(test_manifest._raw)
-        now_et = datetime.now(timezone.utc).astimezone(
-            ZoneInfo(str(cleanup_raw["session"]["timezone"])))
-        cleanup_raw["session"]["final_trading_date"] = now_et.date().isoformat()
-        cleanup_raw["session"]["flatten_all_at"] = "00:00"
-        from policy.loader import Manifest
-        cleanup_manifest = Manifest(cleanup_raw)
-        activation = rc.STRUCTURES.reconcile_pending_entries(
+    if status not in {"filled", "partially_filled"}:
+        if status != "canceled":
+            client.cancel_order_by_id(order_id)
+            order = _wait_order(client, order_id, 20)
+            status = _status(order)
+            print(f"unfilled test order canceled: status={status}")
+        cycle_environment.structures.reconcile_pending_entries(
             client.get_order_by_client_id)
-        if len(activation.activated) != 1:
-            print("AUTO_CYCLE_FAILED entry activation was not exactly one")
-            return 6
-        data = rc.AlpacaData(key, secret)
-        state = rc.build_state(data, cleanup_manifest,
-                               [str(record["underlying"])])
-        closed = rc.manage_exits(
-            state, cleanup_manifest, rc.Executor(data.trading, cleanup_manifest))
-        print(f"system exit submissions: {closed}")
+        clean = not client.get_all_positions() and not _open_orders(client)
+        print(f"AUTO_SUBMISSION_ACCEPTED cleanup={'PASS' if clean else 'FAIL'}")
+        return 0 if clean else 6
 
-        deadline = time.monotonic() + 60
-        while time.monotonic() < deadline:
-            if not client.get_all_positions() and not _open_orders(client):
-                print("AUTO_FILL_AND_SYSTEM_EXIT cleanup=PASS")
-                return 0
-            time.sleep(3)
-        print("AUTO_FILL_AND_SYSTEM_EXIT cleanup=FAIL; manual attention required")
+    # A fill proves more than acceptance.  Use the system's own structure
+    # exit implementation, with a test-only final-date policy that makes
+    # the activated Position group immediately eligible to flatten.
+    cleanup_raw = deepcopy(test_manifest._raw)
+    now_et = datetime.now(timezone.utc).astimezone(
+        ZoneInfo(str(cleanup_raw["session"]["timezone"])))
+    cleanup_raw["session"]["final_trading_date"] = now_et.date().isoformat()
+    cleanup_raw["session"]["flatten_all_at"] = "00:00"
+    from policy.loader import Manifest
+    cleanup_manifest = Manifest(cleanup_raw)
+    activation = cycle_environment.structures.reconcile_pending_entries(
+        client.get_order_by_client_id)
+    if len(activation.activated) != 1:
+        print("AUTO_CYCLE_FAILED entry activation was not exactly one")
         return 6
+    data = rc.AlpacaData(key, secret)
+    state = rc.build_state(data, cleanup_manifest,
+                           [str(record["underlying"])])
+    closed = rc.manage_exits(
+        state, cleanup_manifest,
+        rc.Executor(data.trading, cleanup_manifest,
+                    record_decision=cycle_environment.append_decision),
+        structures=cycle_environment.structures,
+        record_decision=cycle_environment.append_decision)
+    print(f"system exit submissions: {closed}")
+
+    deadline = time.monotonic() + 60
+    while time.monotonic() < deadline:
+        if not client.get_all_positions() and not _open_orders(client):
+            print("AUTO_FILL_AND_SYSTEM_EXIT cleanup=PASS")
+            return 0
+        time.sleep(3)
+    print("AUTO_FILL_AND_SYSTEM_EXIT cleanup=FAIL; manual attention required")
+    return 6
 
 
 if __name__ == "__main__":

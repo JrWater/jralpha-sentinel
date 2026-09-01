@@ -59,3 +59,10 @@ def test_rehearsal_checks_decision_log_writability_only_in_temp_state(tmp_path):
     assert rehearsal.rehearsal_decision_log_writable(tmp_path) is True
     assert (tmp_path / "state" / "decisions.jsonl").exists()
     assert not (rehearsal.ROOT / "state" / "decision-log-rehearsal-test").exists()
+
+
+def test_rehearsal_uses_the_cycle_environment_seam_without_global_patches():
+    source = Path(rehearsal.__file__).read_text()
+
+    assert "CycleEnvironment(" in source
+    assert "mock.patch" not in source

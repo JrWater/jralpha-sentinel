@@ -30,12 +30,11 @@ two substitutions:
 The manifest sha therefore differs from production for this run — expected,
 and the reason `manifest_identity` reports a different hash below.
 
-Every disk write on the path is stubbed — including `agent.snapshot.write`,
-which does NOT go through `atomic_write` and so escaped the first version of
-this harness, briefly publishing the rehearsal's manifest hash to the public
-dashboard. The script hashes state/ and docs/snapshot.json before and after
-and exits non-zero if anything moved, so that failure cannot pass silently. Nothing is sent
-to the broker; reads are ordinary market data.
+The rehearsal binds the Cycle to a temporary state directory and a no-op
+snapshot writer. The script still hashes production state and
+docs/snapshot.json before and after and exits non-zero if anything moved, so
+an adapter leak cannot pass silently. Nothing is sent to the broker; reads are
+ordinary market data.
 """
 from __future__ import annotations
 
@@ -46,7 +45,6 @@ import tempfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
-from unittest import mock
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
@@ -86,6 +84,28 @@ def rehearsal_ledger_path(state_dir: Path) -> Path:
 def rehearsal_decision_log_writable(state_dir: Path) -> bool:
     """Exercise the decision-log gate against temporary rehearsal state."""
     return _real_decisions_writable(state_dir)
+
+
+def rehearsal_environment(rc, *, state_dir: Path, manifest, recorders: list):
+    """Bind a rehearsal to isolated state without patching cycle globals."""
+    real_executor = rc.Executor
+
+    def executor_factory(client, policy, **kwargs):
+        recorder = RecordingClient(client)
+        recorders.append(recorder)
+        return real_executor(recorder, policy, **kwargs)
+
+    return rc.CycleEnvironment(
+        root=ROOT, state_dir=state_dir,
+        structures=rehearsal_structures(state_dir),
+        manifest_loader=lambda: manifest,
+        environment_loader=rc.load_env,
+        credential_loader=rc.creds,
+        data_factory=rc.AlpacaData,
+        executor_factory=executor_factory,
+        engine_runner=rc.run_engines,
+        snapshot_writer=lambda _payload: None,
+        snapshot_history_path=state_dir / "snapshot.json")
 
 
 class RecordingClient:
@@ -140,50 +160,23 @@ def main() -> int:
     before = fingerprint()
 
     recorders: list[RecordingClient] = []
-    real_executor = rc.Executor
-
-    def executor_factory(client, mf, **kw):
-        rec = RecordingClient(client)
-        recorders.append(rec)
-        return real_executor(rec, mf, **kw)
 
     rehearsal_state = tempfile.TemporaryDirectory(
         prefix="jralpha-sentinel-rehearsal-")
     with rehearsal_state:
         rehearsal_dir = Path(rehearsal_state.name)
-        rehearsal_ledger = rehearsal_ledger_path(rehearsal_dir)
-
-        def mirror_rehearsal(positions):
-            return mirror_from_broker(positions, path=rehearsal_ledger)
-
-        def read_rehearsal_ledger():
-            return ledger_positions(path=rehearsal_ledger)
-
-        with \
-         mock.patch.object(rc, "SUBMISSION_WAL_PATH",
-                           rehearsal_dir / "submission_wal.jsonl"), \
-         mock.patch.object(rc, "load_manifest", lambda *a, **k: rehearsal_manifest), \
-         mock.patch.object(rc, "Executor", executor_factory), \
-         mock.patch.object(rc, "STRUCTURES", rehearsal_structures(
-             rehearsal_dir)), \
-         mock.patch.object(rc, "CYCLE_LOCK_PATH", rehearsal_cycle_lock(
-             rehearsal_dir)), \
-         mock.patch.object(rc, "write_permit"), \
-         mock.patch.object(rc, "atomic_write"), \
-         mock.patch.object(rc, "append_decision"), \
-         mock.patch.object(rc, "mirror_from_broker", mirror_rehearsal), \
-         mock.patch.object(rc, "ledger_positions", read_rehearsal_ledger), \
-         mock.patch("gates.evaluation._decisions_writable",
-                    lambda _root: rehearsal_decision_log_writable(rehearsal_dir)), \
-         mock.patch("agent.executor.append_decision"), \
-         mock.patch("agent.snapshot.write"):
-            sys.argv = ["run_cycle.py"] + sys.argv[1:]
-            code = rc.main()
+        environment = rehearsal_environment(
+            rc, state_dir=rehearsal_dir, manifest=rehearsal_manifest,
+            recorders=recorders)
+        sys.argv = ["run_cycle.py"] + sys.argv[1:]
+        cycle_result = rc.run(environment)
+        code = cycle_result.exit_code
 
     sent = [o for r in recorders for o in r.orders]
     canceled = [o for r in recorders for o in r.cancellations]
     print(f"\n{'='*66}")
     print(f"cycle exit code: {code}")
+    print(f"cycle disposition: {cycle_result.disposition}")
     print(f"orders the agent would have placed: {len(sent)}")
     for i, req in enumerate(sent, 1):
         print(f"\n[{i}] wire request the Executor built:")

@@ -69,8 +69,9 @@ class PositionLifecycle:
         from zoneinfo import ZoneInfo
 
         now_et = state.now_utc.astimezone(ZoneInfo("America/New_York"))
-        final_date = str(manifest.get("session", "final_trading_date"))
-        flatten_at = str(manifest.get("session", "flatten_all_at"))
+        final_day = manifest.final_day_rules()
+        final_date = final_day.trading_date.isoformat()
+        flatten_at = final_day.flatten_at
         meta = structures.load()
         groups = meta.get("groups", {})
         broker = {position.symbol: position for position in state.positions}

@@ -26,6 +26,19 @@ def test_write_uses_the_runtime_snapshot_path(tmp_path, monkeypatch):
         "schema_version": 1, "decisions": []}
 
 
+def test_build_reads_only_the_explicit_snapshot_history_path(tmp_path):
+    production_history = tmp_path / "production-snapshot.json"
+    production_history.write_text(json.dumps({
+        "equity_history": [{"t": "old", "equity": 1.0}], "decisions": []}))
+    isolated_history = tmp_path / "isolated-snapshot.json"
+
+    payload = _build([], previous_snapshot_path=isolated_history)
+
+    assert payload["equity_history"] == [{
+        "t": "2026-08-28T16:00:00+00:00", "equity": 100000.0}]
+    assert production_history.exists()
+
+
 class Manifest:
     identity = "TEST/V1"
     policy_id = "TEST"
@@ -38,7 +51,7 @@ class Manifest:
         return default
 
 
-def _build(decisions):
+def _build(decisions, **kwargs):
     return snapshot.build(
         manifest=Manifest(),
         account=SimpleNamespace(
@@ -49,11 +62,12 @@ def _build(decisions):
         positions=[], decisions=decisions, git_head="a" * 40,
         git_dirty=False,
         now_utc=datetime(2026, 8, 28, 16, 0, tzinfo=timezone.utc),
+        **kwargs,
     )
 
 
 def test_snapshot_rejects_new_legacy_accepted_records(monkeypatch):
-    monkeypatch.setattr(snapshot, "_read_previous", lambda: {})
+    monkeypatch.setattr(snapshot, "_read_previous", lambda _path: {})
     legacy = [{
         "at": "2026-08-28T16:00:00+00:00",
         "engine": "trend_income",
@@ -67,7 +81,7 @@ def test_snapshot_rejects_new_legacy_accepted_records(monkeypatch):
 
 
 def test_snapshot_rejects_blindly_accumulated_legacy_history(monkeypatch):
-    monkeypatch.setattr(snapshot, "_read_previous", lambda: {
+    monkeypatch.setattr(snapshot, "_read_previous", lambda _path: {
         "decisions": [{
             "at": "2026-08-27T16:00:00+00:00",
             "engine": "trend_income",
@@ -83,7 +97,7 @@ def test_snapshot_rejects_blindly_accumulated_legacy_history(monkeypatch):
 
 def test_snapshot_preserves_broker_acceptance_and_fill_as_distinct_facts(
         monkeypatch):
-    monkeypatch.setattr(snapshot, "_read_previous", lambda: {})
+    monkeypatch.setattr(snapshot, "_read_previous", lambda _path: {})
     decision = {
         "at": "2026-08-28T16:00:00+00:00",
         "engine": "trend_income",
@@ -112,7 +126,7 @@ def test_snapshot_preserves_broker_acceptance_and_fill_as_distinct_facts(
 
 def test_snapshot_applies_reconciled_status_to_accumulated_history(
         monkeypatch):
-    monkeypatch.setattr(snapshot, "_read_previous", lambda: {
+    monkeypatch.setattr(snapshot, "_read_previous", lambda _path: {
         "decisions": [{
             "client_order_id": "sentinel-logical-1",
             "submitted": True,
