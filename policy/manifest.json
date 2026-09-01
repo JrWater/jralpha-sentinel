@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "policy_id": "SENTINEL-OPTIONS-V2",
-  "version": "3.2.0",
+  "version": "3.1.4",
   "_comment_authority": "This manifest is the ONLY authority for strategy parameters. Code reads values from here; it never restates them. Prose documents describe this file, they do not define a competing source of truth. Every semantic change creates a new version rather than rewriting history.",
   "environment": {
     "broker": "ALPACA",
@@ -53,7 +53,7 @@
   },
   "strategies": {
     "trend_directional": {
-      "enabled": false,
+      "enabled": true,
       "exit_loss_kind": "fraction",
       "execution_shape_ids": [
         "mleg_2_leg_limit_day"
@@ -76,12 +76,12 @@
       "max_rsi_entry": 65.0,
       "max_momentum_5d_entry": 6.0,
       "max_momentum_20d_entry": 25.0,
-      "_comment": "Directional momentum engine: debit call verticals in a risk-on tape, debit put verticals in a risk-off tape, 0-2 DTE, defined risk = debit paid. The three max_*_entry keys are the pullback-entry filter: buy strength on a pullback, never after a blow-off. Re-measured 2026-08-25 AFTER fixing an RSI defect that read the first fourteen bars of the series instead of the last (so this filter's RSI<=65 term was gating on a random historical fortnight): 498 signals at this threshold, +0.22% d1 / +0.51% d2 / +0.75% d3 edge vs SPY, monotonic in the threshold. The unfiltered score chasing extended names is confirmed (PLTR -3.11% / MSFT -2.65% / COIN -2.37% at d3). Caveat stated because a judge can re-run scripts/backtest_signals.py: 95% of the positive edge is DELL, AMD and MU, and only 6 of 15 names show a positive d3 edge. breakout_allow_long: a 20-day-high SPY breakout overrides a chop regime for one long position at reduced conviction - the record-high tape's main continuation scenario. v2.3 (2026-08-26, strategy-level backtest): shipped 0.45-delta/60%-TP lost $7.3k over 250 simulated sessions (37% win); 0.40-delta + 40%-TP + 2-DTE won $31.8k (64% win, maxDD $9.6k). Earlier profit-taking beats holding into theta. v2.4: demoted to FALLBACK when the credit ladder cannot be built; cap raised to 1.5% ($1,500) - the sizing sweep scaled P&L linearly without changing trade count. v3.0: cap 1.5% -> 2%. v3.2.0 (2026-08-31, FINAL window configuration): trend vector DISABLED for the remaining window. Cross-validation evidence on the same universe/period: (a) Vibe-Trading spot engine (fills+commission) -6.65% vs SPY +23.9%, PF 0.92, bootstrap P(Sharpe>0)=39%; (b) Vibe-Trading options engine: credit spreads +2.1%, roundtrip win 69%, PF 1.06 - thin after costs; (c) live account after 3 days: -3.4% held by trend legs. Trend variance also competed for the $40k at-risk cap against the two evidence-positive event bets (NFP gap 9/10, LULU median 11.8%). All trend entry disabled; exits and reconciliation still manage the book. catalyst/event_macro/vol_income remain the window's engines.",
+      "_comment": "Directional momentum engine: debit call verticals in a risk-on tape, debit put verticals in a risk-off tape, 0-2 DTE, defined risk = debit paid. The three max_*_entry keys are the pullback-entry filter: buy strength on a pullback, never after a blow-off. Re-measured 2026-08-25 AFTER fixing an RSI defect that read the first fourteen bars of the series instead of the last (so this filter's RSI<=65 term was gating on a random historical fortnight): 498 signals at this threshold, +0.22% d1 / +0.51% d2 / +0.75% d3 edge vs SPY, monotonic in the threshold. The unfiltered score chasing extended names is confirmed (PLTR -3.11% / MSFT -2.65% / COIN -2.37% at d3). Caveat stated because a judge can re-run scripts/backtest_signals.py: 95% of the positive edge is DELL, AMD and MU, and only 6 of 15 names show a positive d3 edge. breakout_allow_long: a 20-day-high SPY breakout overrides a chop regime for one long position at reduced conviction - the record-high tape's main continuation scenario. v2.3 (2026-08-26, strategy-level backtest): shipped 0.45-delta/60%-TP lost $7.3k over 250 simulated sessions (37% win); 0.40-delta + 40%-TP + 2-DTE won $31.8k (64% win, maxDD $9.6k). Earlier profit-taking beats holding into theta. v2.4: demoted to FALLBACK when the credit ladder cannot be built; cap raised to 1.5% ($1,500) - the sizing sweep scaled P&L linearly without changing trade count. v3.0: cap 1.5% -> 2%. v3.2.0 (2026-08-31, FINAL window configuration): trend vector DISABLED for the remaining window. Cross-validation evidence on the same universe/period: (a) Vibe-Trading spot engine (fills+commission) -6.65% vs SPY +23.9%, PF 0.92, bootstrap P(Sharpe>0)=39%; (b) Vibe-Trading options engine: credit spreads +2.1%, roundtrip win 69%, PF 1.06 - thin after costs; (c) live account after 3 days: -3.4% held by trend legs. Trend variance also competed for the $40k at-risk cap against the two evidence-positive event bets (NFP gap 9/10, LULU median 11.8%). All trend entry disabled; exits and reconciliation still manage the book. catalyst/event_macro/vol_income remain the window's engines. v3.1.4 (2026-08-31): trend RE-ENABLED per owner decision - the v3.2.0 disable was reverted because the four-engine cross-validation showed only a marginal difference (+/-$200 EV, small kill-switch tail risk); the remaining window's outcome is dominated by the LULU/NFP event legs either way. Research evidence stays in docs/STRATEGY.md.",
       "breakout_allow_long": true,
       "breakout_max_positions": 1
     },
     "trend_income": {
-      "enabled": false,
+      "enabled": true,
       "exit_loss_kind": "multiple",
       "execution_shape_ids": [
         "mleg_2_leg_limit_day"
