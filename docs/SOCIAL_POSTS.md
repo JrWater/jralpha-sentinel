@@ -14,10 +14,10 @@
 
 ---
 
-## 帖 1（今晚 8/31 或明早 9/1 发）— 中途决策，诚实复盘
+## 帖 1（8/31 发 ✅）— 中途决策，诚实复盘
 
-**X 版（<280 字符）：**
-> Day 4 of @lablabai × @AlpacaHQ AI Trading Agents Hackathon. We cross-validated our trend engine on 4 independent backtesters — and disabled it mid-competition. Evidence over ego: its edge was noise. The remaining firepower goes to the events the data actually supports. Repo: github.com/JrWater/jralpha-sentinel
+**X 版（已发，232 字符）— 链接：https://x.com/JackW1982/status/2094628275670896950**
+> Day 4 of @lablabai x @AlpacaHQ hackathon: we cross-validated our trend engine on 4 backtesters and disabled it mid-competition. Evidence over ego. Firepower goes to the events the data supports. github.com/JrWater/jralpha-sentinel
 
 **LinkedIn 版（约 120 词）：**
 > Day 4 of the lablab.ai × Alpaca AI Trading Agents Hackathon, and we made the hardest decision mid-flight: we turned our own trend engine off.
@@ -30,7 +30,7 @@
 >
 > #AI #Trading #Hackathon #Options
 
-## 帖 2（9/2 发）— 架构杀招
+## 帖 2（9/1 发）— 架构杀招
 
 **X 版：**
 > Most agents this week hand an LLM a broker tool. Sentinel doesn't: the model proposes, 16 deterministic gates decide, and no market-order shape even exists in the manifest. A hallucinated ticker can't become a fill because the fill never exists until the gates sign it. @lablabai @AlpacaHQ
@@ -42,7 +42,7 @@
 >
 > lablab.ai · Alpaca · #AI #TradingAgents #Options
 
-## 帖 3（9/3 发）— 催化剂日（LULU 财报今晚 + NFP 明早）
+## 帖 3（9/2 发）— 催化剂日（LULU 财报今晚 + NFP 明早）
 
 **X 版：**
 > Tonight LULU reports (16:30 ET), tomorrow 08:30 ET the jobs report. Sentinel is positioned: a straddle sized from a 10-sample move study (median 11.8%), plus the NFP gap play measured 9/10 across 33 first-Fridays. Defined risk, limit-only, gates live at jralpha-sentinel.streamlit.app. @lablabai @AlpacaHQ
@@ -54,7 +54,7 @@
 >
 > lablab.ai · Alpaca · #Options #Earnings #NFP
 
-## 帖 4（9/4 早盘 10:45 ET 平仓后、11:00 ET 提交前发）— 收尾版
+## 帖 4（9/3 发）— 收尾版（收尾版提前到 9/3：9/4 是 NFP 日，系统全神贯注于事件）
 
 **X 版：**
 > Final morning. Everything is flattened by limit orders, the numbers are what they are, and the submission goes in before the 11:00 ET deadline — gates, evidence, and honest corrections included. Whatever it lands, the artifact stands. Thank you @lablabai and @AlpacaHQ. github.com/JrWater/jralpha-sentinel
@@ -68,11 +68,11 @@
 
 ## 提交时附的链接清单（≤5 条）
 
-- [x] 帖 1 · X：https://x.com/openclaw/status/2094563684307853772（已发，8/31）
-- [ ] 帖 1 · LinkedIn（待手动粘贴发布，正文见上）
-- [ ] 帖 2 URL（9/2 发）
-- [ ] 帖 3 URL（9/3 发）
-- [ ] 帖 4 URL（9/4 早盘发）
+- [x] 帖 1 · X：https://x.com/JackW1982/status/2094628275670896950（已发+已验证，8/31）
+- [ ] 帖 1 · LinkedIn（剪贴板已备好：Start a post → Cmd+V → Post，正文见上）
+- [ ] 帖 2 URL（9/1 发）
+- [ ] 帖 3 URL（9/2 发）
+- [ ] 帖 4 URL（9/3 发）
 
 ## 注意事项
 
