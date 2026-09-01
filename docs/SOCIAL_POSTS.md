@@ -70,7 +70,7 @@
 
 - [x] 帖 1 · X：https://x.com/JackW1982/status/2094628275670896950（已发+已验证，8/31）
 - [ ] 帖 1 · LinkedIn（剪贴板已备好：Start a post → Cmd+V → Post，正文见上）
-- [ ] 帖 2 URL（9/1 发）
+- [x] 帖 2 · X：https://x.com/JackW1982/status/2094886432099938728（已发+已验证，9/1）
 - [ ] 帖 3 URL（9/2 发）
 - [ ] 帖 4 URL（9/3 发）
 
