@@ -54,13 +54,13 @@
 >
 > lablab.ai · Alpaca · #Options #Earnings #NFP
 
-## 帖 4（9/4 早，收盘/提交后发）— 结果诚实版
+## 帖 4（9/4 早盘 10:45 ET 平仓后、11:00 ET 提交前发）— 收尾版
 
 **X 版：**
-> Five days, one window, every number real. Final equity vs $100k start, win rate by vector, and what the gates refused — reported honestly whichever way it landed. Thank you @lablabai and @AlpacaHQ for the best trading education there is. github.com/JrWater/jralpha-sentinel
+> Final morning. Everything is flattened by limit orders, the numbers are what they are, and the submission goes in before the 11:00 ET deadline — gates, evidence, and honest corrections included. Whatever it lands, the artifact stands. Thank you @lablabai and @AlpacaHQ. github.com/JrWater/jralpha-sentinel
 
 **LinkedIn 版（约 90 词）：**
-> The window closed. Final equity, per-vector win rates, the event-study hits and misses — all from account PA3K3A9ZBCBI, nothing fabricated. The one-page write-up (AI logic / risk gates / Alpaca infrastructure), slides, and demo video are in the repo.
+> Final morning of the window: every position flattened by limit orders before 10:45 ET, the submission goes in before the 11:00 ET deadline. Final equity, per-vector win rates, the event-study hits and misses — all from account PA3K3A9ZBCBI, nothing fabricated. The one-page write-up (AI logic / risk gates / Alpaca infrastructure), slides, and demo video are in the repo.
 >
 > Win or lose, the artifact stands: an options agent whose language model cannot place an order, cross-validated and honestly corrected mid-competition. That's the system we'd want running real money — slowly, with better data.
 >
