@@ -18,7 +18,7 @@ from alpaca.trading.client import TradingClient
 from alpaca.trading.enums import (OrderClass, OrderSide, PositionIntent,
                                   QueryOrderStatus, TimeInForce)
 from alpaca.trading.requests import (GetOrdersRequest, LimitOrderRequest,
-                                     OptionLegRequest)
+                                     OptionLegRequest, ReplaceOrderRequest)
 
 from agent.ledger import append_decision
 from strategy.proposal import Proposal
@@ -253,6 +253,42 @@ class Executor:
     def get_order_by_id(self, order_id: str):
         """Read the broker status for this structure's recorded close order."""
         return self.client.get_order_by_id(order_id)
+
+    def reprice_residual_equity_close(self, order_id: str, limit_price: float,
+                                      *, client_order_id: str | None = None,
+                                      now: datetime | None = None):
+        """Atomically refresh a still-working, lifecycle-owned stock exit.
+
+        Only :class:`PositionLifecycle` calls this after it has proved that
+        the tracked order has no fills and is no longer marketable.  Replacing
+        at the broker is deliberately preferred to cancel-then-submit: it
+        leaves no interval in which two independent order records can claim
+        the same delivery residual.
+        """
+        self._refuse_unless_authorized(now=now)
+        self.manifest.residual_equity_close_shape()
+        if not isinstance(order_id, str) or not order_id.strip():
+            raise RuntimeError("residual equity reprice requires an order id")
+        if limit_price <= 0:
+            raise RuntimeError("residual equity reprice requires a positive limit")
+        if not client_order_id:
+            raise RuntimeError("residual equity reprice requires a client order id")
+        order = self.client.replace_order_by_id(order_id, ReplaceOrderRequest(
+            time_in_force=TimeInForce.DAY,
+            limit_price=limit_price,
+            client_order_id=client_order_id,
+        ))
+        self._log(f"  REPRICED residual close {order_id} -> {order.id} "
+                  f"@ {limit_price:.2f} -> {order.status}")
+        self._record_decision({
+            "kind": "residual_equity_flatten_repriced",
+            "at_utc": datetime.now(timezone.utc).isoformat(),
+            "previous_order_id": str(order_id),
+            "order_id": str(order.id),
+            "client_order_id": client_order_id,
+            "limit_price": limit_price,
+        })
+        return order
 
     def retry_open_orders_cleanup(self, *, preserve_order_ids: frozenset[str] =
                                   frozenset()) -> None:

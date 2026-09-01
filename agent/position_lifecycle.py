@@ -117,7 +117,7 @@ class PositionLifecycle:
 
         meta_changed = self._reconcile_residual_equity_orders(
             groups, getattr(state, "non_option_positions", None), executor,
-            state.now_utc) or meta_changed
+            state.now_utc, getattr(state, "latest", {})) or meta_changed
         residual_order_ids_before = {
             str(group.get("residual_equity_close_order_id"))
             for group in groups.values()
@@ -438,8 +438,9 @@ class PositionLifecycle:
 
     def _reconcile_residual_equity_orders(self, groups: dict,
                                           non_option_positions: list | None,
-                                          executor: Any, now_utc: datetime) -> bool:
-        """Reprice only a terminal residual close; never duplicate an open one."""
+                                          executor: Any, now_utc: datetime,
+                                          latest: dict) -> bool:
+        """Reconcile residual exits and atomically refresh stale live limits."""
         if non_option_positions is None:
             changed = False
             for group in groups.values():
@@ -470,6 +471,43 @@ class PositionLifecycle:
             status = _order_status(order)
             underlying = str(group.get("underlying", "")).upper()
             position = positions.get(underlying)
+            if status in {"NEW", "ACCEPTED", "PENDING_NEW"} and \
+                    _quantity(getattr(order, "filled_qty", None)) == 0:
+                quantity = _signed_quantity(group.get("residual_equity_close_qty"))
+                old_limit = getattr(order, "limit_price", None)
+                quote = latest.get(underlying)
+                side_price = "bid_price" if quantity and quantity > 0 else "ask_price"
+                try:
+                    replacement_limit = float(getattr(quote, side_price))
+                    old_limit = float(old_limit)
+                except (AttributeError, TypeError, ValueError):
+                    replacement_limit = old_limit = 0.0
+                stale = ((quantity and quantity > 0 and old_limit > replacement_limit) or
+                         (quantity and quantity < 0 and old_limit < replacement_limit))
+                if replacement_limit > 0 and stale:
+                    reprice = int(group.get("residual_equity_close_reprice", 0)) + 1
+                    client_order_id = (
+                        f"{group.get('residual_equity_close_client_order_id', '')}-r{reprice}")
+                    if not client_order_id.startswith("sentinel-"):
+                        self._quarantine(group, "residual_equity_close_client_order_unreadable")
+                        changed = True
+                        continue
+                    try:
+                        replacement = executor.reprice_residual_equity_close(
+                            str(order_id), replacement_limit,
+                            client_order_id=client_order_id)
+                    except Exception as exc:  # noqa: BLE001
+                        print(f"  RESIDUAL REPRICE FAILED {group_id}: {exc}")
+                        continue
+                    group["residual_equity_close_order_id"] = str(replacement.id)
+                    group["residual_equity_close_client_order_id"] = client_order_id
+                    group["residual_equity_close_limit_price"] = replacement_limit
+                    group["residual_equity_close_reprice"] = reprice
+                    self._record({"kind": "residual_equity_flatten_reprice_tracking",
+                                  "group": group_id, "previous_order_id": str(order_id),
+                                  "order_id": str(replacement.id), "limit_price": replacement_limit})
+                    changed = True
+                continue
             if status == "FILLED":
                 baseline = _signed_quantity(group.get("pre_expiry_underlying_qty"))
                 observed = 0 if position is None else _signed_quantity(

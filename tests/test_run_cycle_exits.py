@@ -38,6 +38,18 @@ class PaperBrokerBoundary:
             order_id, SimpleNamespace(status="new", filled_qty="0"))
 
 
+class RepricingPaperBroker(PaperBrokerBoundary):
+    """Paper boundary that records an atomic broker-side limit replacement."""
+
+    def __init__(self, account_number: str):
+        super().__init__(account_number)
+        self.replacements = []
+
+    def replace_order_by_id(self, order_id, request):
+        self.replacements.append((order_id, request))
+        return SimpleNamespace(id="repriced-residual", status="new")
+
+
 class FillingPaperBroker(PaperBrokerBoundary):
     """Paper boundary that fills accepted closes into one net position book."""
 
@@ -788,6 +800,47 @@ def test_terminal_partial_residual_close_reprices_only_verified_remainder(
     assert broker.submitted[0].qty == 200
     group = json.loads(meta_path.read_text())["groups"]["tsla"]
     assert group["residual_equity_close_qty"] == 200
+
+
+def test_working_residual_close_is_repriced_when_it_is_no_longer_marketable(
+        tmp_path):
+    """A stale Day limit cannot indefinitely hold the entry gate closed."""
+    raw = copy.deepcopy(load_manifest()._raw)
+    raw["environment"]["competition_account_id"] = "PAPER-TEST"
+    raw["session"]["competition_starts_utc"] = "2020-01-01T00:00:00+00:00"
+    manifest = Manifest(raw)
+    meta_path = tmp_path / "positions_meta.json"
+    meta_path.write_text(json.dumps({"groups": {"tsla": {
+        "closed": False, "engine": "trend_single", "underlying": "TSLA",
+        "expiry": "2026-08-31", "kind": "debit", "pre_expiry_underlying_qty": 0,
+        "residual_equity_close_pending": True,
+        "residual_equity_close_order_id": "stale-residual",
+        "residual_equity_close_client_order_id": "sentinel-residual-TSLA-1",
+        "residual_equity_close_qty": 500,
+        "residual_equity_close_limit_price": 367.90,
+        "residual_equity_original_delivery_qty": 500,
+        "legs": {"TSLA260831C00367500": {"side": "buy", "qty": 5}},
+    }}}))
+    state = MarketState(
+        now_utc=datetime(2026, 9, 1, 14, tzinfo=timezone.utc), positions=[],
+        non_option_positions=[SimpleNamespace(symbol="TSLA", qty="500")])
+    state.latest = {"TSLA": SimpleNamespace(bid_price="358.53", ask_price="358.60")}
+    broker = RepricingPaperBroker("PAPER-TEST")
+    broker.close_orders["stale-residual"] = SimpleNamespace(
+        status="new", filled_qty="0", limit_price="367.90")
+
+    assert run_cycle.manage_exits(
+        state, manifest, Executor(broker, manifest, verbose=False),
+        structures=StructureLedger(meta_path)) == 0
+
+    assert len(broker.replacements) == 1
+    old_order_id, request = broker.replacements[0]
+    assert old_order_id == "stale-residual"
+    assert request.limit_price == 358.53
+    assert request.client_order_id == "sentinel-residual-TSLA-1-r1"
+    group = json.loads(meta_path.read_text())["groups"]["tsla"]
+    assert group["residual_equity_close_order_id"] == "repriced-residual"
+    assert group["residual_equity_close_limit_price"] == 358.53
 
 
 
