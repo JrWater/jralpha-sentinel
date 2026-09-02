@@ -1,6 +1,8 @@
 """The dashboard publisher must never turn a runtime snapshot into a broad push."""
 from __future__ import annotations
 
+import subprocess
+
 import pytest
 
 from scripts import publish_snapshot
@@ -45,12 +47,78 @@ def test_publish_delegates_writes_to_an_isolated_clone(monkeypatch):
     monkeypatch.setattr(publish_snapshot, "git", fake_git)
     monkeypatch.setattr(
         publish_snapshot, "publish_from_disposable_clone",
-        lambda expected_head: published.append(expected_head))
+        lambda local_head, remote_head: published.append((local_head, remote_head)))
 
     assert publish_snapshot.publish() is True
-    assert published == ["before"]
+    assert published == [("before", "before")]
     assert not {"add", "commit", "push"}.intersection(
         command[0] for command in calls)
+
+
+@pytest.mark.parametrize(
+    ("changed_paths", "error"),
+    [
+        ("docs/snapshot.json\n", None),
+        ("docs/snapshot.json\npolicy/manifest.json\npolicy/manifest.json\n",
+         "non-snapshot changes"),
+    ],
+)
+def test_remote_history_must_contain_only_snapshot_changes(
+        monkeypatch, tmp_path, changed_paths, error):
+    clone = tmp_path / "clone"
+
+    def fake_git(*args, cwd=publish_snapshot.ROOT):
+        if args == ("merge-base", "--is-ancestor", "local", "remote"):
+            return ""
+        if args == ("rev-list", "local..remote"):
+            return "snapshot-commit\n"
+        if args == (
+            "diff-tree", "--no-commit-id", "--name-only", "-r", "-m",
+            "snapshot-commit",
+        ):
+            return changed_paths
+        raise AssertionError(f"unexpected git command: {args} in {cwd}")
+
+    monkeypatch.setattr(publish_snapshot, "git", fake_git)
+
+    if error:
+        with pytest.raises(publish_snapshot.SnapshotSyncError, match=error):
+            publish_snapshot.require_snapshot_only_remote_history("local", "remote", clone)
+    else:
+        publish_snapshot.require_snapshot_only_remote_history("local", "remote", clone)
+
+
+def test_remote_history_rejects_a_reverted_source_change(tmp_path):
+    repo = tmp_path / "repo"
+
+    def run(*args: str) -> str:
+        completed = subprocess.run(
+            ["git", *args], cwd=repo, check=True, text=True,
+            stdout=subprocess.PIPE)
+        return completed.stdout.strip()
+
+    repo.mkdir()
+    run("init", "--quiet")
+    run("config", "user.name", "Sentinel Test")
+    run("config", "user.email", "sentinel@example.test")
+    (repo / "docs").mkdir()
+    (repo / "docs" / "snapshot.json").write_text('{"version": 1}\n')
+    (repo / "policy").mkdir()
+    (repo / "policy" / "manifest.json").write_text('{"risk": 1}\n')
+    run("add", ".")
+    run("commit", "--quiet", "-m", "base")
+    base = run("rev-parse", "HEAD")
+
+    (repo / "policy" / "manifest.json").write_text('{"risk": 2}\n')
+    run("commit", "--quiet", "-am", "source change")
+    (repo / "policy" / "manifest.json").write_text('{"risk": 1}\n')
+    (repo / "docs" / "snapshot.json").write_text('{"version": 2}\n')
+    run("commit", "--quiet", "-am", "revert source and publish snapshot")
+    remote = run("rev-parse", "HEAD")
+
+    with pytest.raises(publish_snapshot.SnapshotSyncError,
+                       match="non-snapshot changes"):
+        publish_snapshot.require_snapshot_only_remote_history(base, remote, repo)
 
 
 def test_clone_failure_cannot_mutate_the_live_checkout(monkeypatch):
@@ -70,7 +138,7 @@ def test_clone_failure_cannot_mutate_the_live_checkout(monkeypatch):
     monkeypatch.setattr(publish_snapshot, "git", fake_git)
     monkeypatch.setattr(
         publish_snapshot, "publish_from_disposable_clone",
-        lambda _head: (_ for _ in ()).throw(
+        lambda _local_head, _remote_head: (_ for _ in ()).throw(
             publish_snapshot.SnapshotSyncError("isolated push failed")))
 
     with pytest.raises(publish_snapshot.SnapshotSyncError, match="isolated push failed"):
@@ -93,12 +161,11 @@ def test_disposable_clone_uses_the_configured_origin_url(monkeypatch):
 
     with pytest.raises(publish_snapshot.SnapshotSyncError,
                        match="stop after clone command"):
-        publish_snapshot.publish_from_disposable_clone("expected")
+        publish_snapshot.publish_from_disposable_clone("local", "remote")
 
     assert commands[0][0] == ("remote", "get-url", "origin")
-    assert commands[1][0][0:6] == (
-        "clone", "--quiet", "--depth", "1", "--branch", "main")
-    assert commands[1][0][6] == "git@github.com:JrWater/jralpha-sentinel.git"
+    assert commands[1][0][0:5] == (
+        "clone", "--quiet", "--branch", "main", "git@github.com:JrWater/jralpha-sentinel.git")
 
 
 def test_publish_treats_a_clean_worktree_as_a_noop(monkeypatch):

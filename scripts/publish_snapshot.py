@@ -56,22 +56,45 @@ def _origin_url() -> str:
     return url
 
 
-def publish_from_disposable_clone(expected_head: str) -> None:
+def require_snapshot_only_remote_history(local_head: str, remote_head: str,
+                                         clone: Path) -> None:
+    """Permit only remote commits that changed the generated snapshot."""
+    try:
+        git("merge-base", "--is-ancestor", local_head, remote_head, cwd=clone)
+    except subprocess.CalledProcessError as exc:
+        raise SnapshotSyncError(
+            "refusing automatic publish: origin/main does not descend from "
+            "the live checkout") from exc
+
+    commits = git("rev-list", f"{local_head}..{remote_head}", cwd=clone).splitlines()
+    for commit in commits:
+        changed = [path for path in git(
+            "diff-tree", "--no-commit-id", "--name-only", "-r", "-m", commit,
+            cwd=clone
+        ).splitlines() if path]
+        if any(path != SNAPSHOT for path in changed):
+            raise SnapshotSyncError(
+                "refusing automatic publish: origin/main contains non-snapshot "
+                "changes")
+
+
+def publish_from_disposable_clone(local_head: str, remote_head: str) -> None:
     """Copy and publish the snapshot from an isolated short-lived checkout."""
     source = ROOT / SNAPSHOT
     with tempfile.TemporaryDirectory(prefix="sentinel-snapshot-publish-") as raw:
         clone = Path(raw) / "checkout"
-        git("clone", "--quiet", "--depth", "1", "--branch", "main",
+        git("clone", "--quiet", "--branch", "main",
             _origin_url(), str(clone))
-        if git("rev-parse", "HEAD", cwd=clone).strip() != expected_head:
+        if git("rev-parse", "HEAD", cwd=clone).strip() != remote_head:
             raise SnapshotSyncError("origin/main changed while preparing snapshot")
+        require_snapshot_only_remote_history(local_head, remote_head, clone)
 
         shutil.copyfile(source, clone / SNAPSHOT)
         git("add", "--", SNAPSHOT, cwd=clone)
         git("commit", "-m", "Publish runtime snapshot", cwd=clone)
         git("push", "origin", "HEAD:main", cwd=clone)
 
-    if _remote_head() == expected_head:
+    if _remote_head() == remote_head:
         raise SnapshotSyncError("snapshot push did not advance origin/main")
 
 
@@ -86,11 +109,7 @@ def publish() -> bool:
         raise SnapshotSyncError("refusing automatic publish outside main")
 
     local_head = git("rev-parse", "HEAD").strip()
-    if local_head != _remote_head():
-        raise SnapshotSyncError(
-            "refusing automatic publish: local main is not origin/main")
-
-    publish_from_disposable_clone(local_head)
+    publish_from_disposable_clone(local_head, _remote_head())
     print("snapshot sync: published from an isolated checkout")
     return True
 
