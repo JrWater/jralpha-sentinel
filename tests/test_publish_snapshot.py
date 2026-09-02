@@ -226,6 +226,27 @@ def test_git_timeout_terminates_the_entire_process_group(monkeypatch):
     assert ("killpg", 456, signal.SIGTERM) in calls
 
 
+def test_git_timeout_accepts_a_process_group_that_already_exited(monkeypatch):
+    class FakeProcess:
+        pid = 789
+
+        def communicate(self, timeout):
+            if timeout == publish_snapshot.GIT_TIMEOUT_SECONDS:
+                raise subprocess.TimeoutExpired("git clone", timeout)
+            self.returncode = 0
+            return "", ""
+
+    monkeypatch.setattr(publish_snapshot.subprocess, "Popen",
+                        lambda *args, **kwargs: FakeProcess())
+    monkeypatch.setattr(
+        publish_snapshot.os, "killpg",
+        lambda _pid, _signal: (_ for _ in ()).throw(ProcessLookupError()),
+    )
+
+    with pytest.raises(subprocess.TimeoutExpired):
+        publish_snapshot.git("clone", "origin", "checkout")
+
+
 def test_main_reports_git_timeouts_without_a_traceback(monkeypatch, capsys):
     monkeypatch.setattr(
         publish_snapshot, "publish",

@@ -24,6 +24,14 @@ class SnapshotSyncError(RuntimeError):
     """The repository is not in the narrow state safe for auto-publishing."""
 
 
+def _stop_process_group(pid: int, termination_signal: int) -> None:
+    """Stop a Git process group unless it has already exited on its own."""
+    try:
+        os.killpg(pid, termination_signal)
+    except ProcessLookupError:
+        pass
+
+
 def git(*args: str, cwd: Path = ROOT) -> str:
     """Run a Git command without changing the live checkout by default."""
     process = subprocess.Popen(
@@ -32,11 +40,11 @@ def git(*args: str, cwd: Path = ROOT) -> str:
     try:
         stdout, stderr = process.communicate(timeout=GIT_TIMEOUT_SECONDS)
     except subprocess.TimeoutExpired:
-        os.killpg(process.pid, signal.SIGTERM)
+        _stop_process_group(process.pid, signal.SIGTERM)
         try:
             process.communicate(timeout=GIT_TERMINATION_GRACE_SECONDS)
         except subprocess.TimeoutExpired:
-            os.killpg(process.pid, signal.SIGKILL)
+            _stop_process_group(process.pid, signal.SIGKILL)
             process.communicate()
         raise
     if process.returncode:
