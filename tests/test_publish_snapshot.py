@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import subprocess
+import signal
 
 import pytest
 
@@ -181,15 +182,48 @@ def test_publish_treats_a_clean_worktree_as_a_noop(monkeypatch):
 def test_git_commands_have_a_bounded_timeout(monkeypatch):
     captured = {}
 
-    def fake_run(*args, **kwargs):
-        captured.update(kwargs)
-        return subprocess.CompletedProcess(args[0], 0, stdout="")
+    class FakeProcess:
+        pid = 123
+        returncode = 0
 
-    monkeypatch.setattr(publish_snapshot.subprocess, "run", fake_run)
+        def communicate(self, timeout):
+            captured["timeout"] = timeout
+            return "", ""
+
+    def fake_popen(*args, **kwargs):
+        captured.update(kwargs)
+        return FakeProcess()
+
+    monkeypatch.setattr(publish_snapshot.subprocess, "Popen", fake_popen)
 
     publish_snapshot.git("status")
 
     assert captured["timeout"] == publish_snapshot.GIT_TIMEOUT_SECONDS
+    assert captured["start_new_session"] is True
+
+
+def test_git_timeout_terminates_the_entire_process_group(monkeypatch):
+    calls = []
+
+    class FakeProcess:
+        pid = 456
+
+        def communicate(self, timeout):
+            calls.append(("communicate", timeout))
+            if len(calls) == 1:
+                raise subprocess.TimeoutExpired("git clone", timeout)
+            self.returncode = -signal.SIGTERM
+            return "", ""
+
+    monkeypatch.setattr(publish_snapshot.subprocess, "Popen",
+                        lambda *args, **kwargs: FakeProcess())
+    monkeypatch.setattr(publish_snapshot.os, "killpg",
+                        lambda pid, sig: calls.append(("killpg", pid, sig)))
+
+    with pytest.raises(subprocess.TimeoutExpired):
+        publish_snapshot.git("clone", "origin", "checkout")
+
+    assert ("killpg", 456, signal.SIGTERM) in calls
 
 
 def test_main_reports_git_timeouts_without_a_traceback(monkeypatch, capsys):

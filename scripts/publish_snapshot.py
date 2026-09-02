@@ -7,6 +7,8 @@ the trading process with a staged file, an ahead branch, or a dirty worktree.
 """
 from __future__ import annotations
 
+import os
+import signal
 import shutil
 import subprocess
 import tempfile
@@ -15,6 +17,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 SNAPSHOT = "docs/snapshot.json"
 GIT_TIMEOUT_SECONDS = 30
+GIT_TERMINATION_GRACE_SECONDS = 2
 
 
 class SnapshotSyncError(RuntimeError):
@@ -23,11 +26,23 @@ class SnapshotSyncError(RuntimeError):
 
 def git(*args: str, cwd: Path = ROOT) -> str:
     """Run a Git command without changing the live checkout by default."""
-    completed = subprocess.run(
-        ["git", *args], cwd=cwd, check=True, text=True,
-        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-        timeout=GIT_TIMEOUT_SECONDS)
-    return completed.stdout
+    process = subprocess.Popen(
+        ["git", *args], cwd=cwd, text=True,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, start_new_session=True)
+    try:
+        stdout, stderr = process.communicate(timeout=GIT_TIMEOUT_SECONDS)
+    except subprocess.TimeoutExpired:
+        os.killpg(process.pid, signal.SIGTERM)
+        try:
+            process.communicate(timeout=GIT_TERMINATION_GRACE_SECONDS)
+        except subprocess.TimeoutExpired:
+            os.killpg(process.pid, signal.SIGKILL)
+            process.communicate()
+        raise
+    if process.returncode:
+        raise subprocess.CalledProcessError(
+            process.returncode, ["git", *args], stdout, stderr)
+    return stdout
 
 
 def _only_generated_snapshot_changed(status: str) -> bool:
