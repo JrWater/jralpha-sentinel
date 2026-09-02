@@ -42,29 +42,31 @@
 >
 > lablab.ai · Alpaca · #AI #TradingAgents #Options
 
-## 帖 3（9/2 发）— 催化剂日（LULU 财报今晚 + NFP 明早）
+## 帖 3（9/2 发）— 催化剂日（修正版：日期已校准 + 真实在场状态）
 
-**X 版：**
-> Tonight LULU reports (16:30 ET), tomorrow 08:30 ET the jobs report. Sentinel is positioned: a straddle sized from a 10-sample move study (median 11.8%), plus the NFP gap play measured 9/10 across 33 first-Fridays. Defined risk, limit-only, gates live at jralpha-sentinel.streamlit.app. @lablabai @AlpacaHQ
+**X 版（228 字符）：**
+> Thursday 16:30 ET LULU reports, Friday 08:30 ET the jobs report. Sentinel is already positioned: the LULU straddle is on, the NFP strangle enters Thursday. The gap play? Measured 9/10 across 33 first-Fridays. Gates live: jralpha-sentinel.streamlit.app @lablabai @AlpacaHQ
 
-**LinkedIn 版（约 90 词）：**
-> Two scheduled catalysts, one agent, zero improvisation. Tonight: LULU Q2 earnings — Sentinel holds a straddle sized from a move study (median earnings move 11.8% vs ~6% breakeven). Tomorrow 08:30 ET: the August Employment Situation — the gap-continuation trade measured 9 wins in 10 across 33 first-Fridays.
+**LinkedIn 版（发帖时把 [@lablab.ai] 和 [@Alpaca] 替换为真实 @提及公司主页）：**
+> Two scheduled catalysts, one agent, zero improvisation. Thursday 16:30 ET: LULU Q2 earnings — Sentinel already holds the straddle (8 contracts, $11.4k defined risk, expiry after the report), sized from the move study (median 11.8% vs ~6% breakeven). Thursday afternoon: the NFP strangle enters. Friday 08:30 ET: the August Employment Situation — the gap-continuation trade measured 9 wins in 10 across 33 first-Fridays.
 >
-> Every position defined-risk, every order limit-only, every decision gated and logged. Follow the live gate matrix: jralpha-sentinel.streamlit.app
+> Three days in, the account is down — and that is exactly why the remaining firepower goes to the two bets the data actually supports, not to hope.
 >
-> lablab.ai · Alpaca · #Options #Earnings #NFP
-
-## 帖 4（9/3 发）— 收尾版（收尾版提前到 9/3：9/4 是 NFP 日，系统全神贯注于事件）
-
-**X 版：**
-> Final morning. Everything is flattened by limit orders, the numbers are what they are, and the submission goes in before the 11:00 ET deadline — gates, evidence, and honest corrections included. Whatever it lands, the artifact stands. Thank you @lablabai and @AlpacaHQ. github.com/JrWater/jralpha-sentinel
-
-**LinkedIn 版（约 90 词）：**
-> Final morning of the window: every position flattened by limit orders before 10:45 ET, the submission goes in before the 11:00 ET deadline. Final equity, per-vector win rates, the event-study hits and misses — all from account PA3K3A9ZBCBI, nothing fabricated. The one-page write-up (AI logic / risk gates / Alpaca infrastructure), slides, and demo video are in the repo.
+> Every position defined-risk, every order limit-only, every decision gated and logged. Live gate matrix: jralpha-sentinel.streamlit.app
 >
-> Win or lose, the artifact stands: an options agent whose language model cannot place an order, cross-validated and honestly corrected mid-competition. That's the system we'd want running real money — slowly, with better data.
+> [@lablab.ai] · [@Alpaca] · #Options #Earnings #NFP
+
+## 帖 4（9/3 发）— 决战前夜（修正版：9/3 发，前瞻而非结果）
+
+**X 版（约 235 字符）：**
+> Tonight LULU lands, tomorrow 08:30 ET the jobs report, 10:45 ET everything flattens, 11:00 ET the submission goes in. Four days of gates, one window, honest numbers either way. The last morning belongs to the evidence: two 0-DTE gap shots if the tape votes. @lablabai @AlpacaHQ
+
+**LinkedIn 版（发帖时把 [@lablab.ai] 和 [@Alpaca] 替换为真实 @提及公司主页）：**
+> Final hours. Tonight after the close, LULU's number hits the straddle. Tomorrow 08:30 ET the August Employment Situation opens the last morning: the 1-DTE strangle is already on, and if the gap is ≥0.8%, up to two 0-DTE continuation shots — the trade measured 9/10 across 33 first-Fridays. 10:45 ET everything is flattened by limit orders; 11:00 ET the submission deadline closes the window.
 >
-> lablab.ai · Alpaca · #Hackathon #AI #Options
+> Whatever the equity number reads, the artifact stands: an options agent whose language model cannot place an order, cross-validated on four independent engines, corrected mid-flight, every gate on public display at jralpha-sentinel.streamlit.app.
+>
+> [@lablab.ai] · [@Alpaca] · #AI · #Options · #Hackathon
 
 ## 提交时附的链接清单（≤5 条）
 
