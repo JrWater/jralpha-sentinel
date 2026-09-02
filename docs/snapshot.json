@@ -1,24 +1,26 @@
 {
   "account": {
     "account_number": "PA3K3A9ZBCBI",
-    "cash": 91788.04,
-    "equity": 91788.04,
+    "cash": 82067.64,
+    "equity": 90867.64,
     "mode": "PAPER",
-    "options_buying_power": 91788.04,
+    "options_buying_power": 82067.64,
     "options_level": 3,
-    "pnl_dollars": -8211.96,
-    "pnl_percent": -8.212,
+    "pnl_dollars": -9132.36,
+    "pnl_percent": -9.132,
     "starting_equity": 100000.0
   },
   "code": {
     "git_head": "80b873cbdf685152b22a5fcf6679258f1425c48e",
-    "worktree_dirty": false
+    "worktree_dirty": true
   },
   "day": {
     "date": "2026-09-02",
-    "fired_once": [],
+    "fired_once": [
+      "catalyst:LULU:2026-09-02"
+    ],
     "killed": false,
-    "new_risk_dollars": 0.0,
+    "new_risk_dollars": 11408.0,
     "scale": 1.0,
     "start_equity": 91788.04
   },
@@ -1789,6 +1791,273 @@
       "structure": "straddle",
       "submitted": false,
       "underlying": "LULU"
+    },
+    {
+      "account_scope": "competition",
+      "at": "2026-09-02T14:00:02.261166+00:00",
+      "authorized": true,
+      "broker_order_id": "bb5dc081-6290-42b6-ae23-392717457bbd",
+      "broker_status": "filled",
+      "client_order_id": "sentinel-e1b2398a5f6a6099283abca1ab7001d6",
+      "conviction": 0.75,
+      "engine": "catalyst",
+      "filled_avg_price": 12.15,
+      "filled_qty": 8.0,
+      "max_loss_dollars": 11408.0,
+      "proposer": {
+        "decision_mode": "llm",
+        "fallback_reason": null,
+        "model": "deepseek-v4-flash",
+        "provider": "deepseek"
+      },
+      "reason": "catalyst-straddle",
+      "refused_by": [],
+      "selected": true,
+      "structure": "straddle",
+      "submitted": true,
+      "underlying": "LULU"
+    },
+    {
+      "account_scope": "competition",
+      "at": "2026-09-02T14:30:02.730542+00:00",
+      "authorized": false,
+      "conviction": 0.75,
+      "engine": "catalyst",
+      "max_loss_dollars": 11368.0,
+      "proposer": {
+        "decision_mode": "llm",
+        "fallback_reason": null,
+        "model": "deepseek-v4-flash",
+        "provider": "deepseek"
+      },
+      "reason": "already fired today",
+      "refused_by": [
+        "control:fire_once"
+      ],
+      "selected": true,
+      "structure": "straddle",
+      "submitted": false,
+      "underlying": "LULU"
+    },
+    {
+      "account_scope": "competition",
+      "at": "2026-09-02T14:45:02.550337+00:00",
+      "authorized": false,
+      "conviction": 0.75,
+      "engine": "catalyst",
+      "max_loss_dollars": 11352.0,
+      "proposer": {
+        "decision_mode": "llm",
+        "fallback_reason": null,
+        "model": "deepseek-v4-flash",
+        "provider": "deepseek"
+      },
+      "reason": "already fired today",
+      "refused_by": [
+        "control:fire_once"
+      ],
+      "selected": true,
+      "structure": "straddle",
+      "submitted": false,
+      "underlying": "LULU"
+    },
+    {
+      "account_scope": "competition",
+      "at": "2026-09-02T15:00:02.273560+00:00",
+      "authorized": false,
+      "conviction": 0.75,
+      "engine": "catalyst",
+      "max_loss_dollars": 11392.0,
+      "proposer": {
+        "decision_mode": "llm",
+        "fallback_reason": null,
+        "model": "deepseek-v4-flash",
+        "provider": "deepseek"
+      },
+      "reason": "already fired today",
+      "refused_by": [
+        "control:fire_once"
+      ],
+      "selected": true,
+      "structure": "straddle",
+      "submitted": false,
+      "underlying": "LULU"
+    },
+    {
+      "account_scope": "competition",
+      "at": "2026-09-02T15:30:03.972492+00:00",
+      "authorized": false,
+      "conviction": 0.75,
+      "engine": "catalyst",
+      "max_loss_dollars": 11376.0,
+      "proposer": {
+        "decision_mode": "llm",
+        "fallback_reason": null,
+        "model": "deepseek-v4-flash",
+        "provider": "deepseek"
+      },
+      "reason": "already fired today",
+      "refused_by": [
+        "control:fire_once"
+      ],
+      "selected": true,
+      "structure": "straddle",
+      "submitted": false,
+      "underlying": "LULU"
+    },
+    {
+      "account_scope": "competition",
+      "at": "2026-09-02T16:00:02.674152+00:00",
+      "authorized": false,
+      "conviction": 0.75,
+      "engine": "catalyst",
+      "max_loss_dollars": 11184.0,
+      "proposer": {
+        "decision_mode": "llm",
+        "fallback_reason": null,
+        "model": "deepseek-v4-flash",
+        "provider": "deepseek"
+      },
+      "reason": "already fired today",
+      "refused_by": [
+        "control:fire_once"
+      ],
+      "selected": true,
+      "structure": "straddle",
+      "submitted": false,
+      "underlying": "LULU"
+    },
+    {
+      "account_scope": "competition",
+      "at": "2026-09-02T16:30:02.884192+00:00",
+      "authorized": false,
+      "conviction": 0.75,
+      "engine": "catalyst",
+      "max_loss_dollars": 11120.0,
+      "proposer": {
+        "decision_mode": "llm",
+        "fallback_reason": null,
+        "model": "deepseek-v4-flash",
+        "provider": "deepseek"
+      },
+      "reason": "already fired today",
+      "refused_by": [
+        "control:fire_once"
+      ],
+      "selected": true,
+      "structure": "straddle",
+      "submitted": false,
+      "underlying": "LULU"
+    },
+    {
+      "account_scope": "competition",
+      "at": "2026-09-02T17:00:03.200667+00:00",
+      "authorized": false,
+      "conviction": 0.75,
+      "engine": "catalyst",
+      "max_loss_dollars": 11168.0,
+      "proposer": {
+        "decision_mode": "llm",
+        "fallback_reason": null,
+        "model": "deepseek-v4-flash",
+        "provider": "deepseek"
+      },
+      "reason": "already fired today",
+      "refused_by": [
+        "control:fire_once"
+      ],
+      "selected": true,
+      "structure": "straddle",
+      "submitted": false,
+      "underlying": "LULU"
+    },
+    {
+      "account_scope": "competition",
+      "at": "2026-09-02T17:30:02.652356+00:00",
+      "authorized": false,
+      "conviction": 0.75,
+      "engine": "catalyst",
+      "max_loss_dollars": 11096.0,
+      "proposer": {
+        "decision_mode": "llm",
+        "fallback_reason": null,
+        "model": "deepseek-v4-flash",
+        "provider": "deepseek"
+      },
+      "reason": "already fired today",
+      "refused_by": [
+        "control:fire_once"
+      ],
+      "selected": true,
+      "structure": "straddle",
+      "submitted": false,
+      "underlying": "LULU"
+    },
+    {
+      "account_scope": "competition",
+      "at": "2026-09-02T18:00:02.279382+00:00",
+      "authorized": false,
+      "conviction": 0.75,
+      "engine": "catalyst",
+      "max_loss_dollars": 10936.0,
+      "proposer": {
+        "decision_mode": "llm",
+        "fallback_reason": null,
+        "model": "deepseek-v4-flash",
+        "provider": "deepseek"
+      },
+      "reason": "already fired today",
+      "refused_by": [
+        "control:fire_once"
+      ],
+      "selected": true,
+      "structure": "straddle",
+      "submitted": false,
+      "underlying": "LULU"
+    },
+    {
+      "account_scope": "competition",
+      "at": "2026-09-02T18:30:03.451745+00:00",
+      "authorized": false,
+      "conviction": 0.75,
+      "engine": "catalyst",
+      "max_loss_dollars": 11128.0,
+      "proposer": {
+        "decision_mode": "llm",
+        "fallback_reason": null,
+        "model": "deepseek-v4-flash",
+        "provider": "deepseek"
+      },
+      "reason": "already fired today",
+      "refused_by": [
+        "control:fire_once"
+      ],
+      "selected": true,
+      "structure": "straddle",
+      "submitted": false,
+      "underlying": "LULU"
+    },
+    {
+      "account_scope": "competition",
+      "at": "2026-09-02T19:05:02.297656+00:00",
+      "authorized": false,
+      "conviction": 0.75,
+      "engine": "catalyst",
+      "max_loss_dollars": 11224.0,
+      "proposer": {
+        "decision_mode": "llm",
+        "fallback_reason": null,
+        "model": "deepseek-v4-flash",
+        "provider": "deepseek"
+      },
+      "reason": "already fired today",
+      "refused_by": [
+        "control:fire_once"
+      ],
+      "selected": true,
+      "structure": "straddle",
+      "submitted": false,
+      "underlying": "LULU"
     }
   ],
   "equity_history": [
@@ -2027,6 +2296,58 @@
     {
       "equity": 91788.04,
       "t": "2026-09-02T13:35:02.951400+00:00"
+    },
+    {
+      "equity": 91788.04,
+      "t": "2026-09-02T14:00:02.261166+00:00"
+    },
+    {
+      "equity": 91027.64,
+      "t": "2026-09-02T14:30:02.730542+00:00"
+    },
+    {
+      "equity": 91027.64,
+      "t": "2026-09-02T14:45:02.550337+00:00"
+    },
+    {
+      "equity": 91027.64,
+      "t": "2026-09-02T15:00:02.273560+00:00"
+    },
+    {
+      "equity": 90827.64,
+      "t": "2026-09-02T15:30:03.972492+00:00"
+    },
+    {
+      "equity": 91027.64,
+      "t": "2026-09-02T16:00:02.674152+00:00"
+    },
+    {
+      "equity": 90987.64,
+      "t": "2026-09-02T16:30:02.884192+00:00"
+    },
+    {
+      "equity": 90827.64,
+      "t": "2026-09-02T17:00:03.200667+00:00"
+    },
+    {
+      "equity": 90947.64,
+      "t": "2026-09-02T17:30:02.652356+00:00"
+    },
+    {
+      "equity": 90507.64,
+      "t": "2026-09-02T18:00:02.279382+00:00"
+    },
+    {
+      "equity": 90787.64,
+      "t": "2026-09-02T18:30:03.451745+00:00"
+    },
+    {
+      "equity": 90827.64,
+      "t": "2026-09-02T19:05:02.297656+00:00"
+    },
+    {
+      "equity": 90867.64,
+      "t": "2026-09-02T19:35:02.808186+00:00"
     }
   ],
   "gates": [
@@ -2076,7 +2397,7 @@
       "severity": "BLOCKING"
     },
     {
-      "detail": "equity 91,788.04 >= floor 70,000.00",
+      "detail": "equity 90,867.64 >= floor 70,000.00",
       "dimension": "Entry Authority",
       "name": "equity_floor",
       "ok": true,
@@ -2139,7 +2460,7 @@
       "severity": "BLOCKING"
     },
     {
-      "detail": "0 position(s) reconciled",
+      "detail": "2 position(s) reconciled",
       "dimension": "Process Health",
       "name": "position_reconcile",
       "ok": true,
@@ -2157,16 +2478,16 @@
       "severity": "BLOCKING"
     },
     {
-      "detail": "clean at 80b873cbdf68",
+      "detail": "worktree dirty at 80b873cbdf68",
       "dimension": "Release Integrity",
       "name": "release_integrity",
-      "ok": true,
+      "ok": false,
       "phase": "preflight",
       "rationale": "Running code should be verified code. ATTENTION rather than BLOCKING because editing between cycles is the normal mode during an active build; the dirty state is stamped into every decision record.",
       "severity": "ATTENTION"
     }
   ],
-  "generated_at_utc": "2026-09-02T13:35:02.951400+00:00",
+  "generated_at_utc": "2026-09-02T19:35:02.808186+00:00",
   "market": {
     "is_open": true
   },
@@ -2181,11 +2502,28 @@
     "sha": "6e6b832fccc8818e82c6bf38dab1986bd4c5101f2283ce80a66bb93f4a5630e5",
     "version": "3.2.0"
   },
-  "positions": [],
+  "positions": [
+    {
+      "avg_entry_price": 5.75,
+      "market_value": 3640.0,
+      "qty": 8,
+      "symbol": "LULU260904C00122000",
+      "underlying": "LULU",
+      "unrealized_pl": -960.0
+    },
+    {
+      "avg_entry_price": 6.4,
+      "market_value": 5160.0,
+      "qty": 8,
+      "symbol": "LULU260904P00122000",
+      "underlying": "LULU",
+      "unrealized_pl": 40.0
+    }
+  ],
   "regime": {
-    "confidence": 0.64,
-    "mode": "risk_off",
-    "reason": "SPY below EMA50 (0.81%), RSI 49, breadth +1"
+    "confidence": 0.5,
+    "mode": "chop",
+    "reason": "SPY near EMA50 (+1.18%), RSI 52"
   },
   "schema_version": 2
 }
