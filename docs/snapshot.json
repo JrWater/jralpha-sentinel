@@ -2,17 +2,17 @@
   "account": {
     "account_number": "PA3K3A9ZBCBI",
     "cash": 82067.64,
-    "equity": 90867.64,
+    "equity": 90827.64,
     "mode": "PAPER",
     "options_buying_power": 82067.64,
     "options_level": 3,
-    "pnl_dollars": -9132.36,
-    "pnl_percent": -9.132,
+    "pnl_dollars": -9172.36,
+    "pnl_percent": -9.172,
     "starting_equity": 100000.0
   },
   "code": {
-    "git_head": "80b873cbdf685152b22a5fcf6679258f1425c48e",
-    "worktree_dirty": true
+    "git_head": "b566d18cd4f9712aee46e04f81de238415b7ad41",
+    "worktree_dirty": false
   },
   "day": {
     "date": "2026-09-02",
@@ -2348,11 +2348,15 @@
     {
       "equity": 90867.64,
       "t": "2026-09-02T19:35:02.808186+00:00"
+    },
+    {
+      "equity": 90827.64,
+      "t": "2026-09-02T20:53:21.598003+00:00"
     }
   ],
   "gates": [
     {
-      "detail": "option quotes 0s old (feed delay is 900s)",
+      "detail": "market closed; quote freshness n/a",
       "dimension": "Data Readiness",
       "name": "option_chain_data",
       "ok": true,
@@ -2361,7 +2365,7 @@
       "severity": "BLOCKING"
     },
     {
-      "detail": "underlying bars 0s old",
+      "detail": "market closed; intraday freshness n/a",
       "dimension": "Data Readiness",
       "name": "underlying_data",
       "ok": true,
@@ -2397,7 +2401,7 @@
       "severity": "BLOCKING"
     },
     {
-      "detail": "equity 90,867.64 >= floor 70,000.00",
+      "detail": "equity 90,827.64 >= floor 70,000.00",
       "dimension": "Entry Authority",
       "name": "equity_floor",
       "ok": true,
@@ -2451,10 +2455,10 @@
       "severity": "BLOCKING"
     },
     {
-      "detail": "market open",
+      "detail": "market closed",
       "dimension": "Process Health",
       "name": "market_open",
-      "ok": true,
+      "ok": false,
       "phase": "preflight",
       "rationale": "A closed market cannot accept a new options entry, so there is no reason to construct candidates while the session is closed.",
       "severity": "BLOCKING"
@@ -2478,23 +2482,25 @@
       "severity": "BLOCKING"
     },
     {
-      "detail": "worktree dirty at 80b873cbdf68",
+      "detail": "clean at b566d18cd4f9",
       "dimension": "Release Integrity",
       "name": "release_integrity",
-      "ok": false,
+      "ok": true,
       "phase": "preflight",
       "rationale": "Running code should be verified code. ATTENTION rather than BLOCKING because editing between cycles is the normal mode during an active build; the dirty state is stamped into every decision record.",
       "severity": "ATTENTION"
     }
   ],
-  "generated_at_utc": "2026-09-02T19:35:02.808186+00:00",
+  "generated_at_utc": "2026-09-02T20:53:21.598003+00:00",
   "market": {
-    "is_open": true
+    "is_open": false
   },
   "permit": {
-    "blocking_gates": [],
-    "entry_maintenance": false,
-    "status": "READY"
+    "blocking_gates": [
+      "market_open"
+    ],
+    "entry_maintenance": true,
+    "status": "BLOCKED"
   },
   "policy": {
     "identity": "SENTINEL-OPTIONS-V2@3.2.0+6e6b832fccc8",
@@ -2513,17 +2519,17 @@
     },
     {
       "avg_entry_price": 6.4,
-      "market_value": 5160.0,
+      "market_value": 5120.0,
       "qty": 8,
       "symbol": "LULU260904P00122000",
       "underlying": "LULU",
-      "unrealized_pl": 40.0
+      "unrealized_pl": 0.0
     }
   ],
   "regime": {
     "confidence": 0.5,
     "mode": "chop",
-    "reason": "SPY near EMA50 (+1.18%), RSI 52"
+    "reason": "SPY near EMA50 (+1.16%), RSI 52"
   },
   "schema_version": 2
 }
