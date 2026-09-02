@@ -1,26 +1,26 @@
 {
   "account": {
     "account_number": "PA3K3A9ZBCBI",
-    "cash": 91791.85,
-    "equity": 91791.85,
+    "cash": 91788.04,
+    "equity": 91788.04,
     "mode": "PAPER",
-    "options_buying_power": 2181.85,
+    "options_buying_power": 91788.04,
     "options_level": 3,
-    "pnl_dollars": -8208.15,
-    "pnl_percent": -8.208,
+    "pnl_dollars": -8211.96,
+    "pnl_percent": -8.212,
     "starting_equity": 100000.0
   },
   "code": {
-    "git_head": "e76fa1ecf5d6abb21f281cc7d070f4f7db1f394b",
+    "git_head": "80b873cbdf685152b22a5fcf6679258f1425c48e",
     "worktree_dirty": false
   },
   "day": {
-    "date": "2026-09-01",
+    "date": "2026-09-02",
     "fired_once": [],
     "killed": false,
-    "new_risk_dollars": 7058.0,
+    "new_risk_dollars": 0.0,
     "scale": 1.0,
-    "start_equity": 91791.85
+    "start_equity": 91788.04
   },
   "decisions": [
     {
@@ -1767,6 +1767,28 @@
       "structure": "credit_vertical",
       "submitted": true,
       "underlying": "AMD"
+    },
+    {
+      "account_scope": "competition",
+      "at": "2026-09-02T13:35:02.951400+00:00",
+      "authorized": false,
+      "conviction": 0.75,
+      "engine": "catalyst",
+      "max_loss_dollars": 11456.0,
+      "proposer": {
+        "decision_mode": "llm",
+        "fallback_reason": null,
+        "model": "deepseek-v4-flash",
+        "provider": "deepseek"
+      },
+      "reason": "pretrade refused: entry_window",
+      "refused_by": [
+        "gate:entry_window"
+      ],
+      "selected": true,
+      "structure": "straddle",
+      "submitted": false,
+      "underlying": "LULU"
     }
   ],
   "equity_history": [
@@ -2001,11 +2023,15 @@
     {
       "equity": 91791.85,
       "t": "2026-09-02T00:40:08.220510+00:00"
+    },
+    {
+      "equity": 91788.04,
+      "t": "2026-09-02T13:35:02.951400+00:00"
     }
   ],
   "gates": [
     {
-      "detail": "market closed; quote freshness n/a",
+      "detail": "option quotes 0s old (feed delay is 900s)",
       "dimension": "Data Readiness",
       "name": "option_chain_data",
       "ok": true,
@@ -2014,7 +2040,7 @@
       "severity": "BLOCKING"
     },
     {
-      "detail": "market closed; intraday freshness n/a",
+      "detail": "underlying bars 0s old",
       "dimension": "Data Readiness",
       "name": "underlying_data",
       "ok": true,
@@ -2050,7 +2076,7 @@
       "severity": "BLOCKING"
     },
     {
-      "detail": "equity 91,791.85 >= floor 70,000.00",
+      "detail": "equity 91,788.04 >= floor 70,000.00",
       "dimension": "Entry Authority",
       "name": "equity_floor",
       "ok": true,
@@ -2104,10 +2130,10 @@
       "severity": "BLOCKING"
     },
     {
-      "detail": "market closed",
+      "detail": "market open",
       "dimension": "Process Health",
       "name": "market_open",
-      "ok": false,
+      "ok": true,
       "phase": "preflight",
       "rationale": "A closed market cannot accept a new options entry, so there is no reason to construct candidates while the session is closed.",
       "severity": "BLOCKING"
@@ -2131,7 +2157,7 @@
       "severity": "BLOCKING"
     },
     {
-      "detail": "clean at e76fa1ecf5d6",
+      "detail": "clean at 80b873cbdf68",
       "dimension": "Release Integrity",
       "name": "release_integrity",
       "ok": true,
@@ -2140,16 +2166,14 @@
       "severity": "ATTENTION"
     }
   ],
-  "generated_at_utc": "2026-09-02T00:40:08.220510+00:00",
+  "generated_at_utc": "2026-09-02T13:35:02.951400+00:00",
   "market": {
-    "is_open": false
+    "is_open": true
   },
   "permit": {
-    "blocking_gates": [
-      "market_open"
-    ],
-    "entry_maintenance": true,
-    "status": "BLOCKED"
+    "blocking_gates": [],
+    "entry_maintenance": false,
+    "status": "READY"
   },
   "policy": {
     "identity": "SENTINEL-OPTIONS-V2@3.2.0+6e6b832fccc8",
@@ -2159,9 +2183,9 @@
   },
   "positions": [],
   "regime": {
-    "confidence": 0.69,
+    "confidence": 0.64,
     "mode": "risk_off",
-    "reason": "SPY below EMA50 (0.74%), RSI 48, breadth +0"
+    "reason": "SPY below EMA50 (0.81%), RSI 49, breadth +1"
   },
   "schema_version": 2
 }
