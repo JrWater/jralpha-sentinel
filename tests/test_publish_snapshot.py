@@ -165,8 +165,9 @@ def test_disposable_clone_uses_the_configured_origin_url(monkeypatch):
         publish_snapshot.publish_from_disposable_clone("local", "remote")
 
     assert commands[0][0] == ("remote", "get-url", "origin")
-    assert commands[1][0][0:5] == (
-        "clone", "--quiet", "--branch", "main", "git@github.com:JrWater/jralpha-sentinel.git")
+    assert commands[1][0][0:7] == (
+        "clone", "--quiet", "--no-checkout", "--filter=blob:none", "--branch",
+        "main", "git@github.com:JrWater/jralpha-sentinel.git")
 
 
 def test_publish_treats_a_clean_worktree_as_a_noop(monkeypatch):

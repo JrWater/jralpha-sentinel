@@ -108,8 +108,11 @@ def publish_from_disposable_clone(local_head: str, remote_head: str) -> None:
     source = ROOT / SNAPSHOT
     with tempfile.TemporaryDirectory(prefix="sentinel-snapshot-publish-") as raw:
         clone = Path(raw) / "checkout"
-        git("clone", "--quiet", "--branch", "main",
+        git("clone", "--quiet", "--no-checkout", "--filter=blob:none",
+            "--branch", "main",
             _origin_url(), str(clone))
+        git("sparse-checkout", "set", "--no-cone", SNAPSHOT, cwd=clone)
+        git("checkout", cwd=clone)
         if git("rev-parse", "HEAD", cwd=clone).strip() != remote_head:
             raise SnapshotSyncError("origin/main changed while preparing snapshot")
         require_snapshot_only_remote_history(local_head, remote_head, clone)
