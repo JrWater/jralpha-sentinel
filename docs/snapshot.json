@@ -11,7 +11,7 @@
     "starting_equity": 100000.0
   },
   "code": {
-    "git_head": "b566d18cd4f9712aee46e04f81de238415b7ad41",
+    "git_head": "97f20c6ea908c795f9c6d355206e901316adf04c",
     "worktree_dirty": false
   },
   "day": {
@@ -2352,6 +2352,10 @@
     {
       "equity": 90827.64,
       "t": "2026-09-02T20:53:21.598003+00:00"
+    },
+    {
+      "equity": 90827.64,
+      "t": "2026-09-02T20:56:37.124169+00:00"
     }
   ],
   "gates": [
@@ -2482,7 +2486,7 @@
       "severity": "BLOCKING"
     },
     {
-      "detail": "clean at b566d18cd4f9",
+      "detail": "clean at 97f20c6ea908",
       "dimension": "Release Integrity",
       "name": "release_integrity",
       "ok": true,
@@ -2491,7 +2495,7 @@
       "severity": "ATTENTION"
     }
   ],
-  "generated_at_utc": "2026-09-02T20:53:21.598003+00:00",
+  "generated_at_utc": "2026-09-02T20:56:37.124169+00:00",
   "market": {
     "is_open": false
   },
