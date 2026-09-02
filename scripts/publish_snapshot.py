@@ -14,6 +14,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 SNAPSHOT = "docs/snapshot.json"
+GIT_TIMEOUT_SECONDS = 30
 
 
 class SnapshotSyncError(RuntimeError):
@@ -24,7 +25,8 @@ def git(*args: str, cwd: Path = ROOT) -> str:
     """Run a Git command without changing the live checkout by default."""
     completed = subprocess.run(
         ["git", *args], cwd=cwd, check=True, text=True,
-        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        timeout=GIT_TIMEOUT_SECONDS)
     return completed.stdout
 
 
@@ -117,7 +119,8 @@ def publish() -> bool:
 def main() -> int:
     try:
         publish()
-    except (SnapshotSyncError, subprocess.CalledProcessError) as exc:
+    except (SnapshotSyncError, subprocess.CalledProcessError,
+            subprocess.TimeoutExpired) as exc:
         print(f"snapshot sync: {exc}")
         return 1
     return 0

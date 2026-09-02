@@ -176,3 +176,27 @@ def test_publish_treats_a_clean_worktree_as_a_noop(monkeypatch):
     )
 
     assert publish_snapshot.publish() is False
+
+
+def test_git_commands_have_a_bounded_timeout(monkeypatch):
+    captured = {}
+
+    def fake_run(*args, **kwargs):
+        captured.update(kwargs)
+        return subprocess.CompletedProcess(args[0], 0, stdout="")
+
+    monkeypatch.setattr(publish_snapshot.subprocess, "run", fake_run)
+
+    publish_snapshot.git("status")
+
+    assert captured["timeout"] == publish_snapshot.GIT_TIMEOUT_SECONDS
+
+
+def test_main_reports_git_timeouts_without_a_traceback(monkeypatch, capsys):
+    monkeypatch.setattr(
+        publish_snapshot, "publish",
+        lambda: (_ for _ in ()).throw(subprocess.TimeoutExpired("git clone", 30)),
+    )
+
+    assert publish_snapshot.main() == 1
+    assert "timed out" in capsys.readouterr().out
