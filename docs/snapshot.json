@@ -11,8 +11,8 @@
     "starting_equity": 100000.0
   },
   "code": {
-    "git_head": "56272fdb0a7e5605786ed927cdbe7c39212cb487",
-    "worktree_dirty": true
+    "git_head": "e76fa1ecf5d6abb21f281cc7d070f4f7db1f394b",
+    "worktree_dirty": false
   },
   "day": {
     "date": "2026-09-01",
@@ -1997,6 +1997,10 @@
     {
       "equity": 91791.85,
       "t": "2026-09-02T00:34:41.943116+00:00"
+    },
+    {
+      "equity": 91791.85,
+      "t": "2026-09-02T00:40:08.220510+00:00"
     }
   ],
   "gates": [
@@ -2127,16 +2131,16 @@
       "severity": "BLOCKING"
     },
     {
-      "detail": "worktree dirty at 56272fdb0a7e",
+      "detail": "clean at e76fa1ecf5d6",
       "dimension": "Release Integrity",
       "name": "release_integrity",
-      "ok": false,
+      "ok": true,
       "phase": "preflight",
       "rationale": "Running code should be verified code. ATTENTION rather than BLOCKING because editing between cycles is the normal mode during an active build; the dirty state is stamped into every decision record.",
       "severity": "ATTENTION"
     }
   ],
-  "generated_at_utc": "2026-09-02T00:34:41.943116+00:00",
+  "generated_at_utc": "2026-09-02T00:40:08.220510+00:00",
   "market": {
     "is_open": false
   },
