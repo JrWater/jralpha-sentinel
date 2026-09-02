@@ -1,0 +1,108 @@
+#!/usr/bin/env python3
+"""Publish the public snapshot without mutating the trading checkout.
+
+The paper cycle owns this checkout. This publisher verifies its narrow source
+state, then commits from a disposable clone, so a GitHub failure cannot leave
+the trading process with a staged file, an ahead branch, or a dirty worktree.
+"""
+from __future__ import annotations
+
+import shutil
+import subprocess
+import tempfile
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+SNAPSHOT = "docs/snapshot.json"
+
+
+class SnapshotSyncError(RuntimeError):
+    """The repository is not in the narrow state safe for auto-publishing."""
+
+
+def git(*args: str, cwd: Path = ROOT) -> str:
+    """Run a Git command without changing the live checkout by default."""
+    completed = subprocess.run(
+        ["git", *args], cwd=cwd, check=True, text=True,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    return completed.stdout
+
+
+def _only_generated_snapshot_changed(status: str) -> bool:
+    """Accept only the one unstaged tracked runtime artifact."""
+    lines = [line for line in status.splitlines() if line]
+    if not lines:
+        return False
+    if lines != [f" M {SNAPSHOT}"]:
+        raise SnapshotSyncError(
+            "refusing automatic publish: worktree contains changes other than "
+            f"the generated {SNAPSHOT}")
+    return True
+
+
+def _remote_head() -> str:
+    """Return origin/main's advertised SHA without updating local refs."""
+    fields = git("ls-remote", "origin", "refs/heads/main").split()
+    if not fields:
+        raise SnapshotSyncError("origin/main is unavailable")
+    return fields[0]
+
+
+def _origin_url() -> str:
+    """Resolve the configured remote name before making a disposable clone."""
+    url = git("remote", "get-url", "origin").strip()
+    if not url:
+        raise SnapshotSyncError("origin URL is unavailable")
+    return url
+
+
+def publish_from_disposable_clone(expected_head: str) -> None:
+    """Copy and publish the snapshot from an isolated short-lived checkout."""
+    source = ROOT / SNAPSHOT
+    with tempfile.TemporaryDirectory(prefix="sentinel-snapshot-publish-") as raw:
+        clone = Path(raw) / "checkout"
+        git("clone", "--quiet", "--depth", "1", "--branch", "main",
+            _origin_url(), str(clone))
+        if git("rev-parse", "HEAD", cwd=clone).strip() != expected_head:
+            raise SnapshotSyncError("origin/main changed while preparing snapshot")
+
+        shutil.copyfile(source, clone / SNAPSHOT)
+        git("add", "--", SNAPSHOT, cwd=clone)
+        git("commit", "-m", "Publish runtime snapshot", cwd=clone)
+        git("push", "origin", "HEAD:main", cwd=clone)
+
+    if _remote_head() == expected_head:
+        raise SnapshotSyncError("snapshot push did not advance origin/main")
+
+
+def publish() -> bool:
+    """Publish a fresh public snapshot, or safely do nothing."""
+    status = git("status", "--porcelain=v1", "--untracked-files=all")
+    if not _only_generated_snapshot_changed(status):
+        print("snapshot sync: no generated snapshot change")
+        return False
+
+    if git("branch", "--show-current").strip() != "main":
+        raise SnapshotSyncError("refusing automatic publish outside main")
+
+    local_head = git("rev-parse", "HEAD").strip()
+    if local_head != _remote_head():
+        raise SnapshotSyncError(
+            "refusing automatic publish: local main is not origin/main")
+
+    publish_from_disposable_clone(local_head)
+    print("snapshot sync: published from an isolated checkout")
+    return True
+
+
+def main() -> int:
+    try:
+        publish()
+    except (SnapshotSyncError, subprocess.CalledProcessError) as exc:
+        print(f"snapshot sync: {exc}")
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

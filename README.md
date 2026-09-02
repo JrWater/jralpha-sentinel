@@ -146,6 +146,26 @@ subtract 3 hours from every hour field instead:
 Verify with `crontab -l` after installing, and sanity-check the very first
 fire against `date` before trusting the rest of the schedule.
 
+### Dashboard snapshot publishing
+
+The Streamlit dashboard deliberately reads the credential-free tracked file
+`docs/snapshot.json`; it does not connect to Alpaca. Install this independent
+publisher alongside the cycle schedule so the hosted dashboard receives each
+new snapshot without giving the trading cycle any GitHub dependency:
+
+```cron
+*/5 6-12 * * 1-5  cd ~/jralpha-sentinel && .venv/bin/python scripts/publish_snapshot.py >> logs/snapshot_sync.log 2>&1
+```
+
+It runs separately because a network or GitHub failure must not affect order
+management. The publisher proceeds only when the *sole* worktree change is an
+unstaged `docs/snapshot.json` update, the checkout is `main`, and local `main`
+already equals `origin/main`. It copies that file to a disposable clone for the
+commit and push, leaving the trading checkout untouched even if GitHub fails.
+It otherwise refuses without staging, committing, or pushing any file. Resolve
+competing source changes manually; do not broaden the scheduled publisher's
+scope.
+
 **The entries above call `scripts/cycle_window.py`, not `run_cycle.py` directly.**
 `competition_window` closes the front door — the competition account is
 mechanically untradeable before kickoff — but nothing closed the back one.
