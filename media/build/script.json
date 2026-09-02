@@ -17,7 +17,7 @@
   {
     "id": "04_ai_logic",
     "visual": "slide:4",
-    "text": "A quant engine first: regime, a per-name score, a gap detector. Four vectors consume it. Trend sells short-dated credit spreads with the regime -- eighty-seven percent wins over two hundred fifty simulated sessions. Catalyst is the Lululemon straddle; its drift leg measured negative over three years, so it's off. Event is the jobs report: a strangle, plus a zero-D-T-E gap continuation that won nine of ten. And Vol sells condors in a range. The model ranks. It never invents."
+    "text": "Evidence first: independent cross-validation disabled the Trend engines for the final window. New exposure is limited to two supported options events. Catalyst is the Lululemon earnings straddle, sized from a ten-sample move study. Event is the jobs report: a one-D-T-E S-P-Y strangle, plus a zero-D-T-E gap continuation that won nine of ten. Vol and post-earnings drift are inactive. The model ranks this bounded menu and writes the thesis. It never invents a trade."
   },
   {
     "id": "05_risk_gates",

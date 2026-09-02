@@ -162,14 +162,14 @@
 <section class="slide">
   <div class="grid"></div>
   <div class="kicker">AI Logic</div>
-  <h2>A quant engine first. Four vectors consume its signal.</h2>
-  <div class="tagline" style="margin-top:14px">Regime (SPY/QQQ vs EMA20/50, breadth, RSI) → per-name score (trend, momentum, relative strength, RSI drift) → gap detector. Then:</div>
+  <h2>Evidence first. The final window is event-only.</h2>
+  <div class="tagline" style="margin-top:14px">Independent cross-validation rejected the Trend engines for this short horizon. Historical decisions remain auditable; new exposure is limited to the two options events with supporting studies.</div>
   <table class="v">
     <tr><th>Vector</th><th>Budget</th><th>What it trades</th><th>When it fires</th></tr>
-    <tr><td class="name"><span class="swatch" style="background:#7fa3ff"></span>Trend</td><td class="pct">45%</td><td class="desc">0–2 DTE credit spreads in the regime's direction (87% wins in the 250-session sim) + one conviction single-leg; debit verticals as fallback</td><td class="desc">score ≥ 0.55, RSI ≤ 65, not extended (measured, not assumed)</td></tr>
-    <tr><td class="name"><span class="swatch" style="background:#ef6b6b"></span>Catalyst</td><td class="pct">25%</td><td class="desc">ATM straddle on LULU (Sep 3 earnings), sized from a 10-sample move study; the post-earnings drift leg measured negative over 3 years and was removed</td><td class="desc">confirmed, in-window calendar events only</td></tr>
-    <tr><td class="name"><span class="swatch" style="background:#ffcf70"></span>Event</td><td class="pct">15%</td><td class="desc">1-DTE SPY strangle for the Aug jobs report; 0-DTE single-leg gap continuation (90% win in the 33-sample study), any-day ≥0.8% gaps, ≤2 per window</td><td class="desc">August Employment Situation + in-window gap days</td></tr>
-    <tr><td class="name"><span class="swatch" style="background:#4fd189"></span>Vol</td><td class="pct">15%</td><td class="desc">SPY iron condors, defined-risk, four legs</td><td class="desc">range-bound regime, elevated IV rank</td></tr>
+    <tr><td class="name"><span class="swatch" style="background:#ef6b6b"></span>LULU catalyst</td><td class="pct">12%</td><td class="desc">ATM LULU earnings straddle; defined debit sized from a 10-sample move study</td><td class="desc">one confirmed in-window earnings event</td></tr>
+    <tr><td class="name"><span class="swatch" style="background:#ffcf70"></span>NFP event</td><td class="pct">10% + 8% ×2</td><td class="desc">SPY 1-DTE strangle plus 0-DTE gap continuation; every leg is defined-risk long premium</td><td class="desc">August Employment Situation and qualifying gap window</td></tr>
+    <tr><td class="name"><span class="swatch" style="background:#7f8da3"></span>Trend</td><td class="pct">OFF</td><td class="desc">Disabled after independent cross-validation found weak or negative short-horizon evidence</td><td class="desc">no final-window entry authority</td></tr>
+    <tr><td class="name"><span class="swatch" style="background:#7f8da3"></span>Vol</td><td class="pct">OFF</td><td class="desc">Not enabled for new exposure in the final event-only configuration</td><td class="desc">no final-window entry authority</td></tr>
   </table>
   <div class="pageno">4 / 9</div>
 </section>

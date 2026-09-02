@@ -11,8 +11,8 @@
     "starting_equity": 100000.0
   },
   "code": {
-    "git_head": "ab188055a80f92e2f13ba87a24c25598d198b1f5",
-    "worktree_dirty": false
+    "git_head": "56272fdb0a7e5605786ed927cdbe7c39212cb487",
+    "worktree_dirty": true
   },
   "day": {
     "date": "2026-09-01",
@@ -1993,6 +1993,10 @@
     {
       "equity": 91791.85,
       "t": "2026-09-01T20:54:30.864645+00:00"
+    },
+    {
+      "equity": 91791.85,
+      "t": "2026-09-02T00:34:41.943116+00:00"
     }
   ],
   "gates": [
@@ -2123,16 +2127,16 @@
       "severity": "BLOCKING"
     },
     {
-      "detail": "clean at ab188055a80f",
+      "detail": "worktree dirty at 56272fdb0a7e",
       "dimension": "Release Integrity",
       "name": "release_integrity",
-      "ok": true,
+      "ok": false,
       "phase": "preflight",
       "rationale": "Running code should be verified code. ATTENTION rather than BLOCKING because editing between cycles is the normal mode during an active build; the dirty state is stamped into every decision record.",
       "severity": "ATTENTION"
     }
   ],
-  "generated_at_utc": "2026-09-01T20:54:30.864645+00:00",
+  "generated_at_utc": "2026-09-02T00:34:41.943116+00:00",
   "market": {
     "is_open": false
   },
@@ -2150,6 +2154,10 @@
     "version": "3.2.0"
   },
   "positions": [],
-  "regime": null,
+  "regime": {
+    "confidence": 0.69,
+    "mode": "risk_off",
+    "reason": "SPY below EMA50 (0.74%), RSI 48, breadth +0"
+  },
   "schema_version": 2
 }

@@ -18,20 +18,17 @@
   ],
   "cues": {
     "s04": [
-      { "target": "#s04-vec-trend", "phrase": "Trend sells" },
-      { "target": "#s04-ev-trend",  "phrase": "eighty-seven" },
-      { "target": "#s04-ev-trend2", "phrase": "simulated" },
+      { "target": "#s04-vec-trend", "phrase": "disabled the Trend engines" },
+      { "target": "#s04-ev-trend",  "phrase": "final window" },
       { "target": "#s04-vec-cat",   "phrase": "Catalyst is" },
-      { "target": "#s04-ev-cat",    "phrase": "Lululemon" },
-      { "target": "#s04-ev-pead",   "phrase": "drift leg" },
+      { "target": "#s04-ev-cat",    "phrase": "ten-sample move study" },
       { "target": "#s04-vec-evt",   "phrase": "Event is" },
       { "target": "#s04-ev-evt",    "phrase": "nine of ten" },
-      { "target": "#s04-vec-vol",   "phrase": "Vol sells" }
+      { "target": "#s04-vec-vol",   "phrase": "Vol and post-earnings drift" }
     ]
   },
   "anchors": {
     "s04": [
-      { "name": "S04_KILL", "phrase": "so it's off" },
       { "name": "S04_LLM",  "phrase": "The model ranks" }
     ]
   }
