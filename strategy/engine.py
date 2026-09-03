@@ -449,7 +449,7 @@ def _nfp_strangle(ctx: EngineContext, cfg) -> Candidate | None:
         return None
     expiry = ctx.now_et.date() + timedelta(days=1)   # NFP day = expiry day
     contracts = state.contracts("SPY", expiry)
-    proposal = build_strangle(spot, state.now_et.date(), expiry, "SPY",
+    proposal = build_strangle(spot, ctx.now_et.date(), expiry, "SPY",
                               contracts, float(cfg.get("target_delta", 0.42)),
                               0.10)
     if proposal is None:

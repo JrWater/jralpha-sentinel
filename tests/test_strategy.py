@@ -870,3 +870,52 @@ def test_entry_budget_portfolio_refusal_never_touches_day_budget():
     assert refused == "portfolio"
     assert portfolio.max_loss_total == 39500.0
     assert day.new_risk_dollars == 5000.0
+
+
+# ── v3.2.0 regression: the NFP strangle path crashed every cycle with
+# `state.now_et` (AttributeError) - the 09-03 strangle entry missed ──────────
+
+def test_nfp_strangle_builds_without_crashing(manifest):
+    """Pin the fix: _nfp_strangle must use ctx.now_et, not state.now_et."""
+    import math
+    from datetime import date as d, datetime as dt, timedelta, timezone
+    from types import SimpleNamespace
+    from zoneinfo import ZoneInfo
+    from strategy.data import ChainContract, MarketState, contract_symbol
+    from strategy.engine import EngineContext, _nfp_strangle
+    from strategy.regime import classify
+
+    spy = [100.0 + i * 0.45 for i in range(80)]
+    state = MarketState(equity=100000.0,
+                        now_utc=dt(2026, 9, 3, 15, 30, tzinfo=timezone.utc))
+    state.bars = {"SPY": [SimpleNamespace(timestamp=dt(2026, 8, 25, 12, 0,
+                     tzinfo=timezone.utc) + timedelta(days=i - 80), close=c,
+                     high=c * 1.005, low=c * 0.995) for i, c in enumerate(spy)],
+                  "QQQ": [SimpleNamespace(timestamp=dt(2026, 8, 25, 12, 0,
+                     tzinfo=timezone.utc) + timedelta(days=i - 80), close=c,
+                     high=c * 1.005, low=c * 0.995) for i, c in enumerate(spy)]}
+    spot = spy[-1]
+    state.latest = {"SPY": SimpleNamespace(bid_price=spot - 0.05,
+                                           ask_price=spot + 0.05,
+                                           timestamp=dt(2026, 9, 3, 15, 30,
+                                                        tzinfo=timezone.utc))}
+    cs = []
+    for ctype, sd in [("call", 1.0), ("put", -1.0)]:
+        for step in range(-8, 9):
+            k = round(spot, 0) + step
+            cs.append(ChainContract(
+                symbol=contract_symbol("SPY", d(2026, 9, 4), ctype, k),
+                expiration=d(2026, 9, 4), contract_type=ctype, strike=k,
+                bid=1.0, ask=1.2,
+                delta=max(-0.9, min(0.9, 0.45 * sd - 0.03 * step * sd)),
+                iv=0.20, quote_ts=None))
+    state.chains["SPY"] = cs
+    regime = classify(spy, [c for c in spy], [0.5])
+    ctx = EngineContext(state=state, manifest=manifest, regime=regime,
+                        now_et=dt(2026, 9, 3, 11, 0,
+                                  tzinfo=ZoneInfo("America/New_York")),
+                        signals={})
+    cand = _nfp_strangle(ctx, manifest.get("strategies", "event_macro"))
+    assert cand is not None
+    assert cand.proposal.structure == "strangle"
+    assert cand.proposal.expiry == d(2026, 9, 4)
