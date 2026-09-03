@@ -471,8 +471,8 @@ def test_sizing_scale_halves_cap(manifest):
                            starting_equity=100000, scale=0.5)
     sized = fixed_quantity(p, manifest, "event_macro", state,
                            budget=LossBudget.GAP_ADDON)
-    # add-on cap 8% = $8,000; halved = $4,000 -> 10 contracts
-    assert sized is not None and sized.legs[0].quantity == 10
+    # add-on cap 10% = $10,000; halved = $5,000 -> 12 contracts
+    assert sized is not None and sized.legs[0].quantity == 12
 
 
 def test_straddle_expiry_must_follow_the_event():
@@ -671,9 +671,13 @@ def test_trend_single_fires_on_high_conviction(manifest):
 
 # ── v3.1.1: the conviction single-leg layer must follow the regime ──────────
 
-def test_production_manifest_uses_v320_event_only_final_window(manifest):
-    """The approved final-window policy removes trend without de-risking events."""
-    assert manifest.get("version") == "3.2.0"
+def test_production_manifest_uses_v321_event_only_final_window(manifest):
+    """The approved final-window policy removes trend without de-risking events.
+
+    v3.2.1 (owner directive, 09-03): the two 0-DTE gap shots are the remaining
+    evidence-positive bullets after the strangle entry was lost to a crash, so
+    the gap add-on rises 8% -> 10% ($10,000 per shot, x2)."""
+    assert manifest.get("version") == "3.2.1"
     assert manifest.get("strategies", "trend_directional", "enabled") is False
     assert manifest.get("strategies", "trend_income", "enabled") is False
     assert manifest.get("strategies", "trend_single", "enabled") is False
@@ -682,7 +686,7 @@ def test_production_manifest_uses_v320_event_only_final_window(manifest):
     assert manifest.get(
         "strategies", "event_macro", "max_loss_per_trade_fraction") == 0.10
     assert manifest.get(
-        "strategies", "event_macro", "addon_max_loss_per_trade_fraction") == 0.08
+        "strategies", "event_macro", "addon_max_loss_per_trade_fraction") == 0.10
     assert manifest.get(
         "strategies", "event_macro", "gap_max_entries_total") == 2
 
