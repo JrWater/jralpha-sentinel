@@ -18,6 +18,16 @@ sentinel-video/.thumbnails/
 sentinel-video/.s04chk/
 sentinel-video/.snapcap/
 
+# The preview composition is now the provenance source for the published
+# deliverables. Keep its source tracked while excluding reproducible renders
+# and inspection caches, exactly as for the canonical composition above.
+sentinel-video-preview/out/
+sentinel-video-preview/.snapshots*/
+sentinel-video-preview/snapshots/
+sentinel-video-preview/.thumbnails/
+sentinel-video-preview/.checkshots/
+sentinel-video-preview/.owlcheck/
+
 # Intermediate slide/video renders. The sources (slides.html, cover.html,
 # code.html, script.json) and the webp deliverables are tracked.
 media/audio/
@@ -27,7 +37,10 @@ media/build/qa/
 media/build/*.png
 media/build/*.pdf
 media/build/*.mp4
+media/build-preview/*.png
+media/build-preview/*.pdf
 
 __pycache__/
 *.pyc
 .venv/
+.DS_Store
