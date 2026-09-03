@@ -2,12 +2,12 @@
   "account": {
     "account_number": "PA3K3A9ZBCBI",
     "cash": 82067.39,
-    "equity": 90827.39,
+    "equity": 91027.39,
     "mode": "PAPER",
     "options_buying_power": 82067.39,
     "options_level": 3,
-    "pnl_dollars": -9172.61,
-    "pnl_percent": -9.173,
+    "pnl_dollars": -8972.61,
+    "pnl_percent": -8.973,
     "starting_equity": 100000.0
   },
   "code": {
@@ -2362,11 +2362,15 @@
     {
       "equity": 90827.39,
       "t": "2026-09-03T14:00:02.767392+00:00"
+    },
+    {
+      "equity": 91027.39,
+      "t": "2026-09-03T19:35:02.747376+00:00"
     }
   ],
   "gates": [
     {
-      "detail": "option quotes 1s old (feed delay is 900s)",
+      "detail": "option quotes 0s old (feed delay is 900s)",
       "dimension": "Data Readiness",
       "name": "option_chain_data",
       "ok": true,
@@ -2411,7 +2415,7 @@
       "severity": "BLOCKING"
     },
     {
-      "detail": "equity 90,827.39 >= floor 70,000.00",
+      "detail": "equity 91,027.39 >= floor 70,000.00",
       "dimension": "Entry Authority",
       "name": "equity_floor",
       "ok": true,
@@ -2501,7 +2505,7 @@
       "severity": "ATTENTION"
     }
   ],
-  "generated_at_utc": "2026-09-03T14:00:02.767392+00:00",
+  "generated_at_utc": "2026-09-03T19:35:02.747376+00:00",
   "market": {
     "is_open": true
   },
@@ -2519,25 +2523,25 @@
   "positions": [
     {
       "avg_entry_price": 5.75,
-      "market_value": 3280.0,
+      "market_value": 4560.0,
       "qty": 8,
       "symbol": "LULU260904C00122000",
       "underlying": "LULU",
-      "unrealized_pl": -1320.0
+      "unrealized_pl": -40.0
     },
     {
       "avg_entry_price": 6.4,
-      "market_value": 5400.0,
+      "market_value": 4480.0,
       "qty": 8,
       "symbol": "LULU260904P00122000",
       "underlying": "LULU",
-      "unrealized_pl": 280.0
+      "unrealized_pl": -640.0
     }
   ],
   "regime": {
-    "confidence": 0.78,
+    "confidence": 0.9,
     "mode": "risk_on",
-    "reason": "SPY above EMA50 (+1.66%), RSI 56, breadth +1"
+    "reason": "SPY above EMA50 (+2.15%), RSI 59, breadth +1"
   },
   "schema_version": 2
 }
