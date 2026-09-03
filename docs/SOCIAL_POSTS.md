@@ -62,7 +62,7 @@
 > Tonight LULU lands, tomorrow 08:30 ET the jobs report, 10:45 ET everything flattens, 11:00 ET the submission goes in. Four days of gates, one window, honest numbers either way. The last morning belongs to the evidence: two 0-DTE gap shots if the tape votes. @lablabai @AlpacaHQ
 
 **LinkedIn 版（发帖时把 [@lablab.ai] 和 [@Alpaca] 替换为真实 @提及公司主页）：**
-> Final hours. Tonight after the close, LULU's number hits the straddle. Tomorrow 08:30 ET the August Employment Situation opens the last morning: the 1-DTE strangle is already on, and if the gap is ≥0.8%, up to two 0-DTE continuation shots — the trade measured 9/10 across 33 first-Fridays. 10:45 ET everything is flattened by limit orders; 11:00 ET the submission deadline closes the window.
+> Final hours. Tonight after the close, LULU's number hits the straddle. Tomorrow 08:30 ET the August Employment Situation opens the last morning: if the gap is ≥0.8%, up to two 0-DTE continuation shots — the trade measured 9/10 across 33 first-Fridays. 10:45 ET everything is flattened by limit orders; 11:00 ET the submission deadline closes the window.
 >
 > Whatever the equity number reads, the artifact stands: an options agent whose language model cannot place an order, cross-validated on four independent engines, corrected mid-flight, every gate on public display at jralpha-sentinel.streamlit.app.
 >
