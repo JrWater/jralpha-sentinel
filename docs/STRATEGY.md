@@ -97,7 +97,7 @@ first and last 30 minutes (the only time when a delayed chain is also
 ## Risk gates (the ones the write-up will brag about)
 
 - Per-trade hard cap: **$12,000** (v3.1 evidence-driven; `risk_caps.max_loss_per_position_fraction`)
-- Engine caps (v3.1): catalyst $12,000 (straddle; PEAD disabled on negative drift evidence), event $10,000 / $8,000, trend $2,000 + conviction single-leg $3,000, vol $800
+- Engine caps (v3.2.1): catalyst $12,000 (straddle; PEAD disabled on negative drift evidence), event strangle $10,000 / gap shots $10,000 x2, trend $2,000 + conviction single-leg $3,000, vol $800
 - Portfolio at-risk cap: **$40,000** = 40% of starting equity (v3.1)
 - Concurrent positions ≤ 10; ≤ 3 structures (≤ 6 contracts) per underlying; ≤ 3 satellites per vector
 - **Daily kill switch (enforced):** day P&L ≤ −$12,000 (v3.1) → no new entries for the rest of the day; next day's sizes ×0.5 (`strategy/daystate.py`)
@@ -165,7 +165,7 @@ measured on ~3 years of daily bars before kickoff:
 | post-earnings drift (NVDA/CRM/CRWD/DELL/MU) | signed 5-day drift after 8%+ gaps **negative everywhere** (-1.9%..-7.4%; CRM 0/5) | **PEAD engine disabled**; budget moved to the two positive-evidence events |
 
 Also: the 0-DTE gap continuation is no longer NFP-only - any in-window day
-with a >=0.8% SPY gap fires it, so the 08-28 kickoff-day gap (post-NVDA,
+with a >=0.8% SPY gap fires it, and from v3.2.1 each shot is $10,000 (x2 window entries), so the 08-28 kickoff-day gap (post-NVDA,
 post-PCE) can open the tournament with the highest-win-rate trade in the
 book. Floors follow the evidence: hard cap $12,000, at-risk 40%, daily
 exposure 30%, kill -12%, Entry Maintenance $70,000 (last-bullet logic: the

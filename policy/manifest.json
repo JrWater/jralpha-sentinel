@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "policy_id": "SENTINEL-OPTIONS-V2",
-  "version": "3.2.0",
+  "version": "3.2.1",
   "_comment_authority": "This manifest is the ONLY authority for strategy parameters. Code reads values from here; it never restates them. Prose documents describe this file, they do not define a competing source of truth. Every semantic change creates a new version rather than rewriting history.",
   "environment": {
     "broker": "ALPACA",
@@ -154,12 +154,12 @@
       "min_dte": 0,
       "max_dte": 1,
       "max_loss_per_trade_fraction": 0.1,
-      "addon_max_loss_per_trade_fraction": 0.08,
+      "addon_max_loss_per_trade_fraction": 0.1,
       "gap_threshold": 0.008,
       "take_profit_fraction": 0.6,
       "stop_loss_fraction": 0.5,
       "final_day_close_by_et": "10:40",
-      "_comment": "The one scheduled macro event with genuine intraday distribution: the August Employment Situation, 09-04 08:30 ET. 1-DTE SPY strangle entered 09-03; on 09-04 a 0-DTE directional vertical in the NFP gap direction, hard-flattened by 10:40 ET before the 11:00 ET submission deadline. Round-2 changes: the 09-04 gap continuation is a 0-DTE SINGLE-LEG long (risk = debit paid, upside uncapped - a vertical would cap the payoff at its width), sized under addon_max_loss_per_trade_fraction; the 09-03 strangle is structure-exited at 09:35 ET on 09-04. v2.4 tournament sizing: NFP strangle 1.5% -> 2.5% ($2,500), gap continuation 0.8% -> 1.5% ($1,500). Worst-case full failure across all engines is ~$15.5k = 15.5% of the account, still above the $92k Entry Maintenance floor with margin to spare. v3.0 ALL-IN: NFP strangle 2.5% -> 8% ($8,000); gap continuation 1.5% -> 6% ($6,000), now permitted to fire twice within the 09:30-09:50 window (two cycles) - the second entry is the re-confirmation bet. v3.1: NFP strangle 8% -> 10% ($10,000): all-NFP-day median |move| 0.91% vs strangle breakeven ~0.45% - positive EV with a 5.8% tail. Gap continuation 6% -> 8% ($8,000, x2 entries) on the 9/10 win-rate evidence; gap_threshold 0.8%; gap_any_day=true so the 08-28 kickoff-day gap (post-NVDA/PCE) fires the first shot.",
+      "_comment": "v3.2.1 (2026-09-03, owner directive): gap add-on 8% -> 10% ($10,000 per 0-DTE shot, x2 window entries). The 09-03 strangle was lost to a latent crash (fixed in 453a102), so the two gap shots are the remaining evidence-positive bullets; $10k stays inside the $12k hard cap and the $40k at-risk cap is never binding on the final-morning sequence (strangle gone, LULU exits 09:35).",
       "target_delta": 0.42,
       "post_event_exit_time_et": "09:35",
       "gap_any_day": true,
