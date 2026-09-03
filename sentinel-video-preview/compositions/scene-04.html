@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <!-- Scene 04 · AI LOGIC. Timing is compiled: see ../narration.json and
+         ../tools/timeline.py. Shared design tokens and this scene's own CSS
+         live in the host stylesheet; the host slot keeps .clip/.scene. -->
+  </head>
+  <body>
+    <template>
+      <style>
+        #root { position: absolute; inset: 0; }
+      </style>
+
+      <div data-hf-id="hf-2ow9" id="root" data-composition-id="scene-s04" data-width="1920" data-height="1080">
+        <div data-hf-id="hf-kast" class="grid-overlay"></div>
+        <div data-hf-id="hf-5t2p" class="cap" id="cap-s04-0">Evidence first: independent cross-validation</div>
+        <div data-hf-id="hf-7xm7" class="cap" id="cap-s04-1">disabled the Trend engines for the final window.</div>
+        <div data-hf-id="hf-9fhy" class="cap" id="cap-s04-2">New exposure is limited to two supported options events.</div>
+        <div data-hf-id="hf-rpz5" class="cap" id="cap-s04-3">Catalyst is the Lululemon earnings straddle,</div>
+        <div data-hf-id="hf-8zm2" class="cap" id="cap-s04-4">sized from a ten-sample move study.</div>
+        <div data-hf-id="hf-qou3" class="cap" id="cap-s04-5">Event is the jobs report: a one-D-T-E S-P-Y strangle,</div>
+        <div data-hf-id="hf-c2bs" class="cap" id="cap-s04-6">plus a zero-D-T-E gap continuation that won nine of ten.</div>
+        <div data-hf-id="hf-60n9" class="cap" id="cap-s04-7">Vol and post-earnings drift are inactive.</div>
+        <div data-hf-id="hf-fjzd" class="cap" id="cap-s04-8">The model ranks this bounded menu and writes the thesis.</div>
+        <div data-hf-id="hf-uq9s" class="cap" id="cap-s04-9">It never invents a trade.</div>
+        <div data-hf-id="hf-hbic" id="s04-note" class="sketch-note note-tr" style="opacity:0;"><span data-hf-id="hf-wi7q">quant first</span><span data-hf-id="hf-gvgu">model second</span></div>
+        <div data-hf-id="hf-eonx" class="wrap">
+          <span data-hf-id="hf-trni" class="kicker">AI logic</span>
+          <div data-hf-id="hf-mqhw" class="h1" id="s04-h1">Evidence first. The final window is event-only.</div>
+
+          <div data-hf-id="hf-so5a" style="margin-top: 46px; display: flex; flex-direction: column; gap: 18px; max-width: 1520px;">
+            <div data-hf-id="hf-6ivw" class="vec" id="s04-vec-trend" style="opacity:0;">
+              <span data-hf-id="hf-g7dr" class="vec-rail" style="background: var(--blue);"></span>
+              <span data-hf-id="hf-fec2" class="vec-name">Trend</span>
+              <span data-hf-id="hf-3ayt" class="vec-desc">disabled after independent cross-validation</span>
+              <span data-hf-id="hf-go98" class="vec-ev killed" id="s04-ev-trend" style="opacity:0; border-color: rgba(47,95,214,.4); color: var(--blue);">OFF · no final-window entry authority</span>
+            </div>
+
+            <div data-hf-id="hf-i06r" class="vec" id="s04-vec-cat" style="opacity:0;">
+              <span data-hf-id="hf-pgno" class="vec-rail" style="background: var(--green);"></span>
+              <span data-hf-id="hf-ufrg" class="vec-name">LULU catalyst</span>
+              <span data-hf-id="hf-s4u4" class="vec-desc">12% ATM earnings straddle</span>
+              <span data-hf-id="hf-9xw8" class="vec-ev" id="s04-ev-cat" style="opacity:0; border-color: rgba(47,95,214,.4); color: var(--green);">10-sample move study</span>
+            </div>
+
+            <div data-hf-id="hf-95a2" class="vec" id="s04-vec-evt" style="opacity:0;">
+              <span data-hf-id="hf-9gm0" class="vec-rail" style="background: var(--amber);"></span>
+              <span data-hf-id="hf-n5eh" class="vec-name">NFP event</span>
+              <span data-hf-id="hf-apc1" class="vec-desc">10% 1-DTE SPY strangle + 8% ×2 0-DTE gap continuation</span>
+              <span data-hf-id="hf-7mk8" class="vec-ev" id="s04-ev-evt" style="opacity:0; border-color: rgba(187,50,50,.4); color: var(--amber);">0-DTE gap continuation · 9 wins in 10</span>
+            </div>
+
+            <div data-hf-id="hf-zdoy" class="vec" id="s04-vec-vol" style="opacity:0;">
+              <span data-hf-id="hf-a5yo" class="vec-rail" style="background: var(--muted);"></span>
+              <span data-hf-id="hf-71jw" class="vec-name">Vol / PEAD</span>
+              <span data-hf-id="hf-p2fi" class="vec-desc">inactive · no final-window entry authority</span>
+            </div>
+          </div>
+
+          <div data-hf-id="hf-7osa" id="s04-llm" style="margin-top: 42px; font-size: 23px; color: var(--muted); max-width: 1400px; opacity:0;">
+            The language model <b data-hf-id="hf-x3wd" style="color: var(--text)">ranks this bounded event menu</b> and writes the
+            thesis. <b data-hf-id="hf-pz4o" style="color: var(--text)">It never invents a trade.</b>
+          </div>
+        </div>
+      </div>
+
+      <script>
+        window.__timelines = window.__timelines || {};
+        (() => {
+          const SPEED = 1.16;
+          const S = (seconds) => seconds / SPEED;
+          const EASE = "power2.out";
+          const tl = gsap.timeline({ paused: true });
+
+          tl.fromTo("#s04-h1", { opacity: 0, y: 26 }, { opacity: 1, y: 0, duration: 0.7, ease: EASE }, S(0.1));
+          tl.fromTo("#s04-note", { opacity: 0, x: 38, rotation: 7 }, { opacity: 1, x: 0, rotation: 2, duration: 0.65, ease: "back.out(1.4)" }, S(1.2));
+          tl.to("#s04-note", { y: -7, rotation: -1, duration: 2, ease: "sine.inOut", repeat: 13, yoyo: true }, S(2.1));
+          // Beats are derived from the narration alignment by tools/timeline.py.
+          // <<< GENERATED cues-s04 -- edit narration.json, then `npm run timing`
+          const CUES_S04 = [
+            ["#s04-vec-trend", 3.19],
+            ["#s04-ev-trend", 5.03],
+            ["#s04-vec-cat", 10.4],
+            ["#s04-ev-cat", 14.18],
+            ["#s04-vec-evt", 15.86],
+            ["#s04-ev-evt", 24.59],
+            ["#s04-vec-vol", 26.14],
+          ];
+          const S04_LLM = 29.86;  // "The model ranks"
+          // >>> GENERATED cues-s04
+          CUES_S04.forEach(([sel, at]) => {
+            tl.fromTo(sel, { opacity: 0, y: 14 },
+                      { opacity: 1, y: 0, duration: 0.45, ease: EASE }, S(at));
+          });
+          tl.fromTo("#s04-llm", { opacity: 0, y: 16 },
+                    { opacity: 1, y: 0, duration: 0.6, ease: EASE }, S(S04_LLM));
+
+
+          // <<< GENERATED captions -- edit narration.json, then `npm run timing`
+          const CAPTIONS = [
+          {id:"cap-s04-0", start:0.06, end:3.11},
+          {id:"cap-s04-1", start:3.19, end:6.22},
+          {id:"cap-s04-2", start:6.22, end:10.4},
+          {id:"cap-s04-3", start:10.4, end:13.44},
+          {id:"cap-s04-4", start:13.44, end:15.86},
+          {id:"cap-s04-5", start:15.86, end:21.02},
+          {id:"cap-s04-6", start:21.02, end:26.14},
+          {id:"cap-s04-7", start:26.14, end:29.86},
+          {id:"cap-s04-8", start:29.86, end:33.61},
+          {id:"cap-s04-9", start:33.61, end:35}
+          ];
+          // >>> GENERATED captions
+          CAPTIONS.forEach(c => {
+            const el = document.getElementById(c.id);
+            tl.fromTo(el, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.1, ease: "none" }, S(c.start));
+            tl.set(el, { autoAlpha: 0 }, S(c.end));
+          });
+
+          window.__timelines["scene-s04"] = tl;
+        })();
+      </script>
+    </template>
+  </body>
+</html>

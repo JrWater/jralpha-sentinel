@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <!-- Scene 10 · CLOSING. Timing is compiled: see ../narration.json and
+         ../tools/timeline.py. Shared design tokens and this scene's own CSS
+         live in the host stylesheet; the host slot keeps .clip/.scene. -->
+  </head>
+  <body>
+    <template>
+      <style>
+        #root { position: absolute; inset: 0; }
+      </style>
+
+      <div data-hf-id="hf-fyfo" id="root" data-composition-id="scene-s10" data-width="1920" data-height="1080">
+        <div data-hf-id="hf-oo64" class="grid-overlay"></div>
+        <div data-hf-id="hf-nx7s" class="cap" id="cap-s10-0">Six scheduled catalysts sit inside this five-day</div>
+        <div data-hf-id="hf-qvh5" class="cap" id="cap-s10-1">window, and the agent never risks more</div>
+        <div data-hf-id="hf-47lp" class="cap" id="cap-s10-2">than twelve percent on one idea.</div>
+        <div data-hf-id="hf-umlf" class="cap" id="cap-s10-3">That's Sentinel. The repo and the live</div>
+        <div data-hf-id="hf-pabb" class="cap" id="cap-s10-4">dashboard are on screen.</div>
+        <div data-hf-id="hf-i3o0" class="cap" id="cap-s10-5">Thanks for watching.</div>
+        <svg data-hf-id="hf-zfhs" id="s10-bot" class="bot bot-close" viewBox="0 0 200 200" aria-hidden="true">
+          <path data-hf-id="hf-nanx" class="accent" d="M100 28V12m0 0 13 8M35 92 17 80m148 12 18-12" />
+          <rect data-hf-id="hf-5389" class="ink" x="37" y="43" width="126" height="112" rx="34" />
+          <circle data-hf-id="hf-3ary" class="face" cx="78" cy="94" r="8" /><circle data-hf-id="hf-bzsa" class="face" cx="122" cy="94" r="8" />
+          <path data-hf-id="hf-813m" class="accent" d="M75 122c14 13 36 13 50 0M67 156l-10 25m76-25 10 25" />
+        </svg>
+        <div data-hf-id="hf-lj6j" class="wrap" style="align-items: center; justify-content: center; text-align: center;">
+          <div data-hf-id="hf-g1ps" id="s10-mark" style="font-size: 68px; font-weight: 800; letter-spacing: -0.03em; color: var(--ink);">SENTINEL</div>
+          <div data-hf-id="hf-xjxo" class="lead" id="s10-lead" style="text-align:center; margin-top: 24px;">Defined-risk. Catalyst-adaptive. <b data-hf-id="hf-vbbd">Never directionally agnostic on a catalyst day.</b></div>
+
+          <div data-hf-id="hf-p0pd" style="display:flex; gap: 18px; margin-top: 34px;" id="s10-chips">
+            <span data-hf-id="hf-8at9" class="pill">6 scheduled catalysts this window</span>
+            <span data-hf-id="hf-srlx" class="pill">≤12% risk per idea, always defined</span>
+          </div>
+
+          <div data-hf-id="hf-sb6d" class="mono" id="s10-links" style="margin-top: 54px; font-size: 19px; color: var(--blue); opacity:0;">
+            github.com/JrWater/jralpha-sentinel &#160;·&#160; jralpha-sentinel.streamlit.app
+          </div>
+          <div data-hf-id="hf-0jfq" id="s10-thanks" style="margin-top: 20px; font-size: 20px; color: var(--muted); opacity:0;">Thanks for watching.</div>
+        </div>
+      </div>
+
+      <script>
+        window.__timelines = window.__timelines || {};
+        (() => {
+          const SPEED = 1.16;
+          const S = (seconds) => seconds / SPEED;
+          const EASE = "power2.out";
+          const tl = gsap.timeline({ paused: true });
+
+          tl.fromTo("#s10-bot", { opacity: 0, x: -35, rotation: -10 }, { opacity: 1, x: 0, rotation: -3, duration: 0.7, ease: "back.out(1.5)" }, S(0.1));
+          tl.to("#s10-bot", { y: -7, rotation: 1, duration: 1.2, ease: "sine.inOut", repeat: 7, yoyo: true }, S(1.0));
+          tl.fromTo("#s10-mark", { opacity: 0, scale: 0.94 }, { opacity: 1, scale: 1, duration: 0.7, ease: EASE }, S(0.1));
+          tl.fromTo("#s10-lead", { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.6, ease: EASE }, S(0.9));
+          tl.fromTo("#s10-chips > *", { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.4, stagger: 0.15, ease: EASE }, S(1.6));
+          tl.fromTo("#s10-links", { opacity: 0, x: 22 }, { opacity: 1, x: 0, duration: 0.6, ease: "sine.out" }, S(2.6));
+          tl.fromTo("#s10-thanks", { opacity: 0 }, { opacity: 1, duration: 0.6, ease: EASE }, S(3.2));
+
+
+
+
+
+
+          // <<< GENERATED captions -- edit narration.json, then `npm run timing`
+          const CAPTIONS = [
+          {id:"cap-s10-0", start:0, end:2.74},
+          {id:"cap-s10-1", start:2.798, end:5.097},
+          {id:"cap-s10-2", start:5.132, end:7.036},
+          {id:"cap-s10-3", start:7.314, end:9.787},
+          {id:"cap-s10-4", start:9.822, end:11.32},
+          {id:"cap-s10-5", start:11.645, end:12.91}
+          ];
+          // >>> GENERATED captions
+          CAPTIONS.forEach(c => {
+            const el = document.getElementById(c.id);
+            tl.fromTo(el, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.1, ease: "none" }, S(c.start));
+            tl.set(el, { autoAlpha: 0 }, S(c.end));
+          });
+
+          window.__timelines["scene-s10"] = tl;
+        })();
+      </script>
+    </template>
+  </body>
+</html>

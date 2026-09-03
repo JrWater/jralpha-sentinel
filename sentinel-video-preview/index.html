@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1920, height=1080">
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      @font-face {
+        font-family: "Caveat";
+        src: url("assets/fonts/Caveat-700-latin.woff2") format("woff2");
+        font-weight: 700;
+        font-display: block;
+      }
+      /* Whiteboard-explainer palette. --green/--amber are kept as aliases
+         (not removed) because every scene module still references them by
+         name; they now resolve to the same two hex values as --blue/--red.
+         That is the whole two-accent discipline enforced at one seam: any
+         scene using var(--green) or var(--amber) inherits the swap for free
+         and cannot reintroduce a third color by accident. See design.md. */
+      :root {
+        --bg: #fafaf7;
+        --bg2: #f2f1ec;
+        --panel: rgba(25, 26, 29, 0.035);
+        --border: rgba(25, 26, 29, 0.22);
+        --text: #191a1d;
+        --muted: #676b72;
+        --blue: #2f5fd6;
+        --red: #bb3232;
+        --green: #2f5fd6;   /* alias -> blue: confirmed / passing */
+        --amber: #bb3232;   /* alias -> red: risk / refused */
+        --ink: #191a1d;
+        --paper: #ffffff;
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body {
+        width: 1920px; height: 1080px; overflow: hidden;
+        background: var(--bg);
+        font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+        color: var(--text);
+      }
+      .mono { font-family: "SF Mono", Menlo, monospace; }
+
+      .scene {
+        position: absolute; inset: 0; width: 1920px; height: 1080px;
+        background:
+          radial-gradient(1500px 900px at 50% -8%, rgba(25,26,29,.035), transparent 62%),
+          var(--bg);
+      }
+      .scene::before {
+        content: ""; position: absolute; inset: 34px; pointer-events: none;
+        border: 2px solid rgba(25, 26, 29, 0.08); border-radius: 18px 14px 20px 15px;
+      }
+      /* Whiteboard-explainer explicitly rules out paper grain / photographic
+         texture. Keep the rule (CLAUDE.md: .scene::after is already claimed,
+         so a scene must never redeclare it) but render nothing. */
+      .scene::after {
+        content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0;
+      }
+      /* Graph-paper texture doesn't belong on a whiteboard; scenes still
+         carry the div, so this neutralizes it rather than requiring every
+         scene file to drop the element. */
+      .grid-overlay { display: none; }
+      .wrap { position: relative; z-index: 2; height: 100%; padding: 90px 120px; display: flex; flex-direction: column; }
+
+      /* Kicker labels are structural chrome (every scene has one), not a
+         semantic claim -- keep them neutral ink so the two accents stay
+         reserved for "confirmed" (blue) and "risk" (red) elsewhere. */
+      .kicker {
+        display: block; font-size: 16px; letter-spacing: 0.16em; text-transform: uppercase;
+        color: var(--ink); font-weight: 800;
+      }
+      .kicker::before {
+        content: "✦"; margin-right: 11px; color: var(--blue); font-size: 18px;
+      }
+      .h1 { position: relative; width: fit-content; font-size: 76px; font-weight: 800; letter-spacing: -0.02em; color: var(--text); line-height: 1.05; margin-top: 18px; max-width: 1500px; }
+      .h1::after {
+        content: ""; position: absolute; left: 1%; right: 8%; bottom: -15px; height: 8px;
+        border-top: 4px solid rgba(47,95,214,.75); border-radius: 50%; transform: rotate(-.6deg);
+      }
+      .h2 { font-size: 46px; font-weight: 800; letter-spacing: -0.02em; color: var(--text); line-height: 1.15; margin-top: 16px; max-width: 1400px; }
+      .lead { font-size: 24px; color: var(--muted); line-height: 1.55; margin-top: 22px; max-width: 1200px; }
+      .lead b { color: var(--text); font-weight: 600; }
+
+      .pill {
+        display: inline-flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 700;
+        padding: 8px 16px; border-radius: 999px; border: 2px dashed var(--border); background: var(--panel);
+        color: var(--text);
+      }
+      .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+
+      .vec {
+        display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+        padding: 16px 22px; border-radius: 18px 14px 20px 15px;
+        background: var(--bg2); border: 2px solid var(--border);
+        box-shadow: 3px 3px 0 rgba(25,26,29,.08);
+      }
+      .vec-rail { width: 5px; height: 34px; border-radius: 3px; display: inline-block; }
+      .vec-name { font-size: 25px; font-weight: 800; min-width: 132px; }
+      .vec-desc { font-size: 19px; color: var(--muted); }
+      .vec-ev {
+        font-size: 15px; font-weight: 700; padding: 6px 13px; border-radius: 999px;
+        border: 1px solid var(--border); color: var(--muted);
+        font-family: "SF Mono", Menlo, monospace;
+      }
+      /* the PEAD leg is struck through in-scene, exactly as the narration
+         says it was removed on three years of negative-drift evidence */
+      .vec-ev.killed {
+        text-decoration: line-through;
+        border-color: rgba(187,50,50,.45); color: var(--red);
+      }
+
+      /* Captions sit over live scene content, not a dark frame, so they read
+         as black marker ink with a soft white halo instead of white text
+         with a dark shadow. .cap-bar (scene 08's screenshot) explicitly
+         re-flips back to white-on-dark below, because that bar sits over a
+         real dark-mode code screenshot that is not being restyled. */
+      .cap {
+        position: absolute; left: 50%; bottom: 64px; transform: translateX(-50%);
+        max-width: 1640px; text-align: center; font-size: 46px; font-weight: 600;
+        color: var(--ink); text-shadow: 0 0 12px rgba(255,255,255,.92), 0 0 3px rgba(255,255,255,.98);
+        opacity: 0; padding: 0 24px; display: block;
+      }
+      /* scene 08's frame is a full-bleed screenshot with its own baked-in
+         bottom caption; give burned-in captions a solid bar there instead of
+         floating text, so the two never occupy the same pixels unreadably. */
+      .cap-bar {
+        left: 0; bottom: 0; transform: none; width: 100%; max-width: none;
+        background: linear-gradient(0deg, rgba(8,11,16,.97) 0%, rgba(8,11,16,.97) 70%, rgba(8,11,16,0) 100%);
+        padding: 22px 24px 20px; font-size: 44px;
+        color: #fff; text-shadow: 0 2px 10px rgba(0,0,0,.65);
+      }
+
+      .card {
+        position: relative; background: var(--panel); border: 2px solid var(--border);
+        border-radius: 19px 14px 21px 16px;
+        box-shadow: 5px 5px 0 rgba(25,26,29,.10), 0 18px 40px rgba(25,26,29,.10);
+      }
+
+      .pipe-box::before {
+        content: attr(data-step); position: absolute; right: 18px; top: -20px; width: 45px; height: 45px;
+        display: grid; place-items: center; border-radius: 50% 45% 52% 43%;
+        border: 2px solid var(--ink); background: var(--paper); color: var(--ink);
+        font: 800 17px/1 "SF Mono", Menlo, monospace; transform: rotate(4deg);
+      }
+      .sketch-note {
+        position: absolute; z-index: 5; padding: 16px 21px; min-width: 190px;
+        border: 2px solid var(--ink); border-radius: 9px 13px 8px 12px;
+        background: var(--paper); color: var(--ink); box-shadow: 6px 7px 0 rgba(25,26,29,.16);
+        font: 700 28px/1.5 "Caveat", Georgia, serif; letter-spacing: .01em;
+      }
+      /* Was a taped-paper-strip mark (notebook metaphor); a whiteboard note
+         gets a drawn accent stroke along its top edge instead. */
+      .sketch-note::before {
+        content: ""; position: absolute; left: 20px; right: 20px; top: -3px; height: 3px;
+        background: var(--blue); border-radius: 2px; opacity: .85;
+      }
+      .sketch-note span { display: block; }
+      .note-br { right: 118px; bottom: 186px; transform: rotate(-2deg); }
+      .note-tr { right: 118px; top: 82px; transform: rotate(2deg); }
+      .stamp {
+        position: absolute; z-index: 5; right: 128px; top: 88px; padding: 12px 20px;
+        border: 3px solid var(--green); border-radius: 10px 7px 12px 8px;
+        color: var(--green); font: 900 22px/1 "SF Mono", Menlo, monospace;
+        letter-spacing: .13em; transform: rotate(4deg); opacity: 0;
+      }
+      .bot {
+        position: absolute; z-index: 4; width: 190px; height: 190px;
+        filter: drop-shadow(8px 10px 0 rgba(25,26,29,.16));
+      }
+      .bot-title { left: 248px; top: 250px; opacity: 0; }
+      .bot-close { left: 318px; top: 330px; width: 150px; height: 150px; opacity: 0; }
+      .bot .ink { fill: var(--paper); stroke: var(--ink); stroke-width: 8; stroke-linecap: round; stroke-linejoin: round; }
+      .bot .accent { fill: none; stroke: var(--green); stroke-width: 9; stroke-linecap: round; stroke-linejoin: round; }
+      .bot .face { fill: var(--ink); }
+      .scribble-arrow { fill: none; stroke: var(--ink); stroke-width: 6; stroke-linecap: round; stroke-linejoin: round; opacity: .85; }
+
+      /* The title scene gets its own evolving whiteboard sketch. These are
+         not decorative facts: they visually restate narration already on
+         screen. The notebook-specific paper-strip/orbit/callout treatment
+         below is scene-01's -- and the one place this pass changes markup,
+         not just tokens, because a taped-paper motif has no whiteboard
+         equivalent and two of these rules (the callout connector and its
+         label) would otherwise render white-on-white and vanish. */
+      .s01-orbit { position: absolute; z-index: 2; left: 166px; top: 166px; width: 430px; height: 430px; opacity: 0; }
+      .s01-orbit path { fill: none; stroke: var(--muted); stroke-width: 4; stroke-linecap: round; stroke-dasharray: 12 15; opacity: .55; }
+      .s01-orbit circle { fill: var(--blue); stroke: var(--ink); stroke-width: 3; }
+      .s01-note { right: 152px; top: 132px; transform: rotate(3deg); opacity: 0; }
+      .s01-note small { display: block; margin-top: 8px; font: 700 16px/1.1 "SF Mono", Menlo, monospace; letter-spacing: .03em; color: rgba(25,26,29,.72); }
+      .s01-gates { position: absolute; z-index: 4; right: 148px; top: 328px; width: 290px; padding: 22px 25px 20px; opacity: 0; }
+      .s01-gates-title { color: var(--text); font: 800 16px/1 "SF Mono", Menlo, monospace; letter-spacing: .11em; }
+      .s01-gate-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 18px; }
+      .s01-gate { height: 34px; border: 3px solid rgba(25,26,29,.28); border-radius: 8px 5px 9px 6px; background: rgba(25,26,29,.03); }
+      .s01-gate.ready { border-color: var(--blue); background: rgba(47,95,214,.12); }
+      .s01-callout { position: absolute; z-index: 5; right: 86px; top: 286px; width: 420px; height: 260px; pointer-events: none; opacity: 0; }
+      .s01-callout svg { width: 100%; height: 100%; overflow: visible; }
+      .s01-callout path { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+      #s01-callout-outline { stroke: var(--blue); stroke-width: 6; }
+      #s01-callout-scribble { stroke: var(--blue); stroke-width: 3; opacity: .32; }
+      #s01-callout-connector { stroke: var(--ink); stroke-width: 4; }
+      .s01-callout-label { position: absolute; left: 6px; top: 216px; color: var(--ink); font: 700 31px/1.12 "Caveat", Georgia, serif; letter-spacing: .02em; opacity: 0; }
+      .s01-callout-label span { display: block; }
+      .s01-callout-label span + span { margin-top: 7px; }
+
+      .arrow { position: relative; height: 3px; background: var(--border); transform-origin: left center; }
+      .arrow::after {
+        content: ""; position: absolute; right: -1px; top: 50%; transform: translateY(-50%);
+        border-left: 10px solid var(--border); border-top: 6px solid transparent; border-bottom: 6px solid transparent;
+      }
+      .arrow.on { background: var(--blue); }
+      .arrow.on::after { border-left-color: var(--blue); }
+
+      footer.scene-footer {
+        position: absolute; left: 120px; bottom: 56px; font-size: 16px; color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <div data-hf-id="hf-6rhi" id="root" data-composition-id="main" data-start="0" data-duration="178.900" data-width="1920" data-height="1080">
+      <!-- ============================= 01 · TITLE (0 -> 14.002) ============================= -->
+      <div data-hf-id="hf-qe51" id="scene-s01" class="clip scene s01"
+           data-composition-id="scene-s01" data-composition-src="compositions/scene-01.html"
+           data-start="0" data-duration="14.002" data-width="1920" data-height="1080"></div>
+
+      <!-- ============================= 02 · PROBLEM (14.002 -> 28.895) ============================= -->
+      <div data-hf-id="hf-cv7e" id="scene-s02" class="clip scene s02"
+           data-composition-id="scene-s02" data-composition-src="compositions/scene-02.html"
+           data-start="14.002" data-duration="14.893" data-width="1920" data-height="1080"></div>
+
+      <!-- ============================= 03 · ARCHITECTURE (28.895 -> 51.124) ============================= -->
+      <div data-hf-id="hf-s4vn" id="scene-s03" class="clip scene s03"
+           data-composition-id="scene-s03" data-composition-src="compositions/scene-03.html"
+           data-start="28.895" data-duration="22.229" data-width="1920" data-height="1080"></div>
+
+      <!-- ============================= 04 · AI LOGIC (51.124 -> 81.297) ============================= -->
+      <div data-hf-id="hf-84ok" id="scene-s04" class="clip scene s04"
+           data-composition-id="scene-s04" data-composition-src="compositions/scene-04.html"
+           data-start="51.124" data-duration="30.173" data-width="1920" data-height="1080"></div>
+
+      <!-- ============================= 05 · RISK GATES (81.297 -> 105.037) ============================= -->
+      <div data-hf-id="hf-507g" id="scene-s05" class="clip scene s05"
+           data-composition-id="scene-s05" data-composition-src="compositions/scene-05.html"
+           data-start="81.297" data-duration="23.740" data-width="1920" data-height="1080"></div>
+
+      <!-- ============================= 06 · INFRA (105.037 -> 123.133) ============================= -->
+      <div data-hf-id="hf-iobf" id="scene-s06" class="clip scene s06"
+           data-composition-id="scene-s06" data-composition-src="compositions/scene-06.html"
+           data-start="105.037" data-duration="18.096" data-width="1920" data-height="1080"></div>
+
+      <!-- ============================= 07 · DASHBOARD — REAL SCREENSHOTS (123.133 -> 143.590) ============================= -->
+      <div data-hf-id="hf-0se9" id="scene-s07" class="clip scene s07"
+           data-composition-id="scene-s07" data-composition-src="compositions/scene-07.html"
+           data-start="123.133" data-duration="20.457" data-width="1920" data-height="1080"></div>
+
+      <!-- ============================= 08 · CODE — REAL SCREENSHOT (143.590 -> 157.322) ============================= -->
+      <div data-hf-id="hf-1wkw" id="scene-s08" class="clip scene s08"
+           data-composition-id="scene-s08" data-composition-src="compositions/scene-08.html"
+           data-start="143.590" data-duration="13.732" data-width="1920" data-height="1080"></div>
+
+      <!-- ============================= 09 · RESULTS PLACEHOLDER (157.322 -> 167.771) ============================= -->
+      <div data-hf-id="hf-9s6l" id="scene-s09" class="clip scene s09"
+           data-composition-id="scene-s09" data-composition-src="compositions/scene-09.html"
+           data-start="157.322" data-duration="10.449" data-width="1920" data-height="1080"></div>
+
+      <!-- ============================= 10 · CLOSING (167.771 -> 178.900) ============================= -->
+      <div data-hf-id="hf-lh3q" id="scene-s10" class="clip scene s10"
+           data-composition-id="scene-s10" data-composition-src="compositions/scene-10.html"
+           data-start="167.771" data-duration="11.129" data-width="1920" data-height="1080"></div>
+
+      <!-- ============================= AUDIO ============================= -->
+      <audio data-hf-id="hf-ovd8" id="a01" src="assets/audio/01_title.mp3" data-start="0" data-duration="14.002" data-playback-rate="1.16"></audio>
+      <audio data-hf-id="hf-a1d8" id="a02" src="assets/audio/02_problem.mp3" data-start="14.002" data-duration="14.893" data-playback-rate="1.16"></audio>
+      <audio data-hf-id="hf-6vct" id="a03" src="assets/audio/03_architecture.mp3" data-start="28.895" data-duration="22.229" data-playback-rate="1.16"></audio>
+      <audio data-hf-id="hf-t29c" id="a04" src="assets/audio/04_ai_logic.mp3" data-start="51.124" data-duration="30.173" data-playback-rate="1.16"></audio>
+      <audio data-hf-id="hf-auhd" id="a05" src="assets/audio/05_risk_gates.mp3" data-start="81.297" data-duration="23.740" data-playback-rate="1.16"></audio>
+      <audio data-hf-id="hf-kjt8" id="a06" src="assets/audio/06_infra.mp3" data-start="105.037" data-duration="18.096" data-playback-rate="1.16"></audio>
+      <audio data-hf-id="hf-pt9i" id="a07" src="assets/audio/07_dashboard.mp3" data-start="123.133" data-duration="20.457" data-playback-rate="1.16"></audio>
+      <audio data-hf-id="hf-t0fg" id="a08" src="assets/audio/08_code.mp3" data-start="143.590" data-duration="13.732" data-playback-rate="1.16"></audio>
+      <audio data-hf-id="hf-vbjc" id="a09" src="assets/audio/09_results.mp3" data-start="157.322" data-duration="10.449" data-playback-rate="1.16"></audio>
+      <audio data-hf-id="hf-psvs" id="a10" src="assets/audio/10_closing.mp3" data-start="167.771" data-duration="11.129" data-playback-rate="1.16"></audio>
+    </div>
+
+    <script>
+      const SPEED = 1.16;
+      const S = (seconds) => seconds / SPEED;
+      // <<< GENERATED T -- edit narration.json, then `npm run timing`
+      const T = {
+        s01: 0, s02: 14.002, s03: 28.895, s04: 51.124, s05: 81.297, s06: 105.037, s07: 123.133, s08: 143.590, s09: 157.322, s10: 167.771, end: 178.900,
+      };
+      // >>> GENERATED T
+
+      document.fonts.ready.then(() => {
+        const tl = gsap.timeline({ paused: true });
+        const EASE = "power2.out";
+
+
+
+        window.__timelines["main"] = tl;
+      });
+      window.__timelines = window.__timelines || {};
+    </script>
+  </body>
+</html>

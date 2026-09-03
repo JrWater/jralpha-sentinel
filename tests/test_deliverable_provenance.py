@@ -78,3 +78,21 @@ def test_policy_manifest_is_a_binary_provenance_input_when_present(tmp_path):
 
     assert "policy/manifest.json" in discover_binary_inputs(
         tmp_path, "media/cover.png")
+
+
+def test_preview_build_sources_supersede_the_legacy_delivery_sources(tmp_path):
+    _write(tmp_path, "sentinel-video/index.html", "legacy")
+    _write(tmp_path, "sentinel-video-preview/index.html", "preview")
+    _write(tmp_path, "media/build/cover.html", "legacy")
+    _write(tmp_path, "media/build-preview/cover_colorpencil.html", "preview")
+    _write(tmp_path, "media/build/slides.html", "legacy")
+    _write(tmp_path, "media/build-preview/slides.html", "preview")
+
+    assert "sentinel-video-preview/index.html" in discover_binary_inputs(
+        tmp_path, "media/sentinel_demo.mp4")
+    assert "sentinel-video/index.html" not in discover_binary_inputs(
+        tmp_path, "media/sentinel_demo.mp4")
+    assert "media/build-preview/cover_colorpencil.html" in discover_binary_inputs(
+        tmp_path, "media/cover.png")
+    assert "media/build-preview/slides.html" in discover_binary_inputs(
+        tmp_path, "media/slides.pdf")

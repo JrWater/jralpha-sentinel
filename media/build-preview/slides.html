@@ -1,0 +1,254 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>slides</title>
+<style>
+  @page { size: 13.333in 7.5in; margin: 0; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body {
+    font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+    background:#fafaf7; color:#191a1d;
+  }
+  .slide {
+    width:13.333in; height:7.5in; position:relative; overflow:hidden;
+    background: radial-gradient(1100px 650px at 50% -12%, rgba(25,26,29,.03), transparent 62%), #fafaf7;
+    break-after: page; padding: 0.65in 0.85in;
+    display:flex; flex-direction:column;
+  }
+  .slide:last-child { break-after: auto; }
+  /* whiteboard-explainer: flat board, no graph-paper texture */
+  .grid { display:none; }
+  .kicker { position:relative; font-size:13px; letter-spacing:0.14em; text-transform:uppercase;
+    color:#191a1d; font-weight:600; }
+  .pageno { position:absolute; bottom:0.4in; right:0.85in; font-size:12px; color:#9aa0a8; }
+  h1.big { position:relative; font-size:88px; font-weight:800; letter-spacing:-0.03em; line-height:0.98;
+    color:#191a1d; margin-top:14px; width:fit-content; }
+  h1.big::after { content:""; position:absolute; left:1%; right:14%; bottom:-10px; height:6px;
+    border-top:4px solid rgba(47,95,214,.75); border-radius:50%; }
+  h2 { position:relative; font-size:44px; font-weight:800; letter-spacing:-0.02em; color:#191a1d; margin-top:10px; }
+  .tagline { position:relative; font-size:22px; color:#3a3d42; margin-top:22px; max-width:9.5in; line-height:1.45; }
+  .tagline b { color:#191a1d; }
+
+  .flow { position:relative; display:flex; align-items:center; gap:0; margin-top:0.5in; }
+  .node { flex:1; background:#ffffff; border:2px solid rgba(25,26,29,.20);
+    border-radius:16px; padding:26px 24px; text-align:center; }
+  .node .ic { font-size:30px; width:56px; height:56px; border-radius:12px; margin:0 auto 14px;
+    display:flex; align-items:center; justify-content:center; color:#191a1d; }
+  .node .t1 { font-size:21px; font-weight:700; color:#191a1d; }
+  .node .t2 { font-size:14.5px; color:#676b72; margin-top:6px; line-height:1.4; }
+  .arrow { width:64px; text-align:center; font-size:26px; color:#9aa0a8; }
+  /* Only the deciding node (gates) carries the accent -- see cover.html. */
+  .n2 { border-color:#2f5fd6; }
+  .n2 .ic { color:#2f5fd6; }
+
+  table.v { position:relative; width:100%; border-collapse:collapse; margin-top:0.35in; font-size:16px; }
+  table.v th { text-align:left; color:#676b72; font-weight:600; font-size:13px; letter-spacing:0.05em;
+    text-transform:uppercase; padding:0 16px 12px 0; border-bottom:2px solid rgba(25,26,29,.20); }
+  table.v td { padding:16px 16px 16px 0; border-bottom:1px solid rgba(25,26,29,.10); vertical-align:top; }
+  table.v .pct { font-size:26px; font-weight:800; color:#191a1d; }
+  table.v .name { font-weight:700; color:#191a1d; font-size:16.5px; }
+  table.v .desc { color:#3a3d42; line-height:1.5; }
+  /* Vector identity is the label text; the dot only carries one further
+     fact -- active vs disabled for this window -- not a fourth color. */
+  .swatch { display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:9px; background:#9aa0a8; }
+  .swatch.on { background:#2f5fd6; }
+
+  .dims { position:relative; display:grid; grid-template-columns: repeat(5,1fr); gap:16px; margin-top:0.4in; }
+  .dim { background:#ffffff; border:2px solid rgba(25,26,29,.16); border-radius:14px;
+    padding:20px 16px; text-align:center; }
+  .dim .n { font-size:34px; font-weight:800; color:#191a1d; }
+  .dim .l { font-size:13px; color:#191a1d; margin-top:6px; font-weight:600; }
+  .dim .q { font-size:12.5px; color:#676b72; margin-top:10px; line-height:1.4; font-style:italic; }
+
+  .caps { position:relative; display:grid; grid-template-columns: repeat(4,1fr); gap:16px; margin-top:0.35in; }
+  .cap { background:#ffffff; border:2px solid rgba(25,26,29,.16); border-radius:14px; padding:22px; }
+  .cap .n { font-size:32px; font-weight:800; color:#191a1d; }
+  .cap.risk .n { color:#bb3232; }
+  .cap .l { font-size:13.5px; color:#676b72; margin-top:8px; line-height:1.4; }
+
+  .stack { position:relative; margin-top:0.35in; display:flex; flex-direction:column; gap:11px; }
+  .row { display:flex; gap:18px; align-items:flex-start; background:#ffffff;
+    border:1px solid rgba(25,26,29,.16); border-radius:12px; padding:14px 22px; }
+  .row .tag { flex-shrink:0; width:190px; font-size:14px; font-weight:700; color:#191a1d;
+    font-family:'SF Mono', Menlo, monospace; line-height:1.35; }
+  .row .body { font-size:14.5px; color:#3a3d42; line-height:1.48; }
+  .row .body code { color:#2f5fd6; font-family: 'SF Mono', Menlo, monospace; font-size:13.5px; }
+
+  /* "before" is a neutral past state, not a risk claim -- muted, not red. */
+  .arch-before { position:relative; margin-top:0.30in; display:flex; align-items:center; gap:16px;
+    padding:13px 17px; border:2px dashed rgba(25,26,29,.30); border-radius:12px;
+    background:#f2f1ec; color:#3a3d42; font-size:14px; line-height:1.35; }
+  .arch-before b { color:#676b72; font-family:'SF Mono', Menlo, monospace; letter-spacing:.10em; font-size:12px; }
+  .arch-after { position:relative; margin-top:0.22in; color:#2f5fd6; font-family:'SF Mono', Menlo, monospace;
+    font-size:12px; letter-spacing:.11em; text-transform:uppercase; font-weight:700; }
+  .arch-flow { position:relative; display:flex; align-items:stretch; gap:11px; margin-top:0.16in; }
+  .arch-node { flex:1; padding:17px 14px 15px; background:#ffffff; border:2px solid rgba(25,26,29,.18); border-radius:13px; }
+  .arch-node .path { font:700 11px/1.2 'SF Mono', Menlo, monospace; color:#2f5fd6; }
+  .arch-node .name { margin-top:9px; font-size:18px; color:#191a1d; font-weight:800; }
+  .arch-node .desc { margin-top:8px; color:#3a3d42; font-size:12.5px; line-height:1.36; }
+  .arch-arrow { align-self:center; color:#9aa0a8; font-size:18px; }
+  .arch-evidence { position:relative; display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:0.18in; }
+  .arch-evidence div { padding:11px 15px; border:1px solid rgba(25,26,29,.18); border-radius:10px; background:#ffffff; }
+  .arch-evidence b { display:block; color:#191a1d; font:700 11px/1.15 'SF Mono', Menlo, monospace; letter-spacing:.07em; }
+  .arch-evidence span { display:block; margin-top:5px; color:#676b72; font-size:12.5px; line-height:1.35; }
+
+  .shot { position:relative; margin-top:0.3in; border-radius:14px; overflow:hidden; height:3.15in;
+    border:2px solid rgba(25,26,29,.20); box-shadow:5px 5px 0 rgba(25,26,29,.10), 0 18px 40px rgba(25,26,29,.10); }
+  .shot img { display:block; width:100%; height:100%; object-fit:cover; object-position: top; }
+
+  /* Matches the video's scene-09 treatment of the same pending-results
+     claim: dashed, muted, no highlight color -- "honest blank" is a
+     structural fact, not a warning. */
+  .placeholder { position:relative; margin-top:0.4in; border:2px dashed rgba(25,26,29,.30);
+    border-radius:16px; padding:0.55in; text-align:center; background:#f2f1ec; }
+  .placeholder .pt { font-size:22px; font-weight:700; color:#191a1d; }
+  .placeholder .ps { font-size:15px; color:#676b72; margin-top:10px; line-height:1.6; max-width:8in; margin-left:auto; margin-right:auto; }
+  .placeholder .ps b { color: #191a1d; }
+
+  .closebig { position:relative; font-size:30px; color:#3a3d42; line-height:1.5; margin-top:0.4in; max-width:10in; }
+  .closebig b { color:#191a1d; }
+  .closebig i { color:#2f5fd6; font-style:normal; font-weight:700; }
+  .links { position:relative; margin-top:0.55in; display:flex; gap:40px; font-size:17px; color:#676b72; }
+  .links b { color:#191a1d; }
+</style></head>
+<body>
+
+<!-- 1: Title -->
+<section class="slide">
+  <div class="grid"></div>
+  <div class="kicker">Alpaca AI Trading Agents Hackathon &nbsp;·&nbsp; lablab.ai × Alpaca &nbsp;·&nbsp; 28 Aug – 4 Sep 2026</div>
+  <h1 class="big">Sentinel</h1>
+  <div class="tagline"><b>The model proposes. The gates decide.</b><br/>An autonomous options trading agent whose language model cannot place an order — it can only propose one.</div>
+  <div class="flow">
+    <div class="node n1"><div class="ic">◆</div><div class="t1">DeepSeek</div><div class="t2">reads the ranked candidates, writes the thesis</div></div>
+    <div class="arrow">→</div>
+    <div class="node n2"><div class="ic">▦</div><div class="t1">Safety gates</div><div class="t2">deterministic, fail-closed, 5 dimensions</div></div>
+    <div class="arrow">→</div>
+    <div class="node n3"><div class="ic">▶</div><div class="t1">Alpaca</div><div class="t2">limit-only execution, paper account</div></div>
+  </div>
+  <div class="pageno">1 / 9</div>
+</section>
+
+<!-- 2: The design claim -->
+<section class="slide">
+  <div class="grid"></div>
+  <div class="kicker">The Problem</div>
+  <h2>An LLM trader's failure mode isn't being wrong.</h2>
+  <div class="tagline">It's being <b>confidently</b> wrong — at 3× the intended size, in a symbol it invented, using an order type nobody authorized. Most agent submissions this week will give the model a broker tool and let it call it. Sentinel does the opposite.</div>
+  <div class="stack" style="margin-top:0.55in">
+    <div class="row"><div class="tag" style="color:#676b72">The usual shape</div><div class="body">LLM holds broker credentials → LLM calls <code>place_order()</code> directly → whatever the model decided is now live.</div></div>
+    <div class="row"><div class="tag" style="color:#2f5fd6">Sentinel's shape</div><div class="body">LLM emits a <b style="color:#191a1d">structured proposal</b> — symbol, structure, stated max loss — with <b style="color:#191a1d">no broker credentials and no submission tool</b>. Deterministic safety gates decide whether it becomes an order. The model cannot argue with them, route around them, or be prompted out of them.</div></div>
+  </div>
+  <div class="pageno">2 / 9</div>
+</section>
+
+<!-- 3: Architecture -->
+<section class="slide">
+  <div class="grid"></div>
+  <div class="kicker">Architecture</div>
+  <h2>One guarded path. Named owners for each decision and side effect.</h2>
+  <div class="arch-before"><b>BEFORE</b><span><code>run_cycle</code> hand-built separate gate contexts and an inline entry-submission loop.</span></div>
+  <div class="arch-after">After · explicit seams, one guarded path</div>
+  <div class="arch-flow">
+    <div class="arch-node"><div class="path">agent/proposer.py</div><div class="name">Proposer</div><div class="desc">DeepSeek ranks candidates and writes a thesis. It has no order-submission tool.</div></div>
+    <div class="arch-arrow">→</div>
+    <div class="arch-node"><div class="path">gates/evaluation.py</div><div class="name">Gate Evaluator</div><div class="desc">Typed cycle and proposal subjects keep readiness distinct from entry authorization.</div></div>
+    <div class="arch-arrow">→</div>
+    <div class="arch-node"><div class="path">agent/entry_submission.py</div><div class="name">Entry Admission</div><div class="desc">Pre-journalled client IDs make the submission path recoverable and auditable.</div></div>
+    <div class="arch-arrow">→</div>
+    <div class="arch-node"><div class="path">agent/executor.py</div><div class="name">Executor</div><div class="desc">Only declared DAY limit order shapes reach Alpaca — never a market order.</div></div>
+  </div>
+  <div class="arch-evidence">
+    <div><b>SAFETY PERMIT</b><span>Bound to the exact commit and manifest hash; fails closed when stale or mismatched.</span></div>
+    <div><b>STRUCTURE LEDGER</b><span>Submitted orders become durable position records beside the broker mirror.</span></div>
+  </div>
+  <div class="pageno">3 / 9</div>
+</section>
+
+<!-- 4: AI logic / 4 vectors -->
+<section class="slide">
+  <div class="grid"></div>
+  <div class="kicker">AI Logic</div>
+  <h2>Evidence first. The final window is event-only.</h2>
+  <div class="tagline" style="margin-top:14px">Independent cross-validation rejected the Trend engines for this short horizon. Historical decisions remain auditable; new exposure is limited to the two options events with supporting studies.</div>
+  <table class="v">
+    <tr><th>Vector</th><th>Budget</th><th>What it trades</th><th>When it fires</th></tr>
+    <tr><td class="name"><span class="swatch on"></span>LULU catalyst</td><td class="pct">12%</td><td class="desc">ATM LULU earnings straddle; defined debit sized from a 10-sample move study</td><td class="desc">one confirmed in-window earnings event</td></tr>
+    <tr><td class="name"><span class="swatch on"></span>NFP event</td><td class="pct">10% + 8% ×2</td><td class="desc">SPY 1-DTE strangle plus 0-DTE gap continuation; every leg is defined-risk long premium</td><td class="desc">August Employment Situation and qualifying gap window</td></tr>
+    <tr><td class="name"><span class="swatch"></span>Trend</td><td class="pct">OFF</td><td class="desc">Disabled after independent cross-validation found weak or negative short-horizon evidence</td><td class="desc">no final-window entry authority</td></tr>
+    <tr><td class="name"><span class="swatch"></span>Vol</td><td class="pct">OFF</td><td class="desc">Not enabled for new exposure in the final event-only configuration</td><td class="desc">no final-window entry authority</td></tr>
+  </table>
+  <div class="pageno">4 / 9</div>
+</section>
+
+<!-- 5: Risk gates -->
+<section class="slide">
+  <div class="grid"></div>
+  <div class="kicker">Risk Gates — Enforced In Code, None Advisory</div>
+  <h2>Every position is defined-risk. No naked shorts. No market orders.</h2>
+  <div class="dims">
+    <div class="dim"><div class="l">Entry Authority</div><div class="q">Is this account, this mode, allowed to trade?</div></div>
+    <div class="dim"><div class="l">Data Readiness</div><div class="q">Is every input actually present?</div></div>
+    <div class="dim"><div class="l">Delivery Health</div><div class="q">If it breaks, does anyone find out?</div></div>
+    <div class="dim"><div class="l">Release Integrity</div><div class="q">Is running code the code that was verified?</div></div>
+    <div class="dim"><div class="l">Process Health</div><div class="q">Did the machinery obey its contract?</div></div>
+  </div>
+  <div class="caps">
+    <div class="cap"><div class="n">$12,000</div><div class="l">hard per-trade max loss (12% of $100k, tournament-calibrated from event studies; fraction of starting equity — a drawdown shrinks absolute risk, never rescales it)</div></div>
+    <div class="cap"><div class="n">$40,000</div><div class="l">portfolio at-risk cap across every open structure at once — enforced at submission, not just declared</div></div>
+    <div class="cap risk"><div class="n">−$12,000</div><div class="l">daily kill switch: halts new entries, halves next day's sizing</div></div>
+    <div class="cap"><div class="n">$70,000</div><div class="l">Entry Maintenance trip — new exposure stops, exits keep running</div></div>
+  </div>
+  <div class="pageno">5 / 9</div>
+</section>
+
+<!-- 6: Alpaca infrastructure -->
+<section class="slide">
+  <div class="grid"></div>
+  <div class="kicker">Alpaca Infrastructure</div>
+  <h2>Trading API, MCP server, and CLI — all three, deliberately.</h2>
+  <div class="stack" style="margin-top:0.5in">
+    <div class="row"><div class="tag">Trading API</div><div class="body">Execution: limit-only, multi-leg via <code>LimitOrderRequest</code> with legs, DAY time-in-force. The programmable brokerage itself.</div></div>
+    <div class="row"><div class="tag">Market Data</div><div class="body">IEX stocks in real time + indicative options snapshots delayed 15 minutes. Strikes are selected by snapshot delta, then <b style="color:#191a1d">priced with Black-Scholes on the real-time underlying and snapshot IV</b> — delayed quotes select the contract, they never set the price.</div></div>
+    <div class="row"><div class="tag">MCP Server</div><div class="body"><code>uvx alpaca-mcp-server</code>, wired via <code>.mcp.json</code> — the research/agent read path, and the theme of this hackathon.</div></div>
+    <div class="row"><div class="tag">Alpaca CLI</div><div class="body">Ops and status: <code>alpaca account get</code>, <code>--dry-run</code> previews. Cron-friendly, structured JSON — matches the scheduled-cycle execution model.</div></div>
+  </div>
+  <div class="tagline" style="margin-top:0.28in; font-size:19px;">Execution pipeline: <code style="color:#2f5fd6">scripts/run_cycle.py</code> every 30 minutes through the entry window. The same cycle manages take-profit / stop-loss exits from ledger metadata — never leg by leg.</div>
+  <div class="pageno">6 / 9</div>
+</section>
+
+<!-- 7: Live evidence -->
+<section class="slide">
+  <div class="grid"></div>
+  <div class="kicker">Live Evidence — Not Just Claims</div>
+  <h2>The claim is checkable in the record, not asserted in this deck.</h2>
+  <div class="tagline">The agent writes a credential-free snapshot every cycle; the dashboard renders it. No Alpaca keys in the hosted page — judges verify "the model cannot place an order" by reading refused proposals, not by trusting the write-up.</div>
+  <div class="shot"><img src="dash_hero.png" /></div>
+  <div class="pageno">7 / 9</div>
+</section>
+
+<!-- 8: Results placeholder -->
+<section class="slide">
+  <div class="grid"></div>
+  <div class="kicker">Results</div>
+  <h2>Five trading days, judged live.</h2>
+  <div class="placeholder">
+    <div class="pt">⏳ Filled in from the live account after the competition window closes</div>
+    <div class="ps">This deck is finalized before kickoff (2026-08-28). P&amp;L, win rate by vector, and the equity curve are real numbers pulled from account <b>PA3K3A9ZBCBI</b> — reported honestly whichever way they land, not fabricated ahead of the event. Follow the live dashboard for the current state at any moment: <b>jralpha-sentinel.streamlit.app</b></div>
+  </div>
+  <div class="pageno">8 / 9</div>
+</section>
+
+<!-- 9: Closing -->
+<section class="slide">
+  <div class="grid"></div>
+  <div class="kicker">Why It Can Win</div>
+  <div class="closebig">Six scheduled catalysts sit inside this exact window. The agent is <i>never directionally agnostic</i> on a catalyst day, never risks more than 12% of the account on one idea, and never holds an undefined-risk structure.<br/><br/>A catalyst-adaptive, tournament-calibrated hedgehog is the only strategy that can be in the top decile of P&amp;L <i>and</i> at the top of the risk-policy table at the same time.</div>
+  <div class="links">
+    <div><b>Repo</b><br/>github.com/JrWater/jralpha-sentinel · MIT</div>
+    <div><b>Live dashboard</b><br/>jralpha-sentinel.streamlit.app</div>
+    <div><b>Account</b><br/>PA3K3A9ZBCBI · Paper · $100,000</div>
+  </div>
+  <div class="pageno">9 / 9</div>
+</section>
+
+</body></html>

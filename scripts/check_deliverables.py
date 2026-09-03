@@ -226,26 +226,38 @@ def sha256(path: Path) -> str:
 def discover_binary_inputs(root: Path, artifact: str) -> tuple[str, ...]:
     """Discover inputs from the build topology rather than recording a list."""
     if artifact == "media/sentinel_demo.mp4":
+        source = root / "sentinel-video-preview"
+        if not (source / "index.html").is_file():
+            source = root / "sentinel-video"
         paths = {
-            root / "sentinel-video/index.html",
-            root / "sentinel-video/narration.json",
-            root / "sentinel-video/hyperframes.json",
-            root / "sentinel-video/package.json",
-            root / "sentinel-video/tools/timeline.py",
+            source / "index.html",
+            source / "narration.json",
+            source / "hyperframes.json",
+            source / "package.json",
+            source / "tools/timeline.py",
         }
         for pattern in (
-            "sentinel-video/compositions/**/*.html",
-            "sentinel-video/assets/audio/*",
-            "sentinel-video/assets/align/*.json",
-            "sentinel-video/assets/code_screenshot.*",
-            "sentinel-video/assets/dash_*",
-            "sentinel-video/assets/fonts/*",
+            "compositions/**/*.html",
+            "assets/audio/*",
+            "assets/align/*.json",
+            "assets/code_screenshot.*",
+            "assets/dash_*",
+            "assets/fonts/*",
         ):
-            paths.update(root.glob(pattern))
+            paths.update(source.glob(pattern))
     elif artifact == "media/slides.pdf":
-        paths = {root / "media/build/slides.html", root / "media/build/datauris.json"}
+        source = root / "media/build-preview"
+        if not (source / "slides.html").is_file():
+            source = root / "media/build"
+        paths = {source / "slides.html", source / "datauris.json", source / "dash_hero.png"}
     elif artifact == "media/cover.png":
-        paths = {root / "media/build/cover.html", root / "media/build/datauris.json"}
+        source = root / "media/build-preview"
+        if (source / "cover_colorpencil.html").is_file():
+            cover = source / "cover_colorpencil.html"
+        else:
+            source = root / "media/build"
+            cover = source / "cover.html"
+        paths = {cover, source / "datauris.json"}
     else:
         return ()
     policy_manifest = root / "policy" / "manifest.json"

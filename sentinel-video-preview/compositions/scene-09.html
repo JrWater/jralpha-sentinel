@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <!-- Scene 09 · RESULTS. Timing is compiled: see ../narration.json and
+         ../tools/timeline.py. Shared design tokens and this scene's own CSS
+         live in the host stylesheet; the host slot keeps .clip/.scene. -->
+  </head>
+  <body>
+    <template>
+      <style>
+        #root { position: absolute; inset: 0; }
+      </style>
+
+      <div data-hf-id="hf-1adu" id="root" data-composition-id="scene-s09" data-width="1920" data-height="1080">
+        <div data-hf-id="hf-lw0x" class="grid-overlay"></div>
+        <div data-hf-id="hf-6h7w" class="cap" id="cap-s09-0">This is recorded before kickoff,</div>
+        <div data-hf-id="hf-5gvw" class="cap" id="cap-s09-1">so the results are deliberately blank.</div>
+        <div data-hf-id="hf-eldo" class="cap" id="cap-s09-2">They come from account P-A-3-K-3-A-9-Z-B-C-B-I,</div>
+        <div data-hf-id="hf-9rc1" class="cap" id="cap-s09-3">reported whichever way they land.</div>
+        <div data-hf-id="hf-0hbp" id="s09-note" class="sketch-note note-tr" style="opacity:0;"><span data-hf-id="hf-ockw">honest blank</span><span data-hf-id="hf-hxyd">≠ missing proof</span></div>
+        <div data-hf-id="hf-hgt4" class="wrap">
+          <span data-hf-id="hf-33jk" class="kicker">Results</span>
+          <div data-hf-id="hf-4u07" class="h1" id="s09-h1">Recorded live. Reported after judging — whichever way it lands.</div>
+          <div data-hf-id="hf-qs3k" class="lead">This video is made before kickoff. No numbers to show yet — that's the honest state, not an omission.</div>
+
+          <div data-hf-id="hf-txv6" style="display: flex; gap: 26px; margin-top: 58px;">
+            <div data-hf-id="hf-fms9" class="card placeholder-card" data-i="0" style="flex:1; padding: 34px; border-style: dashed; opacity:0;">
+              <div data-hf-id="hf-jnga" style="font-size: 15px; color: var(--muted); letter-spacing:.06em; text-transform:uppercase;">P&amp;L</div>
+              <div data-hf-id="hf-tiee" style="font-size: 30px; font-weight: 700; color: var(--muted); margin-top: 14px;">— pending —</div>
+            </div>
+            <div data-hf-id="hf-nvqw" class="card placeholder-card" data-i="1" style="flex:1; padding: 34px; border-style: dashed; opacity:0;">
+              <div data-hf-id="hf-2dws" style="font-size: 15px; color: var(--muted); letter-spacing:.06em; text-transform:uppercase;">Win rate by vector</div>
+              <div data-hf-id="hf-8hd6" style="font-size: 30px; font-weight: 700; color: var(--muted); margin-top: 14px;">— pending —</div>
+            </div>
+            <div data-hf-id="hf-rg0b" class="card placeholder-card" data-i="2" style="flex:1; padding: 34px; border-style: dashed; opacity:0;">
+              <div data-hf-id="hf-86q0" style="font-size: 15px; color: var(--muted); letter-spacing:.06em; text-transform:uppercase;">Equity curve</div>
+              <div data-hf-id="hf-8vo7" style="font-size: 30px; font-weight: 700; color: var(--muted); margin-top: 14px;">— pending —</div>
+            </div>
+          </div>
+          <div data-hf-id="hf-8ucg" class="mono" style="margin-top: 40px; font-size: 16px; color: var(--muted);">account&#160;<span data-hf-id="hf-xaxy" style="color: var(--text)">PA3K3A9ZBCBI</span> · live at jralpha-sentinel.streamlit.app</div>
+        </div>
+      </div>
+
+      <script>
+        window.__timelines = window.__timelines || {};
+        (() => {
+          const SPEED = 1.16;
+          const S = (seconds) => seconds / SPEED;
+          const EASE = "power2.out";
+          const tl = gsap.timeline({ paused: true });
+
+          tl.fromTo("#s09-h1", { opacity: 0, y: 26 }, { opacity: 1, y: 0, duration: 0.7, ease: EASE }, S(0.1));
+          tl.fromTo("#s09-note", { opacity: 0, scale: 0.8, rotation: 8 }, { opacity: 1, scale: 1, rotation: 2, duration: 0.5, ease: "back.out(1.5)" }, S(1.4));
+          tl.to("#s09-note", { y: -5, rotation: -1, duration: 1.2, ease: "sine.inOut", repeat: 6, yoyo: true }, S(2.1));
+          gsap.utils.toArray(".placeholder-card").forEach((el, i) => {
+            const t = S(2.2 + i * 0.5);
+            tl.fromTo(el, { opacity: 0, y: 20 }, { opacity: 0.9, y: 0, duration: 0.5, ease: EASE }, t);
+            tl.to(el, { opacity: 0.55, duration: 1.4, ease: "sine.inOut", repeat: 3, yoyo: true }, t + 0.6);
+          });
+
+
+          // <<< GENERATED captions -- edit narration.json, then `npm run timing`
+          const CAPTIONS = [
+          {id:"cap-s09-0", start:0, end:1.916},
+          {id:"cap-s09-1", start:2.125, end:4.331},
+          {id:"cap-s09-2", start:4.714, end:9.892},
+          {id:"cap-s09-3", start:10.136, end:12.121}
+          ];
+          // >>> GENERATED captions
+          CAPTIONS.forEach(c => {
+            const el = document.getElementById(c.id);
+            tl.fromTo(el, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.1, ease: "none" }, S(c.start));
+            tl.set(el, { autoAlpha: 0 }, S(c.end));
+          });
+
+          window.__timelines["scene-s09"] = tl;
+        })();
+      </script>
+    </template>
+  </body>
+</html>

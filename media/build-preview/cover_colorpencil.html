@@ -1,0 +1,128 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>cover-colorpencil</title>
+<style>
+  @font-face {
+    font-family: "Caveat";
+    src: url("../../sentinel-video/assets/fonts/Caveat-700-latin.woff2") format("woff2");
+    font-weight: 700; font-display: block;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { width:1920px; height:1080px; overflow:hidden; }
+  body {
+    font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+    /* colored-pencil-diary works on a slightly warm off-white page, not a
+       stark whiteboard white -- closer to real paper than the video's board. */
+    background: #fdfbf5;
+    color: #232323;
+    position: relative;
+  }
+  .wrap { position:relative; height:100%; padding: 86px 110px; display:flex; align-items:center; gap:70px; }
+
+  .art { flex: 0 0 700px; }
+  .art svg { width:100%; height:auto; overflow:visible; }
+
+  .content { flex:1; }
+  .kicker {
+    font-size: 21px; letter-spacing: 0.14em; text-transform: uppercase;
+    color:#232323; font-weight:700;
+  }
+  h1 {
+    font-size: 138px; font-weight:800; letter-spacing:-0.03em; line-height:0.95;
+    color:#232323; margin-top:20px; position:relative; width:fit-content;
+  }
+  /* a rough hand-drawn underline instead of the video's clean marker swoosh */
+  h1 svg.underline { position:absolute; left:-1%; right:-6%; bottom:-26px; width:108%; height:26px; overflow:visible; }
+  .tagline { margin-top:40px; font-size:32px; font-weight:500; color:#4a4a48; line-height:1.35; max-width:820px; }
+  .tagline b { color:#232323; font-weight:700; }
+  .note {
+    display:inline-block; margin-top:34px; font: 700 34px/1.3 "Caveat", Georgia, serif;
+    color:#7a3530; transform: rotate(-2deg); letter-spacing:.01em;
+  }
+  .stats { display:flex; gap:52px; margin-top:64px; }
+  .stat .n { font-size:38px; font-weight:800; color:#232323; }
+  .stat .l { font-size:15px; color:#6b6b66; margin-top:4px; }
+  .foot { margin-top:54px; font-size:17px; color:#6b6b66; line-height:1.6; }
+  .foot b { color:#232323; }
+</style></head>
+<body>
+  <div class="wrap">
+    <div class="art">
+      <svg viewBox="0 0 620 620" aria-hidden="true">
+        <defs>
+          <!-- colored-pencil hatch fills: short diagonal strokes with white
+               gaps, not flat color -- the one non-negotiable trait of this
+               style. Different rotation per region so it doesn't read as a
+               single mechanical texture. -->
+          <pattern id="hTan" width="9" height="9" patternUnits="userSpaceOnUse" patternTransform="rotate(28)">
+            <rect width="9" height="9" fill="#f6ecd6"/>
+            <line x1="2" y1="0" x2="2" y2="9" stroke="#c8a35f" stroke-width="2.1"/>
+          </pattern>
+          <pattern id="hRed" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(-24)">
+            <rect width="8" height="8" fill="#f3ddd6"/>
+            <line x1="2" y1="0" x2="2" y2="8" stroke="#a3453b" stroke-width="2.3"/>
+          </pattern>
+          <pattern id="hBlue" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(20)">
+            <rect width="8" height="8" fill="#e4ecf1"/>
+            <line x1="2" y1="0" x2="2" y2="8" stroke="#6f8fa6" stroke-width="2.1"/>
+          </pattern>
+          <pattern id="hYellow" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(-30)">
+            <rect width="8" height="8" fill="#faf1ce"/>
+            <line x1="2" y1="0" x2="2" y2="8" stroke="#cf9f2e" stroke-width="2"/>
+          </pattern>
+          <pattern id="hGray" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(35)">
+            <rect width="7" height="7" fill="#eeeeea"/>
+            <line x1="1.5" y1="0" x2="1.5" y2="7" stroke="#9a9a92" stroke-width="1.8"/>
+          </pattern>
+        </defs>
+
+        <!-- night-watch props: sparse, same rough black contour as the
+             figure, most of the panel left white -->
+        <circle cx="500" cy="90" r="30" fill="none" stroke="#232323" stroke-width="4" stroke-dasharray="1 9" stroke-linecap="round" opacity=".55"/>
+        <path d="M470 118c-16-6-24-24-16-40 4 18 18 26 30 24-2 9-8 14-14 16z" fill="url(#hYellow)" stroke="#232323" stroke-width="4" stroke-linejoin="round"/>
+
+        <!-- shield: "the gates decide", drawn the same rough way as the owl -->
+        <path d="M96 430c-2-46 2-88 8-108 26-14 56-14 82 0 6 20 10 62 8 108-16 30-46 50-49 52-3-2-33-22-49-52z"
+              fill="url(#hBlue)" stroke="#232323" stroke-width="5" stroke-linejoin="round"/>
+        <path d="M118 372l20 22 34-40" fill="none" stroke="#232323" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+
+        <!-- the sentinel owl, same silhouette as the video mascot, redrawn
+             with a wobbly hand contour and colored-pencil fills instead of
+             the video's flat ink/paper/blue treatment -->
+        <g transform="translate(230 130) scale(1.55)">
+          <path d="M58 66 L45 30 L78 59 Z" fill="url(#hRed)" stroke="#232323" stroke-width="4.5" stroke-linejoin="round"/>
+          <path d="M142 66 L155 30 L122 59 Z" fill="url(#hRed)" stroke="#232323" stroke-width="4.5" stroke-linejoin="round"/>
+          <path d="M46 119c-15 9-16 30-3 41" fill="none" stroke="#a3453b" stroke-width="7" stroke-linecap="round"/>
+          <path d="M154 119c15 9 16 30 3 41" fill="none" stroke="#a3453b" stroke-width="7" stroke-linecap="round"/>
+          <path d="M39 108c-4-34 15-62 61-62s65 28 61 62c3 30-12 56-34 66-9 4-18 6-27 6s-18-2-27-6c-22-10-37-36-34-66z"
+                fill="url(#hTan)" stroke="#232323" stroke-width="5.5" stroke-linejoin="round"/>
+          <circle cx="76" cy="103" r="24" fill="#fdfbf5" stroke="#232323" stroke-width="4.5"/>
+          <circle cx="124" cy="103" r="24" fill="#fdfbf5" stroke="#232323" stroke-width="4.5"/>
+          <circle cx="77" cy="104" r="9" fill="#232323"/>
+          <circle cx="123" cy="104" r="9" fill="#232323"/>
+          <circle cx="80" cy="100" r="2.6" fill="#fdfbf5"/>
+          <circle cx="126" cy="100" r="2.6" fill="#fdfbf5"/>
+          <path d="M92 123 L108 122 L100 137 Z" fill="url(#hYellow)" stroke="#232323" stroke-width="3.5" stroke-linejoin="round"/>
+          <path d="M82 166l-10 17m56-17 10 17" fill="none" stroke="#232323" stroke-width="6" stroke-linecap="round"/>
+        </g>
+      </svg>
+    </div>
+
+    <div class="content">
+      <div class="kicker">Alpaca AI Trading Agents Hackathon &nbsp;·&nbsp; lablab.ai</div>
+      <h1>Sentinel
+        <svg class="underline" viewBox="0 0 500 26" preserveAspectRatio="none" aria-hidden="true">
+          <path d="M8 14c60-9 130-11 200-8 75 3 170 8 284 4" fill="none" stroke="#a3453b" stroke-width="7" stroke-linecap="round"/>
+        </svg>
+      </h1>
+      <div class="tagline"><b>The model proposes.</b> The gates decide.<br/>An autonomous options agent whose language model cannot place an order.</div>
+      <div class="note">rules stay awake --</div>
+      <div class="stats">
+        <div class="stat"><div class="n">ALL</div><div class="l">SAFETY GATES</div></div>
+        <div class="stat"><div class="n">5</div><div class="l">DIMENSIONS</div></div>
+        <div class="stat"><div class="n">4</div><div class="l">STRATEGY VECTORS</div></div>
+        <div class="stat"><div class="n">$100K</div><div class="l">PAPER ACCOUNT</div></div>
+      </div>
+      <div class="foot"><b>github.com/JrWater/jralpha-sentinel</b> · MIT &nbsp;·&nbsp; jralpha-sentinel.streamlit.app</div>
+    </div>
+  </div>
+</body></html>
