@@ -39,6 +39,9 @@ media/build/*.pdf
 media/build/*.mp4
 media/build-preview/*.png
 media/build-preview/*.pdf
+# Alternate preview source retained locally; cover_colorpencil.html is the
+# committed source of the published cover.
+media/build-preview/cover.html
 
 __pycache__/
 *.pyc
