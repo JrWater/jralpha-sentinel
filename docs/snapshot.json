@@ -11,7 +11,7 @@
     "starting_equity": 100000.0
   },
   "code": {
-    "git_head": "e370848d67f9fb9dd9a8779b68bc48ce14a0963c",
+    "git_head": "db16d3815b90f70062f74ab751ee176cc4767440",
     "worktree_dirty": false
   },
   "day": {
@@ -2390,6 +2390,10 @@
     {
       "equity": 98667.19,
       "t": "2026-09-04T15:00:02.376067+00:00"
+    },
+    {
+      "equity": 98667.19,
+      "t": "2026-09-04T15:30:02.976497+00:00"
     }
   ],
   "gates": [
@@ -2520,7 +2524,7 @@
       "severity": "BLOCKING"
     },
     {
-      "detail": "clean at e370848d67f9",
+      "detail": "clean at db16d3815b90",
       "dimension": "Release Integrity",
       "name": "release_integrity",
       "ok": true,
@@ -2529,7 +2533,7 @@
       "severity": "ATTENTION"
     }
   ],
-  "generated_at_utc": "2026-09-04T15:00:02.376067+00:00",
+  "generated_at_utc": "2026-09-04T15:30:02.976497+00:00",
   "market": {
     "is_open": true
   },
@@ -2557,7 +2561,7 @@
   "regime": {
     "confidence": 0.77,
     "mode": "risk_on",
-    "reason": "SPY above EMA50 (+1.56%), RSI 55, breadth +1"
+    "reason": "SPY above EMA50 (+1.57%), RSI 55, breadth +1"
   },
   "schema_version": 2
 }
