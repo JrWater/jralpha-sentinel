@@ -2422,6 +2422,10 @@
     {
       "equity": 98667.19,
       "t": "2026-09-04T19:05:02.457870+00:00"
+    },
+    {
+      "equity": 98667.19,
+      "t": "2026-09-04T19:35:02.832259+00:00"
     }
   ],
   "gates": [
@@ -2561,7 +2565,7 @@
       "severity": "ATTENTION"
     }
   ],
-  "generated_at_utc": "2026-09-04T19:05:02.457870+00:00",
+  "generated_at_utc": "2026-09-04T19:35:02.832259+00:00",
   "market": {
     "is_open": true
   },
@@ -2587,9 +2591,9 @@
     }
   ],
   "regime": {
-    "confidence": 0.79,
+    "confidence": 0.8,
     "mode": "risk_on",
-    "reason": "SPY above EMA50 (+1.60%), RSI 55, breadth +1"
+    "reason": "SPY above EMA50 (+1.64%), RSI 56, breadth +1"
   },
   "schema_version": 2
 }
