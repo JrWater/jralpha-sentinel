@@ -2,25 +2,25 @@
   "account": {
     "account_number": "PA3K3A9ZBCBI",
     "cash": 82067.39,
-    "equity": 91027.39,
+    "equity": 98747.39,
     "mode": "PAPER",
     "options_buying_power": 82067.39,
     "options_level": 3,
-    "pnl_dollars": -8972.61,
-    "pnl_percent": -8.973,
+    "pnl_dollars": -1252.61,
+    "pnl_percent": -1.253,
     "starting_equity": 100000.0
   },
   "code": {
-    "git_head": "55f7c3d8ade31ce8dd1c283982783cfd3ea3f0a9",
+    "git_head": "e370848d67f9fb9dd9a8779b68bc48ce14a0963c",
     "worktree_dirty": false
   },
   "day": {
-    "date": "2026-09-03",
+    "date": "2026-09-04",
     "fired_once": [],
     "killed": false,
     "new_risk_dollars": 0.0,
     "scale": 1.0,
-    "start_equity": 90267.39
+    "start_equity": 98747.39
   },
   "decisions": [
     {
@@ -2366,11 +2366,15 @@
     {
       "equity": 91027.39,
       "t": "2026-09-03T19:35:02.747376+00:00"
+    },
+    {
+      "equity": 98747.39,
+      "t": "2026-09-04T13:35:03.186008+00:00"
     }
   ],
   "gates": [
     {
-      "detail": "option quotes 0s old (feed delay is 900s)",
+      "detail": "option quotes 1s old (feed delay is 900s)",
       "dimension": "Data Readiness",
       "name": "option_chain_data",
       "ok": true,
@@ -2415,7 +2419,7 @@
       "severity": "BLOCKING"
     },
     {
-      "detail": "equity 91,027.39 >= floor 70,000.00",
+      "detail": "equity 98,747.39 >= floor 70,000.00",
       "dimension": "Entry Authority",
       "name": "equity_floor",
       "ok": true,
@@ -2487,7 +2491,7 @@
       "severity": "BLOCKING"
     },
     {
-      "detail": "SENTINEL-OPTIONS-V2@3.2.0+6e6b832fccc8",
+      "detail": "SENTINEL-OPTIONS-V2@3.2.1+aa1bf0abd9bd",
       "dimension": "Release Integrity",
       "name": "manifest_identity",
       "ok": true,
@@ -2496,7 +2500,7 @@
       "severity": "BLOCKING"
     },
     {
-      "detail": "clean at 55f7c3d8ade3",
+      "detail": "clean at e370848d67f9",
       "dimension": "Release Integrity",
       "name": "release_integrity",
       "ok": true,
@@ -2505,7 +2509,7 @@
       "severity": "ATTENTION"
     }
   ],
-  "generated_at_utc": "2026-09-03T19:35:02.747376+00:00",
+  "generated_at_utc": "2026-09-04T13:35:03.186008+00:00",
   "market": {
     "is_open": true
   },
@@ -2515,33 +2519,33 @@
     "status": "READY"
   },
   "policy": {
-    "identity": "SENTINEL-OPTIONS-V2@3.2.0+6e6b832fccc8",
+    "identity": "SENTINEL-OPTIONS-V2@3.2.1+aa1bf0abd9bd",
     "policy_id": "SENTINEL-OPTIONS-V2",
-    "sha": "6e6b832fccc8818e82c6bf38dab1986bd4c5101f2283ce80a66bb93f4a5630e5",
-    "version": "3.2.0"
+    "sha": "aa1bf0abd9bd4b9658f2ce416559279b290b06ac36ee40f5a0af3b32fc7ce0cd",
+    "version": "3.2.1"
   },
   "positions": [
     {
       "avg_entry_price": 5.75,
-      "market_value": 4560.0,
+      "market_value": 0.0,
       "qty": 8,
       "symbol": "LULU260904C00122000",
       "underlying": "LULU",
-      "unrealized_pl": -40.0
+      "unrealized_pl": -4600.0
     },
     {
       "avg_entry_price": 6.4,
-      "market_value": 4480.0,
+      "market_value": 16200.0,
       "qty": 8,
       "symbol": "LULU260904P00122000",
       "underlying": "LULU",
-      "unrealized_pl": -640.0
+      "unrealized_pl": 11080.0
     }
   ],
   "regime": {
     "confidence": 0.9,
     "mode": "risk_on",
-    "reason": "SPY above EMA50 (+2.15%), RSI 59, breadth +1"
+    "reason": "SPY above EMA50 (+1.98%), RSI 58, breadth +1"
   },
   "schema_version": 2
 }
