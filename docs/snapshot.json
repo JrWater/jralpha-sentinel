@@ -2402,11 +2402,15 @@
     {
       "equity": 98667.19,
       "t": "2026-09-04T16:30:02.994994+00:00"
+    },
+    {
+      "equity": 98667.19,
+      "t": "2026-09-04T17:00:03.320960+00:00"
     }
   ],
   "gates": [
     {
-      "detail": "option quotes 0s old (feed delay is 900s)",
+      "detail": "option quotes 1s old (feed delay is 900s)",
       "dimension": "Data Readiness",
       "name": "option_chain_data",
       "ok": true,
@@ -2541,7 +2545,7 @@
       "severity": "ATTENTION"
     }
   ],
-  "generated_at_utc": "2026-09-04T16:30:02.994994+00:00",
+  "generated_at_utc": "2026-09-04T17:00:03.320960+00:00",
   "market": {
     "is_open": true
   },
@@ -2567,9 +2571,9 @@
     }
   ],
   "regime": {
-    "confidence": 0.84,
+    "confidence": 0.85,
     "mode": "risk_on",
-    "reason": "SPY above EMA50 (+1.72%), RSI 56, breadth +1"
+    "reason": "SPY above EMA50 (+1.75%), RSI 56, breadth +1"
   },
   "schema_version": 2
 }
