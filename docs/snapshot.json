@@ -1,13 +1,13 @@
 {
   "account": {
     "account_number": "PA3K3A9ZBCBI",
-    "cash": 82067.39,
-    "equity": 98747.39,
+    "cash": 98667.19,
+    "equity": 98667.19,
     "mode": "PAPER",
-    "options_buying_power": 82067.39,
+    "options_buying_power": 90367.29,
     "options_level": 3,
-    "pnl_dollars": -1252.61,
-    "pnl_percent": -1.253,
+    "pnl_dollars": -1332.81,
+    "pnl_percent": -1.333,
     "starting_equity": 100000.0
   },
   "code": {
@@ -2370,6 +2370,10 @@
     {
       "equity": 98747.39,
       "t": "2026-09-04T13:35:03.186008+00:00"
+    },
+    {
+      "equity": 98667.19,
+      "t": "2026-09-04T13:45:02.455934+00:00"
     }
   ],
   "gates": [
@@ -2419,7 +2423,7 @@
       "severity": "BLOCKING"
     },
     {
-      "detail": "equity 98,747.39 >= floor 70,000.00",
+      "detail": "equity 98,667.19 >= floor 70,000.00",
       "dimension": "Entry Authority",
       "name": "equity_floor",
       "ok": true,
@@ -2482,7 +2486,7 @@
       "severity": "BLOCKING"
     },
     {
-      "detail": "2 position(s) reconciled",
+      "detail": "1 position(s) reconciled",
       "dimension": "Process Health",
       "name": "position_reconcile",
       "ok": true,
@@ -2509,7 +2513,7 @@
       "severity": "ATTENTION"
     }
   ],
-  "generated_at_utc": "2026-09-04T13:35:03.186008+00:00",
+  "generated_at_utc": "2026-09-04T13:45:02.455934+00:00",
   "market": {
     "is_open": true
   },
@@ -2532,20 +2536,12 @@
       "symbol": "LULU260904C00122000",
       "underlying": "LULU",
       "unrealized_pl": -4600.0
-    },
-    {
-      "avg_entry_price": 6.4,
-      "market_value": 16200.0,
-      "qty": 8,
-      "symbol": "LULU260904P00122000",
-      "underlying": "LULU",
-      "unrealized_pl": 11080.0
     }
   ],
   "regime": {
     "confidence": 0.9,
     "mode": "risk_on",
-    "reason": "SPY above EMA50 (+1.98%), RSI 58, breadth +1"
+    "reason": "SPY above EMA50 (+1.91%), RSI 58, breadth +1"
   },
   "schema_version": 2
 }
